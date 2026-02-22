@@ -1,6 +1,8 @@
 const { app, BrowserWindow, dialog } = require("electron");
 const { spawn, spawnSync } = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
+const https = require("https");
 const net = require("net");
 const path = require("path");
 
@@ -8,14 +10,307 @@ const userDataDir = app.getPath("userData");
 const backendLogPath = path.join(userDataDir, "backend.log");
 const windowStatePath = path.join(userDataDir, "window-state.json");
 const pyiTempDir = path.join(userDataDir, "pyi-temp");
+const updaterStatePath = path.join(userDataDir, "updater-state.json");
+const updaterDownloadDir = path.join(userDataDir, "updates");
 
 const HOST = "127.0.0.1";
 const PORT = parseInt(process.env.APEX_WEBUI_PORT || "5170", 10);
+const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const UPDATE_REQUEST_TIMEOUT_MS = 30000;
+
+const UPDATE_REPO_OWNER = process.env.AET_UPDATE_REPO_OWNER || "nishiegroe";
+const UPDATE_REPO_NAME = process.env.AET_UPDATE_REPO_NAME || "VOD-Insights";
+const DEFAULT_UPDATE_FEED_URL = `https://github.com/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest/download/latest.json`;
+const UPDATE_FEED_URL = process.env.AET_UPDATE_FEED_URL || DEFAULT_UPDATE_FEED_URL;
 
 app.disableHardwareAcceleration();
 
 let backendProcess = null;
 let isQuitting = false;
+let isInstallingUpdate = false;
+
+function safeReadJson(filePath, fallbackValue) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      return fallbackValue;
+    }
+    const raw = fs.readFileSync(filePath, "utf8");
+    return JSON.parse(raw);
+  } catch (error) {
+    return fallbackValue;
+  }
+}
+
+function safeWriteJson(filePath, value) {
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  } catch (error) {
+    // Ignore updater state write errors.
+  }
+}
+
+function parseSemver(version) {
+  const normalized = String(version || "").trim();
+  const match = normalized.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] || ""
+  };
+}
+
+function compareVersions(a, b) {
+  const parsedA = parseSemver(a);
+  const parsedB = parseSemver(b);
+  if (!parsedA || !parsedB) {
+    return 0;
+  }
+  if (parsedA.major !== parsedB.major) return parsedA.major - parsedB.major;
+  if (parsedA.minor !== parsedB.minor) return parsedA.minor - parsedB.minor;
+  if (parsedA.patch !== parsedB.patch) return parsedA.patch - parsedB.patch;
+
+  if (!parsedA.prerelease && parsedB.prerelease) return 1;
+  if (parsedA.prerelease && !parsedB.prerelease) return -1;
+  return parsedA.prerelease.localeCompare(parsedB.prerelease);
+}
+
+function requestJson(url, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, (response) => {
+      const { statusCode = 0 } = response;
+      if (statusCode < 200 || statusCode >= 300) {
+        response.resume();
+        reject(new Error(`Update feed request failed with status ${statusCode}.`));
+        return;
+      }
+
+      let raw = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        raw += chunk;
+      });
+      response.on("end", () => {
+        try {
+          resolve(JSON.parse(raw));
+        } catch (error) {
+          reject(new Error("Invalid update metadata received."));
+        }
+      });
+    });
+
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error("Update metadata request timed out."));
+    });
+    request.on("error", (error) => {
+      reject(error);
+    });
+  });
+}
+
+function downloadFile(url, destinationPath, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, (response) => {
+      const { statusCode = 0, headers } = response;
+      if ([301, 302, 303, 307, 308].includes(statusCode)) {
+        const redirect = headers.location;
+        response.resume();
+        if (!redirect) {
+          reject(new Error("Installer download redirect missing location."));
+          return;
+        }
+        downloadFile(redirect, destinationPath, timeoutMs).then(resolve).catch(reject);
+        return;
+      }
+      if (statusCode < 200 || statusCode >= 300) {
+        response.resume();
+        reject(new Error(`Installer download failed with status ${statusCode}.`));
+        return;
+      }
+
+      const file = fs.createWriteStream(destinationPath);
+      response.pipe(file);
+      file.on("finish", () => {
+        file.close(() => resolve(destinationPath));
+      });
+      file.on("error", (error) => {
+        file.close(() => {
+          try {
+            fs.rmSync(destinationPath, { force: true });
+          } catch (cleanupError) {
+            // Ignore cleanup failures.
+          }
+          reject(error);
+        });
+      });
+    });
+
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error("Installer download timed out."));
+    });
+    request.on("error", (error) => {
+      try {
+        fs.rmSync(destinationPath, { force: true });
+      } catch (cleanupError) {
+        // Ignore cleanup failures.
+      }
+      reject(error);
+    });
+  });
+}
+
+function sha256File(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash("sha256");
+    const stream = fs.createReadStream(filePath);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(hash.digest("hex")));
+  });
+}
+
+async function downloadAndVerifyInstaller(metadata) {
+  const installer = metadata?.installer;
+  if (!installer || !installer.url || !installer.name || !installer.sha256) {
+    throw new Error("Update metadata is missing installer fields.");
+  }
+
+  const installerUrl = String(installer.url);
+  const allowedHosts = new Set(["github.com", "objects.githubusercontent.com"]);
+  const installerHost = new URL(installerUrl).hostname.toLowerCase();
+  if (!allowedHosts.has(installerHost) && !installerHost.endsWith(".githubusercontent.com")) {
+    throw new Error("Installer URL host is not allowed.");
+  }
+
+  fs.mkdirSync(updaterDownloadDir, { recursive: true });
+  const partialPath = path.join(updaterDownloadDir, `${installer.name}.part`);
+  const finalPath = path.join(updaterDownloadDir, installer.name);
+
+  if (fs.existsSync(partialPath)) {
+    fs.rmSync(partialPath, { force: true });
+  }
+
+  await downloadFile(installerUrl, partialPath);
+  const checksum = await sha256File(partialPath);
+  if (checksum.toLowerCase() !== String(installer.sha256).toLowerCase()) {
+    fs.rmSync(partialPath, { force: true });
+    throw new Error("Installer checksum verification failed.");
+  }
+
+  if (fs.existsSync(finalPath)) {
+    fs.rmSync(finalPath, { force: true });
+  }
+  fs.renameSync(partialPath, finalPath);
+  return finalPath;
+}
+
+function loadUpdaterState() {
+  const state = safeReadJson(updaterStatePath, {});
+  return {
+    skippedVersion: typeof state.skippedVersion === "string" ? state.skippedVersion : "",
+    lastCheckedAt: typeof state.lastCheckedAt === "number" ? state.lastCheckedAt : 0,
+    lastError: typeof state.lastError === "string" ? state.lastError : ""
+  };
+}
+
+function saveUpdaterState(partial) {
+  const current = loadUpdaterState();
+  safeWriteJson(updaterStatePath, {
+    ...current,
+    ...partial
+  });
+}
+
+async function launchInstallerAndQuit(installerPath) {
+  isInstallingUpdate = true;
+  isQuitting = true;
+  await stopBackend();
+
+  spawn(installerPath, [], {
+    detached: true,
+    windowsHide: false,
+    stdio: "ignore"
+  }).unref();
+
+  app.exit(0);
+}
+
+async function maybeCheckForUpdates() {
+  if (!app.isPackaged) {
+    return;
+  }
+  if (process.platform !== "win32") {
+    return;
+  }
+  if (String(process.env.AET_DISABLE_UPDATER || "") === "1") {
+    return;
+  }
+
+  const state = loadUpdaterState();
+  const now = Date.now();
+  if (state.lastCheckedAt > 0 && now - state.lastCheckedAt < UPDATE_CHECK_INTERVAL_MS) {
+    return;
+  }
+
+  saveUpdaterState({ lastCheckedAt: now, lastError: "" });
+
+  let metadata;
+  try {
+    metadata = await requestJson(UPDATE_FEED_URL);
+  } catch (error) {
+    saveUpdaterState({ lastError: error instanceof Error ? error.message : String(error) });
+    return;
+  }
+
+  const latestVersion = String(metadata?.version || "").trim();
+  const currentVersion = app.getVersion();
+  if (!latestVersion || compareVersions(latestVersion, currentVersion) <= 0) {
+    return;
+  }
+
+  if (state.skippedVersion && state.skippedVersion === latestVersion) {
+    return;
+  }
+
+  const response = await dialog.showMessageBox({
+    type: "info",
+    buttons: ["Install now", "Later", "Skip this version"],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+    title: "Update available",
+    message: `A new version of VOD Insights is available (${latestVersion}).`,
+    detail: "The installer will be downloaded, verified, and launched. You may see a Windows security prompt for an unsigned installer."
+  });
+
+  if (response.response === 2) {
+    saveUpdaterState({ skippedVersion: latestVersion });
+    return;
+  }
+  if (response.response !== 0) {
+    return;
+  }
+
+  try {
+    const installerPath = await downloadAndVerifyInstaller(metadata);
+    saveUpdaterState({ skippedVersion: "", lastError: "" });
+    await launchInstallerAndQuit(installerPath);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    saveUpdaterState({ lastError: message });
+    await dialog.showMessageBox({
+      type: "error",
+      buttons: ["OK"],
+      title: "Update failed",
+      message: "Failed to download or verify the update.",
+      detail: message
+    });
+  }
+}
 
 function loadWindowState() {
   try {
@@ -413,11 +708,17 @@ function createWindow() {
 }
 
 app.on("before-quit", async () => {
+  if (isInstallingUpdate) {
+    return;
+  }
   isQuitting = true;
   await stopBackend();
 });
 
 app.on("will-quit", (event) => {
+  if (isInstallingUpdate) {
+    return;
+  }
   if (backendProcess) {
     event.preventDefault();
     stopBackend().then(() => {
@@ -439,6 +740,11 @@ app.whenReady().then(async () => {
       if (splash && !splash.isDestroyed()) {
         splash.destroy();
       }
+      setTimeout(() => {
+        maybeCheckForUpdates().catch((error) => {
+          saveUpdaterState({ lastError: error instanceof Error ? error.message : String(error) });
+        });
+      }, 5000);
     });
   } catch (error) {
     if (splash && !splash.isDestroyed()) {

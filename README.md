@@ -184,6 +184,67 @@ Notes:
    before launching the desktop EXE.
 - The build script installs PyInstaller in the venv if missing.
 
+## GitHub Releases (Tagged)
+
+This project uses tagged releases in `vX.Y.Z` format.
+
+### First-time setup
+
+1. Install GitHub CLI (`gh`) and authenticate:
+
+   ```powershell
+   gh auth login
+   ```
+
+2. Update version metadata in [app_meta.json](app_meta.json), then sync:
+
+   ```bash
+   npm run sync:meta
+   ```
+
+### Prepare release assets
+
+1. Create and push a version tag matching `app_meta.json`:
+
+   ```powershell
+   git tag v0.1.1
+   git push origin v0.1.1
+   ```
+
+2. Build installer and generate release metadata/checksum assets:
+
+   ```powershell
+   npm run release:prep -- --tag v0.1.1
+   ```
+
+   This outputs:
+   - Installer EXE in `dist-desktop\\inno`
+   - `dist-desktop\\inno\\latest.json`
+   - `dist-desktop\\inno\\checksums.txt`
+
+### Publish release
+
+Use the command printed by `npm run release:prep`, or run:
+
+```powershell
+gh release create v0.1.1 \
+  dist-desktop/inno/VODInsights-Setup-0.1.1.exe \
+  dist-desktop/inno/latest.json \
+  dist-desktop/inno/checksums.txt \
+  --title "VOD Insights v0.1.1" \
+  --notes "VOD Insights v0.1.1"
+```
+
+Notes:
+- `--tag` must match `app_meta.json` version (`v${version}`).
+- `latest.json` is intended for desktop in-app update checks.
+- `checksums.txt` provides SHA-256 verification for installer integrity.
+
+### Desktop updater runtime options
+
+- `AET_UPDATE_FEED_URL`: override update metadata URL (defaults to GitHub `releases/latest/download/latest.json`).
+- `AET_DISABLE_UPDATER=1`: disable in-app update checks for a build/session.
+
 ## Notes
 
 - Start with `dxcam` (fast) or `mss` (fallback). The app picks `dxcam` if available.
