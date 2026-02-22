@@ -1,0 +1,53 @@
+{
+  "name": "apex-event-tracker-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "node dev.js",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win --config.win.target=portable",
+    "build:dir": "electron-builder --dir --win"
+  },
+  "devDependencies": {
+    "electron": "^30.0.8",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.apex.eventtracker",
+    "productName": "ApexEventTracker",
+    "files": [
+      "main.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/ApexEventTracker",
+        "to": "backend"
+      },
+      {
+        "from": "../THIRD_PARTY_NOTICES.txt",
+        "to": "THIRD_PARTY_NOTICES.txt"
+      },
+      {
+        "from": "../third_party_licenses",
+        "to": "third_party_licenses"
+      },
+      {
+        "from": "../tools",
+        "to": "tools"
+      }
+    ],
+    "compression": "store",
+    "directories": {
+      "output": "../dist-desktop"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "include": "installer.nsh",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

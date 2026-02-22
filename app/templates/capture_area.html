@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Capture Area - Apex Event Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div>
+        <h1>Capture Area</h1>
+        <p>Load a VOD, scrub to the kill feed, then drag the box to match the text area.</p>
+      </div>
+      <div class="status">
+        <div class="header-actions">
+          <a class="link-button" href="/legacy">Home</a>
+          <a class="link-button" href="/legacy/settings">Settings</a>
+          <a class="link-button" href="/legacy/clips">Preview Clips</a>
+          <a class="link-button" href="/legacy/vods">VOD Library</a>
+          <span class="badge {{ 'on' if status.bookmark_running else 'off' }}">
+            {{ 'Recording Active' if status.bookmark_running else 'Idle' }}
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Load VOD</h2>
+      <div class="input-row">
+        <input id="vod-file" type="file" accept="video/*" />
+        <button type="button" class="secondary" id="reset-selection">Reset Box</button>
+      </div>
+      <p class="hint">The VOD does not upload. It stays local and only used for sizing.</p>
+    </section>
+
+    <section class="card">
+      <h2>Selection</h2>
+      <div class="capture-stage">
+        <div class="capture-frame" id="capture-frame">
+          <video id="capture-video" controls></video>
+          <div id="capture-overlay" class="capture-overlay"></div>
+          <div id="capture-box" class="capture-box">
+            <span class="handle nw" data-handle="nw"></span>
+            <span class="handle ne" data-handle="ne"></span>
+            <span class="handle sw" data-handle="sw"></span>
+            <span class="handle se" data-handle="se"></span>
+          </div>
+        </div>
+      </div>
+      <div class="capture-target">
+        <div class="capture-target-title">Target Monitor Resolution</div>
+        <div class="input-row">
+          <label>Width
+            <input id="target-width" type="number" min="1" />
+          </label>
+          <label>Height
+            <input id="target-height" type="number" min="1" />
+          </label>
+        </div>
+        <p class="hint">Saved coords are scaled to this resolution.</p>
+      </div>
+      <div class="capture-values">
+        <div>
+          <div class="capture-label">Left</div>
+          <div id="val-left" class="capture-value">0</div>
+        </div>
+        <div>
+          <div class="capture-label">Top</div>
+          <div id="val-top" class="capture-value">0</div>
+        </div>
+        <div>
+          <div class="capture-label">Width</div>
+          <div id="val-width" class="capture-value">0</div>
+        </div>
+        <div>
+          <div class="capture-label">Height</div>
+          <div id="val-height" class="capture-value">0</div>
+        </div>
+      </div>
+      <div class="capture-actions">
+        <button type="button" class="primary" id="save-capture">Save to Config</button>
+        <div id="save-status" class="hint"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const configDefaults = {
+      left: {{ config.capture.left }},
+      top: {{ config.capture.top }},
+      width: {{ config.capture.width }},
+      height: {{ config.capture.height }},
+      targetWidth: {{ config.capture.target_width }},
+      targetHeight: {{ config.capture.target_height }}
+    };
+
+    const fileInput = document.getElementById("vod-file");
+    const video = document.getElementById("capture-video");
+    const overlay = document.getElementById("capture-overlay");
+    const box = document.getElementById("capture-box");
+    const resetButton = document.getElementById("reset-selection");
+    const saveButton = document.getElementById("save-capture");
+    const saveStatus = document.getElementById("save-status");
+    const targetWidthInput = document.getElementById("target-width");
+    const targetHeightInput = document.getElementById("target-height");
+
+    const valLeft = document.getElementById("val-left");
+    const valTop = document.getElementById("val-top");
+    const valWidth = document.getElementById("val-width");
+    const valHeight = document.getElementById("val-height");
+
+    const state = {
+      norm: { x: 0.4, y: 0.4, w: 0.2, h: 0.2 },
+      drag: null,
+      handle: null,
+      videoReady: false
+    };
+
+    const MIN_SIZE_PX = 20;
+    let resizeObserver = null;
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+    const getOverlayRect = () => video.getBoundingClientRect();
+
+    const syncBox = () => {
+      const rect = getOverlayRect();
+      if (!rect.width || !rect.height) {
+        return;
+      }
+      const x = state.norm.x * rect.width;
+      const y = state.norm.y * rect.height;
+      const w = state.norm.w * rect.width;
+      const h = state.norm.h * rect.height;
+
+      box.style.left = `${x}px`;
+      box.style.top = `${y}px`;
+      box.style.width = `${w}px`;
+      box.style.height = `${h}px`;
+
+      updateValues();
+    };
+
+    const updateValues = () => {
+      if (!video.videoWidth || !video.videoHeight) {
+        return;
+      }
+      const rect = getOverlayRect();
+      const scaleX = video.videoWidth / rect.width;
+      const scaleY = video.videoHeight / rect.height;
+
+      const left = Math.round(state.norm.x * rect.width * scaleX);
+      const top = Math.round(state.norm.y * rect.height * scaleY);
+      const width = Math.round(state.norm.w * rect.width * scaleX);
+      const height = Math.round(state.norm.h * rect.height * scaleY);
+
+      valLeft.textContent = left;
+      valTop.textContent = top;
+      valWidth.textContent = width;
+      valHeight.textContent = height;
+    };
+
+    const getMinNorm = () => {
+      const rect = getOverlayRect();
+      return {
+        w: rect.width ? MIN_SIZE_PX / rect.width : 0.02,
+        h: rect.height ? MIN_SIZE_PX / rect.height : 0.02
+      };
+    };
+
+    const setDefaultFromConfig = () => {
+      if (!video.videoWidth || !video.videoHeight) {
+        return;
+      }
+      const left = configDefaults.left;
+      const top = configDefaults.top;
+      const width = configDefaults.width;
+      const height = configDefaults.height;
+      const minNorm = getMinNorm();
+
+      if (width > 0 && height > 0) {
+        state.norm.x = clamp(left / video.videoWidth, 0, 1);
+        state.norm.y = clamp(top / video.videoHeight, 0, 1);
+        state.norm.w = clamp(width / video.videoWidth, minNorm.w, 1 - state.norm.x);
+        state.norm.h = clamp(height / video.videoHeight, minNorm.h, 1 - state.norm.y);
+      } else {
+        state.norm.w = minNorm.w;
+        state.norm.h = minNorm.h;
+        state.norm.x = clamp(0.5 - state.norm.w / 2, 0, 1 - state.norm.w);
+        state.norm.y = clamp(0.5 - state.norm.h / 2, 0, 1 - state.norm.h);
+      }
+      syncBox();
+    };
+
+    const waitForLayout = () => {
+      const rect = getOverlayRect();
+      if (!rect.width || !rect.height) {
+        requestAnimationFrame(waitForLayout);
+        return;
+      }
+      setDefaultFromConfig();
+      syncBox();
+    };
+
+    const startDrag = (event, handle) => {
+      event.preventDefault();
+      const rect = getOverlayRect();
+      state.drag = {
+        startX: event.clientX,
+        startY: event.clientY,
+        startNorm: { ...state.norm },
+        rect
+      };
+      state.handle = handle;
+      window.addEventListener("pointermove", onDrag);
+      window.addEventListener("pointerup", endDrag);
+    };
+
+    const onDrag = (event) => {
+      if (!state.drag) return;
+      const { startX, startY, startNorm, rect } = state.drag;
+      const dx = (event.clientX - startX) / rect.width;
+      const dy = (event.clientY - startY) / rect.height;
+
+      if (!state.handle) {
+        const x = clamp(startNorm.x + dx, 0, 1 - startNorm.w);
+        const y = clamp(startNorm.y + dy, 0, 1 - startNorm.h);
+        state.norm = { ...state.norm, x, y };
+      } else {
+        let { x, y, w, h } = startNorm;
+        const minNorm = getMinNorm();
+
+        if (state.handle.includes("n")) {
+          const newY = clamp(y + dy, 0, y + h - minNorm.h);
+          h = h - (newY - y);
+          y = newY;
+        }
+        if (state.handle.includes("s")) {
+          h = clamp(h + dy, minNorm.h, 1 - y);
+        }
+        if (state.handle.includes("w")) {
+          const newX = clamp(x + dx, 0, x + w - minNorm.w);
+          w = w - (newX - x);
+          x = newX;
+        }
+        if (state.handle.includes("e")) {
+          w = clamp(w + dx, minNorm.w, 1 - x);
+        }
+        state.norm = { x, y, w, h };
+      }
+      syncBox();
+    };
+
+    const endDrag = () => {
+      state.drag = null;
+      state.handle = null;
+      window.removeEventListener("pointermove", onDrag);
+      window.removeEventListener("pointerup", endDrag);
+    };
+
+    const resetSelection = () => {
+      setDefaultFromConfig();
+      syncBox();
+    };
+
+    const getTargetResolution = () => {
+      const width = parseInt(targetWidthInput.value, 10);
+      const height = parseInt(targetHeightInput.value, 10);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        return null;
+      }
+      return { width, height };
+    };
+
+    const initTargetResolution = () => {
+      if (configDefaults.targetWidth > 0 && configDefaults.targetHeight > 0) {
+        targetWidthInput.value = configDefaults.targetWidth;
+        targetHeightInput.value = configDefaults.targetHeight;
+        return;
+      }
+      const savedWidth = localStorage.getItem("captureTargetWidth");
+      const savedHeight = localStorage.getItem("captureTargetHeight");
+      if (savedWidth && savedHeight) {
+        targetWidthInput.value = savedWidth;
+        targetHeightInput.value = savedHeight;
+        return;
+      }
+      if (window.screen?.width && window.screen?.height) {
+        targetWidthInput.value = window.screen.width;
+        targetHeightInput.value = window.screen.height;
+      }
+    };
+
+    fileInput.addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      video.src = url;
+      video.load();
+    });
+
+    video.addEventListener("loadedmetadata", () => {
+      overlay.classList.add("active");
+      state.videoReady = true;
+      waitForLayout();
+      if (!resizeObserver) {
+        resizeObserver = new ResizeObserver(() => {
+          if (state.videoReady) {
+            syncBox();
+          }
+        });
+        resizeObserver.observe(video);
+      }
+    });
+
+    video.addEventListener("loadeddata", () => {
+      if (state.videoReady) {
+        waitForLayout();
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (state.videoReady) {
+        syncBox();
+      }
+    });
+
+    box.addEventListener("pointerdown", (event) => {
+      if (event.target.classList.contains("handle")) {
+        return;
+      }
+      startDrag(event, null);
+    });
+
+    document.querySelectorAll(".handle").forEach((handle) => {
+      handle.addEventListener("pointerdown", (event) => {
+        startDrag(event, handle.dataset.handle);
+      });
+    });
+
+    resetButton.addEventListener("click", () => {
+      resetSelection();
+    });
+
+    saveButton.addEventListener("click", async () => {
+      if (!video.videoWidth || !video.videoHeight) {
+        saveStatus.textContent = "Load a VOD first.";
+        return;
+      }
+      const rect = getOverlayRect();
+      const scaleX = video.videoWidth / rect.width;
+      const scaleY = video.videoHeight / rect.height;
+
+      const target = getTargetResolution();
+      if (!target) {
+        saveStatus.textContent = "Enter a target resolution.";
+        return;
+      }
+      const targetScaleX = target.width / video.videoWidth;
+      const targetScaleY = target.height / video.videoHeight;
+
+      const payload = {
+        left: Math.round(state.norm.x * rect.width * scaleX * targetScaleX),
+        top: Math.round(state.norm.y * rect.height * scaleY * targetScaleY),
+        width: Math.round(state.norm.w * rect.width * scaleX * targetScaleX),
+        height: Math.round(state.norm.h * rect.height * scaleY * targetScaleY),
+        target_width: target.width,
+        target_height: target.height
+      };
+
+      saveStatus.textContent = "Saving...";
+      try {
+        const response = await fetch("/capture-area/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          throw new Error("Save failed");
+        }
+        localStorage.setItem("captureTargetWidth", String(target.width));
+        localStorage.setItem("captureTargetHeight", String(target.height));
+        saveStatus.textContent = "Saved to config.json.";
+      } catch (error) {
+        saveStatus.textContent = "Save failed.";
+      }
+    });
+
+    initTargetResolution();
+    resetSelection();
+  </script>
+</body>
+</html>

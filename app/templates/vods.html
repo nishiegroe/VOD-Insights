@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VOD Library - Apex Event Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div>
+        <h1>VOD Library</h1>
+        <p>Select a recording and a session to split into clips.</p>
+      </div>
+      <div class="status">
+        <div class="header-actions">
+          <a class="link-button" href="/legacy">Home</a>
+          <a class="link-button" href="/legacy/settings">Settings</a>
+          <a class="link-button" href="/legacy/clips">Preview Clips</a>
+          <a class="link-button" href="/legacy/vods">VOD Library</a>
+          <span class="badge {{ 'on' if status.bookmark_running else 'off' }}">
+            {{ 'Recording Active' if status.bookmark_running else 'Idle' }}
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Recordings</h2>
+        <div id="vod-list">
+          {% include "vods_list.html" %}
+        </div>
+        {% if remaining_count > 0 %}
+          <div class="vod-load">
+            <button type="button" class="secondary" id="load-all-vods" data-endpoint="/legacy/vods-list?all=1">
+              Load all ({{ remaining_count }} more)
+            </button>
+            <div class="spinner" id="vod-spinner" aria-hidden="true"></div>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+  <script>
+    const loadButton = document.getElementById("load-all-vods");
+    const listContainer = document.getElementById("vod-list");
+    const spinner = document.getElementById("vod-spinner");
+
+    // Timeline Split UI
+    function padTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function setupTimeline(index, videoId, timelineId) {
+      const video = document.getElementById(videoId);
+      const timeline = document.getElementById(timelineId);
+      if (!video || !timeline) return;
+      const braceStart = document.getElementById(`brace-start-${index}`);
+      const braceEnd = document.getElementById(`brace-end-${index}`);
+      const selection = document.getElementById(`timeline-selection-${index}`);
+      const startTimeEl = document.getElementById(`start-time-${index}`);
+      const endTimeEl = document.getElementById(`end-time-${index}`);
+      const splitBtn = document.getElementById(`split-range-btn-${index}`);
+      const spinnerEl = document.getElementById(`split-range-spinner-${index}`);
+      let dragging = null;
+      let startPct = 0;
+      let endPct = 1;
+      let duration = 0;
+
+      video.addEventListener('loadedmetadata', () => {
+        duration = video.duration;
+        updateSelection();
+      });
+
+      function updateSelection() {
+        const bar = timeline.querySelector('.timeline-bar');
+        if (!bar) return;
+        const width = bar.offsetWidth;
+        braceStart.style.left = `${startPct * width - 4}px`;
+        braceEnd.style.left = `${endPct * width - 4}px`;
+        selection.style.left = `${startPct * width}px`;
+        selection.style.width = `${(endPct - startPct) * width}px`;
+        const startSec = startPct * duration;
+        const endSec = endPct * duration;
+        startTimeEl.textContent = padTime(startSec);
+        endTimeEl.textContent = padTime(endSec);
+      }
+
+      function onDrag(e, brace) {
+        const bar = timeline.querySelector('.timeline-bar');
+        const rect = bar.getBoundingClientRect();
+        let x = e.clientX - rect.left;
+        x = Math.max(0, Math.min(x, rect.width));
+        const pct = x / rect.width;
+        if (brace === 'start') {
+          startPct = Math.min(pct, endPct - 0.01);
+        } else {
+          endPct = Math.max(pct, startPct + 0.01);
+        }
+        updateSelection();
+      }
+
+      braceStart.addEventListener('mousedown', (e) => { dragging = 'start'; });
+      braceEnd.addEventListener('mousedown', (e) => { dragging = 'end'; });
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        onDrag(e, dragging);
+      });
+      document.addEventListener('mouseup', () => { dragging = null; });
+
+      splitBtn.addEventListener('click', async () => {
+        if (spinnerEl) spinnerEl.classList.add('active');
+        splitBtn.disabled = true;
+        const startSec = Math.round(startPct * duration);
+        const endSec = Math.round(endPct * duration);
+        const vodPath = video.getAttribute('src').replace('/vod-media/', '');
+        const resp = await fetch('/api/split-range', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vod_path: vodPath, start: startSec, end: endSec })
+        });
+        if (spinnerEl) spinnerEl.classList.remove('active');
+        splitBtn.disabled = false;
+        if (resp.ok) {
+          alert('Split completed!');
+        } else {
+          alert('Split failed.');
+        }
+      });
+    }
+
+    // Setup timelines for each VOD
+    document.querySelectorAll('.vod-timeline').forEach((el, idx) => {
+      setupTimeline(idx + 1, `vod-video-${idx + 1}`, `vod-timeline-${idx + 1}`);
+    });
+
+    document.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!target.matches("#load-all-vods")) return;
+
+      const endpoint = target.getAttribute("data-endpoint");
+      if (!endpoint) return;
+
+      target.disabled = true;
+      target.classList.add("loading");
+      if (spinner) spinner.classList.add("active");
+
+      try {
+        const response = await fetch(endpoint, { headers: { "X-Requested-With": "fetch" } });
+        if (!response.ok) {
+          throw new Error("Failed to load VODs");
+        }
+        const html = await response.text();
+        if (listContainer) {
+          listContainer.innerHTML = html;
+        }
+        target.parentElement?.remove();
+      } catch (error) {
+        target.disabled = false;
+        target.classList.remove("loading");
+        if (spinner) spinner.classList.remove("active");
+      }
+    });
+
+    document.addEventListener("submit", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLFormElement)) return;
+      if (!target.classList.contains("split-form")) return;
+
+      event.preventDefault();
+      const submitButton = target.querySelector("button[type='submit']");
+      const spinnerEl = target.querySelector(".split-spinner");
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = true;
+        submitButton.classList.add("loading");
+      }
+      if (spinnerEl instanceof HTMLElement) {
+        spinnerEl.classList.add("active");
+      }
+
+      try {
+        const response = await fetch(target.action, {
+          method: "POST",
+          headers: { "X-Requested-With": "fetch" },
+          body: new FormData(target)
+        });
+        if (!response.ok) {
+          throw new Error("Split failed");
+        }
+        const payload = await response.json();
+        if (payload.redirect) {
+          window.location.href = payload.redirect;
+        } else {
+          window.location.href = "/clips";
+        }
+      } catch (error) {
+        if (submitButton instanceof HTMLButtonElement) {
+          submitButton.disabled = false;
+          submitButton.classList.remove("loading");
+        }
+        if (spinnerEl instanceof HTMLElement) {
+          spinnerEl.classList.remove("active");
+        }
+      }
+    });
+
+  </script>
+</body>
+</html>

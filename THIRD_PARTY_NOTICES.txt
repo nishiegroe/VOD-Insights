@@ -1,0 +1,63 @@
+Apex Event Tracker - Third-Party Notices (Template)
+
+This file lists third-party software and where to pull their license texts for redistribution.
+Replace any TODO markers once verified. This is not legal advice.
+
+Bundled tools (already in repo):
+- Tesseract OCR
+  License text: tools/licenses/tesseract_LICENSE.txt (Apache 2.0)
+  Source: tools/tesseract/doc/LICENSE
+
+- FFmpeg (LGPL build)
+  License text: tools/licenses/ffmpeg_LGPLv3.txt (LGPL v3)
+  Build: BtbN FFmpeg Builds - ffmpeg-master-latest-win64-lgpl (version N-122750-g6ee3e59ce2-20260215)
+  Binary source: https://github.com/BtbN/FFmpeg-Builds/releases
+  Source code: https://github.com/FFmpeg/FFmpeg commit 6ee3e59ce2
+
+- yt-dlp
+  License text: tools/licenses/yt-dlp_LICENSE.txt (Unlicense)
+
+Python runtime dependencies (from requirements.txt):
+- dxcam==0.0.5
+  License text: .venv/Lib/site-packages/dxcam-0.0.5.dist-info/LICENSE (TODO verify in build env)
+
+- mss==9.0.1
+  License text: .venv/Lib/site-packages/mss-9.0.1.dist-info/LICENSE* (TODO verify in build env)
+
+- numpy==1.26.4
+  License text: .venv/Lib/site-packages/numpy-1.26.4.dist-info/LICENSE.txt
+
+- opencv-python==4.9.0.80
+  License text: .venv/Lib/site-packages/opencv_python-4.9.0.80.dist-info/LICENSE.txt
+
+- pytesseract==0.3.10
+  License text: .venv/Lib/site-packages/pytesseract-0.3.10.dist-info/LICENSE
+
+- flask==3.0.3
+  License text: .venv/Lib/site-packages/flask-3.0.3.dist-info/LICENSE.txt
+
+NOTE: If your packaging tool bundles additional Python dependencies (transitives), include their licenses too.
+
+Frontend (frontend/package.json):
+- react
+- react-dom
+- react-router-dom
+- vite
+- @vitejs/plugin-react
+
+Desktop (desktop/package.json):
+- electron
+- electron-builder
+
+For npm dependencies, copy license texts from:
+- frontend/node_modules/<package>/LICENSE*
+- desktop/node_modules/<package>/LICENSE*
+Suggested bundle location: third_party_licenses/
+
+Other assets:
+- If you add fonts, icons, images, or other media, include their license texts here.
+
+Distribution checklist:
+1) Ensure this file is included in installers/portable builds.
+2) Ensure each listed license text is packaged alongside, or embedded in a single notices file.
+3) Verify FFmpeg build license (LGPL) and include source availability info.

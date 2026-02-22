@@ -1,0 +1,109 @@
+{
+  "name": "Apex Event Tracker",
+  "version": "1.0.0",
+  "schema": "v1",
+  "models": [
+    {
+      "name": "Code Assistant",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b-instruct-q5_K_M",
+      "roles": [
+        "chat",
+        "edit",
+        "apply"
+      ]
+    },
+    {
+      "name": "Python Expert",
+      "provider": "ollama",
+      "model": "codellama:7b-python-q5_K_M",
+      "roles": [
+        "chat",
+        "edit"
+      ]
+    },
+    {
+      "name": "JavaScript Helper",
+      "provider": "ollama",
+      "model": "llama3.1:8b",
+      "roles": [
+        "autocomplete"
+      ]
+    }
+  ],
+  "context": [
+    {
+      "provider": "tree"
+    },
+    {
+      "provider": "repo-map",
+      "params": {
+        "includeSignatures": true
+      }
+    },
+    {
+      "provider": "file-tags",
+      "params": {
+        "tags": {
+          "backend": [
+            "app/**/*.py",
+            "requirements.txt",
+            "app/config.json"
+          ],
+          "frontend": [
+            "frontend/**/*",
+            "desktop/**/*"
+          ],
+          "config": [
+            "app/config.json",
+            "scripts/**/*.ps1",
+            "scripts/**/*.bat"
+          ],
+          "docs": [
+            "README.md",
+            "STEAM_RELEASE_GUIDE.md"
+          ]
+        }
+      }
+    }
+  ],
+  "tab-autocomplete": {
+    "enabled": true
+  },
+  "completionOptions": {
+    "temperature": 0.2
+  },
+  "ignore": [
+    "node_modules/**/*",
+    "build/**/*",
+    "dist*/**/*",
+    "*.log",
+    "*.exe",
+    "*.mp4",
+    "bookmarks/*.csv",
+    "tools/**/*",
+    "third_party_licenses/**/*"
+  ],
+  "shortcuts": {
+    "run-main": {
+      "description": "Run the main application",
+      "command": "python -m app.main"
+    },
+    "run-webui": {
+      "description": "Run the web UI",
+      "command": "python -m app.webui"
+    },
+    "run-bookmarks": {
+      "description": "Run bookmarks mode",
+      "command": "python -m app.bookmark_main"
+    },
+    "install-deps": {
+      "description": "Install Python dependencies",
+      "command": "pip install -r requirements.txt"
+    },
+    "build-frontend": {
+      "description": "Build frontend",
+      "command": "cd frontend && npm install && npm run build"
+    }
+  }
+}

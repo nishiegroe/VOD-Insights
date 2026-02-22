@@ -1,0 +1,62 @@
+# --- OS / Editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+coverage.xml
+htmlcov/
+.venv/
+venv/
+env/
+
+# --- Logs / Runtime ---
+*.log
+app.log
+*.pid
+
+# --- Local config / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Build / Packaging outputs ---
+build/
+dist/
+dist-desktop/
+
+# --- Desktop / Node ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- App generated data ---
+bookmarks/*.csv
+bookmarks/*.jsonl
+vod_scan_monitor.csv
+app/downloads/
+
+# --- Frontend outputs ---
+frontend/dist/
+frontend/.vite/
+
+# --- Local bundled tools / models ---
+tools/
+easyocr_models/*.pth
+.venv-build/

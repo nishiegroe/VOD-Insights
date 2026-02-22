@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd frontend:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

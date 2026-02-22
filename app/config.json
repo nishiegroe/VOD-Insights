@@ -1,0 +1,76 @@
+{
+  "capture": {
+    "left": 486,
+    "top": 500,
+    "width": 306,
+    "height": 51,
+    "target_width": 1280,
+    "target_height": 720,
+    "backend": "mss",
+    "fps": 3,
+    "scale": 1,
+    "threshold": 160
+  },
+  "ocr": {
+    "psm": 6,
+    "lang": "eng",
+    "interval_seconds": 1.5,
+    "engine": "tesseract"
+  },
+  "detection": {
+    "keywords": [
+      "killed",
+      "kill",
+      "assist",
+      "knocked",
+      "elimination",
+      "revived",
+      "death",
+      "victory",
+      "squad wipe"
+    ],
+    "cooldown_seconds": 6
+  },
+  "replay": {
+    "enabled": true,
+    "directory": "",
+    "prefix": "apex",
+    "include_event": true,
+    "time_format": "%Y%m%d_%H%M%S",
+    "wait_seconds": 3.0
+  },
+  "bookmarks": {
+    "enabled": true,
+    "directory": "bookmarks",
+    "session_prefix": "session",
+    "file": "bookmarks.csv",
+    "format": "csv",
+    "include_event": true,
+    "include_ocr_lines": false
+  },
+  "split": {
+    "enabled": true,
+    "output_dir": "",
+    "extensions": [
+      ".mp4",
+      ".mkv",
+      ".mov"
+    ],
+    "pre_seconds": 20.0,
+    "post_seconds": 30.0,
+    "merge_gap_seconds": 3.0,
+    "input_source": "newest",
+    "encode_counts": true,
+    "count_format": "k{kills}_a{assists}_d{deaths}"
+  },
+  "vod_ocr": {
+    "enabled": true,
+    "fps": 2.0,
+    "auto_split": true
+  },
+  "logging": {
+    "file": "app.log",
+    "level": "INFO",
+    "log_ocr": true
+  }
+}

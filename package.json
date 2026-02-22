@@ -1,0 +1,10 @@
+{
+  "name": "apex-event-tracker-root",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/ensure_venv.ps1 && npm --prefix frontend run build && npm --prefix desktop run dev",
+    "build": "powershell -ExecutionPolicy Bypass -File ./scripts/build_inno.ps1",
+    "build:desktop": "npm --prefix desktop run build",
+    "build:desktop:portable": "npm --prefix desktop run build:portable"
+  }
+}

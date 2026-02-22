@@ -1,0 +1,72 @@
+{% if vods %}
+  <div class="vod-list">
+    {% for vod in vods %}
+      <div class="vod-item">
+        <div class="vod-preview">
+          <video controls preload="metadata" src="/vod-media/{{ vod.name }}" id="vod-video-{{ loop.index }}"></video>
+          <div class="vod-timeline" id="vod-timeline-{{ loop.index }}">
+            <div class="timeline-bar">
+              <div class="brace brace-start" id="brace-start-{{ loop.index }}"></div>
+              <div class="brace brace-end" id="brace-end-{{ loop.index }}"></div>
+              <div class="timeline-selection" id="timeline-selection-{{ loop.index }}"></div>
+            </div>
+            <div class="timeline-controls">
+              <span>Start: <span id="start-time-{{ loop.index }}">00:00</span></span>
+              <span>End: <span id="end-time-{{ loop.index }}">00:00</span></span>
+              <button type="button" class="primary split-range-btn" id="split-range-btn-{{ loop.index }}">Split Selected Range</button>
+              <span class="split-range-spinner" id="split-range-spinner-{{ loop.index }}" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+        <div class="vod-info">
+          <div class="vod-name">{{ vod.pretty_time or vod.name }}</div>
+          <div class="vod-scan">
+            <span class="led {% if vod.scanning %}scanning{% elif vod.scanned %}on{% else %}off{% endif %}"></span>
+            {% if vod.scanning %}
+              Scanning...
+            {% elif vod.scanned %}
+              Scanned
+            {% else %}
+              Not scanned
+            {% endif %}
+          </div>
+          {% if vod.scanning and vod.scan_progress is not none %}
+            <div class="scan-progress" aria-label="Scan progress">
+              <div class="scan-progress-bar" style="width: {{ vod.scan_progress }}%"></div>
+            </div>
+            <div class="scan-progress-text">{{ vod.scan_progress }}%</div>
+          {% endif %}
+          <div class="vod-meta">{{ vod.name }}</div>
+          <div class="vod-meta">{{ vod.path }}</div>
+          {% if vod.duration %}
+            <div class="vod-meta">Duration: {{ vod.duration | round(1) }}s</div>
+          {% endif %}
+        </div>
+        <div class="vod-actions">
+          <form method="post" action="/split-selected" class="split-form">
+            <input type="hidden" name="vod_path" value="{{ vod.path }}" />
+            <label>Session
+              <select name="session_path" {% if not vod.sessions %}disabled class="disabled"{% endif %}>
+                {% if vod.sessions %}
+                  {% for session in vod.sessions %}
+                    <option value="{{ session.path }}">{{ session.display_name or session.name }}</option>
+                  {% endfor %}
+                {% else %}
+                  <option value="" selected>No sessions found</option>
+                {% endif %}
+              </select>
+            </label>
+            <button type="submit" class="primary" {% if not vod.sessions %}disabled{% endif %}>Split</button>
+            <span class="split-spinner" aria-hidden="true"></span>
+          </form>
+          <form method="post" action="/vod-ocr">
+            <input type="hidden" name="vod_path" value="{{ vod.path }}" />
+            <button type="submit" class="secondary">Scan VOD (OCR)</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="hint">No recordings found.</p>
+{% endif %}

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Home - Apex Event Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div>
+        <h1>Home</h1>
+        <p>Quick controls and recent activity.</p>
+      </div>
+      <div class="status">
+        <div class="header-actions">
+          <a class="link-button" href="/legacy">Home</a>
+          <a class="link-button" href="/legacy/settings">Settings</a>
+          <a class="link-button" href="/legacy/clips">Preview Clips</a>
+          <a class="link-button" href="/legacy/vods">VOD Library</a>
+          <span class="badge {{ 'on' if status.bookmark_running else 'off' }}">
+            {{ 'Recording Active' if status.bookmark_running else 'Idle' }}
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <section class="card controls centered">
+        <h2>Bookmarks Session</h2>
+        <div class="button-row">
+          <form method="post" action="/control/start">
+            <button type="submit" class="primary">Start Session</button>
+          </form>
+          <form method="post" action="/control/stop">
+            <button type="submit" class="danger">End Session</button>
+          </form>
+        </div>
+        <p class="hint">Start a bookmarks session to log events while you play or review a VOD.</p>
+      </section>
+
+      <form class="card centered" id="vod-upload-form" method="post" action="/vod-ocr-upload" enctype="multipart/form-data">
+        <h2>Scan & Split VOD</h2>
+        <div class="file-drop" id="vod-drop">
+          <div class="file-drop-title">Drag & drop a VOD here</div>
+          <div class="file-drop-subtitle">or click to choose a file</div>
+          <div class="file-drop-name" id="vod-file-name">No file selected</div>
+          <input id="vod-file-input" name="vod_file" type="file" accept="video/*" required />
+        </div>
+        <div class="upload-progress" id="vod-upload-progress" aria-live="polite">
+          <div class="upload-progress-bar" id="vod-upload-bar" style="width: 0%"></div>
+          <div class="upload-progress-text" id="vod-upload-text">Waiting for upload...</div>
+        </div>
+        <p class="hint">Uploads the VOD to the recordings folder, then scans and splits automatically.</p>
+        <div class="button-row">
+          <button type="submit" class="primary" id="vod-upload-button" disabled>Scan + Split</button>
+          <button type="button" class="secondary" onclick="location.href='/capture-area'">Configure Capture Area</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Recent VODs</h2>
+      {% if vods %}
+        <div class="clip-group-grid">
+          {% for vod in vods %}
+            <a class="clip-tile clip-tile-link" href="/legacy/vods">
+              <div class="clip-thumb">
+                <video muted playsinline preload="metadata" src="/vod-media/{{ vod.name }}"></video>
+              </div>
+              <div class="clip-row clip-title-row">
+                <div class="clip-meta clip-time">
+                  {{ vod.pretty_time or vod.name }}
+                </div>
+                {% if vod.scanning %}
+                  <span class="chip highlight">Scanning</span>
+                {% elif vod.scanned %}
+                  <span class="chip highlight">Scanned</span>
+                {% endif %}
+              </div>
+              <div class="clip-meta clip-offset">
+                {{ vod.name }}
+              </div>
+              {% if vod.duration %}
+                <div class="clip-meta">Duration: {{ vod.duration | round(1) }}s</div>
+              {% endif %}
+            </a>
+          {% endfor %}
+        </div>
+        <div class="hint">Open VOD Library for the full list.</div>
+      {% else %}
+        <p class="hint">No recordings found.</p>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>Recent Clips</h2>
+      {% if clips %}
+        <div class="clip-group-grid">
+          {% for clip in clips %}
+            <a class="clip-tile clip-tile-link" href="/legacy/clips?clip={{ clip.path | urlencode }}">
+              <div class="clip-thumb">
+                <video muted playsinline preload="metadata" src="/media-path?path={{ clip.path | urlencode }}"></video>
+              </div>
+              <div class="clip-row clip-title-row">
+                <div class="clip-meta clip-time">
+                  {{ clip.details.pretty_time }}
+                </div>
+                {% if clip.details.above_avg %}
+                  <span class="chip highlight" title="{{ clip.details.top_reason }}">Top</span>
+                {% endif %}
+              </div>
+              <div class="clip-meta clip-offset">
+                {{ clip.details.session_offset }}
+              </div>
+              <div class="clip-row">
+                <div class="clip-badges">
+                  {% if clip.details.counts %}
+                    <span class="chip">Kills: {{ clip.details.counts.kills }}</span>
+                    <span class="chip">Assists: {{ clip.details.counts.assists }}</span>
+                    <span class="chip">Deaths: {{ clip.details.counts.deaths }}</span>
+                  {% else %}
+                    <span class="chip">Counts unavailable</span>
+                  {% endif %}
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+        <div class="hint">Open Preview Clips for the full list.</div>
+      {% else %}
+        <p class="hint">No clips found.</p>
+      {% endif %}
+    </section>
+
+  </div>
+  <script>
+    const form = document.getElementById('vod-upload-form');
+    const fileInput = document.getElementById('vod-file-input');
+    const dropZone = document.getElementById('vod-drop');
+    const fileName = document.getElementById('vod-file-name');
+    const uploadButton = document.getElementById('vod-upload-button');
+    const uploadProgress = document.getElementById('vod-upload-progress');
+    const uploadBar = document.getElementById('vod-upload-bar');
+    const uploadText = document.getElementById('vod-upload-text');
+
+    const resetProgress = () => {
+      uploadProgress.classList.remove('active');
+      uploadBar.style.width = '0%';
+      uploadText.textContent = 'Waiting for upload...';
+    };
+
+    const updateFileName = (file) => {
+      if (!file) {
+        fileName.textContent = 'No file selected';
+        uploadButton.disabled = true;
+        resetProgress();
+        return;
+      }
+      fileName.textContent = file.name;
+      uploadButton.disabled = false;
+      resetProgress();
+      uploadText.textContent = 'Ready to upload.';
+    };
+
+    dropZone.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+      updateFileName(fileInput.files && fileInput.files[0]);
+    });
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.add('dragging');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.remove('dragging');
+      });
+    });
+
+    dropZone.addEventListener('drop', (event) => {
+      const files = event.dataTransfer && event.dataTransfer.files;
+      if (!files || !files.length) return;
+      fileInput.files = files;
+      updateFileName(files[0]);
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        updateFileName(null);
+        return;
+      }
+
+      uploadButton.disabled = true;
+      uploadProgress.classList.add('active');
+      uploadText.textContent = 'Uploading...';
+      uploadBar.style.width = '0%';
+
+      const formData = new FormData();
+      formData.append('vod_file', file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', form.getAttribute('action'));
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (!event.lengthComputable) {
+          uploadText.textContent = 'Uploading...';
+          return;
+        }
+        const percent = Math.round((event.loaded / event.total) * 100);
+        uploadBar.style.width = `${percent}%`;
+        uploadText.textContent = `Uploading... ${percent}%`;
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 400) {
+          uploadBar.style.width = '100%';
+          uploadText.textContent = 'Upload complete. Starting scan...';
+          window.location.href = '/vods';
+          return;
+        }
+        uploadText.textContent = 'Upload failed. Please try again.';
+        uploadButton.disabled = false;
+      });
+
+      xhr.addEventListener('error', () => {
+        uploadText.textContent = 'Upload failed. Please try again.';
+        uploadButton.disabled = false;
+      });
+
+      xhr.send(formData);
+    });
+  </script>
+</body>
+</html>
