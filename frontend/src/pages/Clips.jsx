@@ -198,8 +198,7 @@ export default function Clips() {
           </p>
           <button
             type="button"
-            className="primary"
-            className="clips-choose-button"
+            className="primary clips-choose-button"
             onClick={async () => {
               const response = await fetch("/api/choose-replay-dir", { method: "POST" });
               const payload = await response.json();

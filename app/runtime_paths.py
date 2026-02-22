@@ -10,7 +10,7 @@ from typing import Any, Dict, Iterable, Optional
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "ApexEventTracker"
+APP_NAME = "VODInsights"
 
 
 def is_frozen() -> bool:
@@ -206,14 +206,6 @@ def get_react_dist() -> Path:
         if path.exists():
             return path
     return candidates[0]
-
-
-def get_template_dir() -> Path:
-    return get_app_root() / "templates"
-
-
-def get_static_dir() -> Path:
-    return get_app_root() / "static"
 
 
 def build_mode_command(mode: str, config_path: Path, extra_args: Optional[list[str]] = None) -> list[str]:

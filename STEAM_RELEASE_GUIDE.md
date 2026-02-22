@@ -1,6 +1,6 @@
-# Steam Release Guide - Apex Event Tracker
+# Steam Release Guide - VOD Insights
 
-This guide outlines the steps needed to release Apex Event Tracker on Steam.
+This guide outlines the steps needed to release VOD Insights on Steam.
 
 ## Technical Requirements
 

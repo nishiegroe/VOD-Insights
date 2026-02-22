@@ -1,6 +1,6 @@
-# Apex Event Tracker
+# VOD Insights
 ### Turn your Apex VODs into highlights and clips automatically.
-### Apex Event Tracker watches your killfeed, detects key moments, and saves bookmarks you can auto-clip or review later. Nearby events are intelligently merged into a single, cleaner highlight. Set a custom detection area in your recording, or download Twitch VODs and analyze them the same way.
+### VOD Insights watches your killfeed, detects key moments, and saves bookmarks you can auto-clip or review later. Nearby events are intelligently merged into a single, cleaner highlight. Set a custom detection area in your recording, or download Twitch VODs and analyze them the same way.
 ### After the session, it can split recordings into ready-to-share clips, rename them with event details, and scan VODs for highlights. A local web UI and desktop wrapper keep the workflow fast and simple.
 #### *Runs on most Windows PCs, and processing speed scales with your hardware (faster CPUs/GPU capture yield quicker scans).
 
@@ -29,6 +29,21 @@ This tool captures the Apex Legends killfeed region, runs OCR, and detects keywo
 - yt-dlp installed and available in PATH (for Twitch VOD import)
 
 ## Setup
+
+### App name/version (single source)
+
+Update [app_meta.json](app_meta.json) to change app name and version in one place.
+
+- `displayName`: user-facing app name.
+- `internalName`: EXE/folder name (no spaces recommended).
+- `version`: release version.
+
+Metadata is auto-synced when you run `npm run dev`, `npm run build`, `npm run build:desktop`, or `npm run build:desktop:portable`.
+You can also sync manually with:
+
+```bash
+npm run sync:meta
+```
 
 1. Create a virtual environment and install dependencies:
 
@@ -102,7 +117,7 @@ Then open http://127.0.0.1:5170 in your browser.
 ## Logging
 
 - Logs are written to `app.log` next to [app/config.json](app/config.json).
-- When packaged as an EXE, config/logs live under `%APPDATA%\ApexEventTracker`.
+- When packaged as an EXE, config/logs live under `%APPDATA%\VODInsights`.
 
 ## Launcher (EXE-ready)
 
@@ -117,33 +132,27 @@ python -m app.launcher --mode vod --vod "path\\to\\video.mp4"
 
 ## Build EXE (Windows)
 
-1. Ensure the frontend builds:
+1. Build with the primary release flow:
 
    ```bash
-   scripts\\build_exe.bat
+   npm run build
    ```
 
-   Or PowerShell:
+   Or directly:
 
    ```powershell
-   scripts\\build_exe.ps1
+   scripts\\build_inno.ps1
    ```
 
 2. Place optional tools in [tools/README.txt](tools/README.txt) for bundling.
 
    To auto-download and bundle tools + licenses:
 
-   ```bash
-   scripts\\download_tools.bat
-   ```
-
-   Or PowerShell:
-
    ```powershell
    scripts\\download_tools.ps1
    ```
 
-The EXE is output to `dist\\ApexEventTracker\\ApexEventTracker.exe`.
+The EXE is output to `dist\VODInsights\VODInsights.exe`.
 - Set `logging.log_ocr` to `false` to reduce OCR log noise.
 - The build script installs PyInstaller in the venv if missing.
 
@@ -152,23 +161,7 @@ The EXE is output to `dist\\ApexEventTracker\\ApexEventTracker.exe`.
 This wraps the local web UI in a desktop window and launches the backend
 automatically.
 
-1. Build the desktop app:
-
-    ```powershell
-   scripts\\build_desktop.ps1
-    ```
-
-   To build a portable EXE (no installer):
-
-   ```powershell
-   scripts\\build_desktop.ps1 -Target portable
-   ```
-
-2. The installer or portable EXE is output to `dist-desktop`.
-
-### Inno Setup Installer
-
-If NSIS fails on this machine, you can build an installer with Inno Setup.
+Primary installer build (recommended):
 
 1. Install Inno Setup 6.
 2. Run:

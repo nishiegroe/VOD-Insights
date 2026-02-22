@@ -1,7 +1,7 @@
-#define MyAppName "Apex Event Tracker"
-#define MyAppVersion "0.1.0"
-#define MyAppPublisher "ApexEventTracker"
-#define MyAppExeName "ApexEventTracker.exe"
+#define MyAppName "VOD Insights"
+#define MyAppVersion "0.1.1"
+#define MyAppPublisher "VODInsights"
+#define MyAppExeName "VODInsights.exe"
 
 [Setup]
 AppId={{A9BFF5A9-2D63-4B7B-9E38-73B2F8F0D27F}
@@ -11,7 +11,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={pf}\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist-desktop\inno
-OutputBaseFilename=ApexEventTracker-Setup-{#MyAppVersion}
+OutputBaseFilename=VODInsights-Setup-{#MyAppVersion}
 #ifdef AET_FAST_BUILD
 Compression=none
 SolidCompression=no

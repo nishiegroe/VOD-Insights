@@ -13,8 +13,6 @@ app_dir = root / "app"
 frontend_dist = root / "frontend" / "dist"
 
 config_path = app_dir / "config.json"
-templates_dir = app_dir / "templates"
-static_dir = app_dir / "static"
 tools_dir = root / "tools"
 notices_path = root / "THIRD_PARTY_NOTICES.txt"
 licenses_dir = root / "third_party_licenses"
@@ -35,12 +33,8 @@ binaries = []
 if tools_dir.exists():
     binaries.append((str(tools_dir), "tools"))
 
-# Bundle templates/static, frontend dist, and default config.
+# Bundle frontend dist and default config.
 datas = []
-if templates_dir.exists():
-    datas.append((str(templates_dir), "app/templates"))
-if static_dir.exists():
-    datas.append((str(static_dir), "app/static"))
 if frontend_dist.exists():
     datas.append((str(frontend_dist), "frontend/dist"))
 if config_path.exists():
@@ -75,7 +69,7 @@ exe = EXE(
     analysis.scripts,
     [],
     exclude_binaries=True,
-    name="ApexEventTracker",
+    name="VODInsights",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -94,5 +88,5 @@ coll = COLLECT(
     analysis.datas,
     strip=False,
     upx=False,
-    name="ApexEventTracker",
+    name="VODInsights",
 )

@@ -26,6 +26,10 @@ function Invoke-TimedStep {
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+Invoke-TimedStep "Sync app metadata" {
+    npm run sync:meta
+}
+
 $candidatePaths = @(
     $ISCC,
     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
@@ -127,7 +131,7 @@ Invoke-TimedStep "Build desktop app (unpacked)" {
 }
 
 Invoke-TimedStep "Build installer (Inno Setup)" {
-    $innoScript = Join-Path $root "inno\ApexEventTracker.iss"
+    $innoScript = Join-Path $root "inno\VODInsights.iss"
     if ($useFastBuild) {
         & $isccPath "/DAET_FAST_BUILD=1" $innoScript
     } else {

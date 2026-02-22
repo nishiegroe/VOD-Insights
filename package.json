@@ -1,10 +1,12 @@
 {
   "name": "apex-event-tracker-root",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
-    "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/ensure_venv.ps1 && npm --prefix frontend run build && npm --prefix desktop run dev",
-    "build": "powershell -ExecutionPolicy Bypass -File ./scripts/build_inno.ps1",
-    "build:desktop": "npm --prefix desktop run build",
-    "build:desktop:portable": "npm --prefix desktop run build:portable"
+    "sync:meta": "node ./scripts/sync_app_meta.cjs",
+    "dev": "npm run sync:meta && powershell -ExecutionPolicy Bypass -File ./scripts/ensure_venv.ps1 && npm --prefix frontend run build && npm --prefix desktop run dev",
+    "build": "npm run sync:meta && powershell -ExecutionPolicy Bypass -File ./scripts/build_inno.ps1",
+    "build:desktop": "npm run sync:meta && npm --prefix desktop run build",
+    "build:desktop:portable": "npm run sync:meta && npm --prefix desktop run build:portable"
   }
 }

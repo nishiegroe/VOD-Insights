@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from flask import Flask, Response, abort, jsonify, redirect, render_template, request, send_file, send_from_directory, stream_with_context, url_for
+from flask import Flask, Response, abort, jsonify, redirect, request, send_file, send_from_directory, stream_with_context, url_for
 
 from app.runtime_paths import (
     build_mode_command,
@@ -31,8 +31,6 @@ from app.runtime_paths import (
     prepare_torch_runtime,
     get_project_root,
     get_react_dist,
-    get_static_dir,
-    get_template_dir,
     get_uploads_dir,
     is_frozen,
     resolve_log_path,
@@ -49,11 +47,7 @@ EXIT_RESTART_CODE = 3
 REACT_DIST = get_react_dist()
 DOWNLOADS_DIR = get_downloads_dir()
 
-app = Flask(
-    __name__,
-    template_folder=str(get_template_dir()),
-    static_folder=str(get_static_dir()),
-)
+app = Flask(__name__)
 
 _process_lock = threading.Lock()
 _bookmark_process: Optional[subprocess.Popen] = None
@@ -839,77 +833,6 @@ def list_sessions_for_vod(
     return entries
 
 
-def group_clips_by_date(clips: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    groups: Dict[str, Dict[str, Any]] = {}
-    ordered_keys: List[str] = []
-    for clip in clips:
-        timestamp = clip.get("details", {}).get("timestamp")
-        if isinstance(timestamp, datetime):
-            key = timestamp.strftime("%Y-%m-%d")
-            label = format_date_label(timestamp)
-        else:
-            key = "unknown"
-            label = "Unknown session"
-        if key not in groups:
-            groups[key] = {"key": key, "label": label, "clips": []}
-            ordered_keys.append(key)
-        groups[key]["clips"].append(clip)
-    return [groups[key] for key in ordered_keys]
-
-
-@app.route("/legacy")
-@app.route("/legacy/")
-def index() -> str:
-    config = load_config()
-    status = get_status()
-    clips = list_clips(config, limit=5)
-    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-    session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-    vod_paths = get_vod_paths(
-        get_vod_dirs(config), config.get("split", {}).get("extensions", [])
-    )
-    recent_vods = build_vod_entries(vod_paths[:5], bookmarks_dir, session_prefix)
-    return render_template(
-        "index.html",
-        config=config,
-        status=status,
-        clips=clips,
-        vods=recent_vods,
-    )
-
-
-@app.route("/legacy/settings")
-def settings_page() -> str:
-    config = load_config()
-    status = get_status()
-    clips = list_clips(config)
-    log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
-    log_lines = tail_lines(log_path)
-    return render_template(
-        "settings.html",
-        config=config,
-        status=status,
-        clips=clips,
-        log_lines=log_lines,
-    )
-
-
-@app.route("/legacy/clips")
-def clips_page() -> str:
-    config = load_config()
-    status = get_status()
-    clips = list_clips(config, limit=100)
-    clips_dir = get_clips_dir(config)
-    clip_groups = group_clips_by_date(clips)
-    return render_template(
-        "clips.html",
-        status=status,
-        clips=clips,
-        clips_dir=str(clips_dir),
-        clip_groups=clip_groups,
-    )
-
-
 def get_allowed_media_dirs(config: Dict[str, Any]) -> List[Path]:
     """Get directories that are allowed for media file serving."""
     replay_cfg = config.get("replay", {})
@@ -1178,7 +1101,7 @@ def update_config_from_payload(config: Dict[str, Any], payload: Dict[str, Any]) 
 def vod_ocr_upload() -> str:
     file = request.files.get("vod_file")
     if file is None or not file.filename:
-        return redirect(url_for("index"))
+        return redirect("/")
 
     config = load_config()
     recordings_dir = Path(config.get("replay", {}).get("directory", "")).resolve()  # Use replay directory
@@ -1195,7 +1118,7 @@ def vod_ocr_upload() -> str:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    return redirect(url_for("vods_page"))
+    return redirect("/vods")
 
 
 @app.route("/api/vod-ocr-upload", methods=["POST"])
@@ -1234,42 +1157,6 @@ def delete_by_path() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/legacy/vods")
-def vods_page() -> str:
-    config = load_config()
-    status = get_status()
-    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-    # If path is relative, resolve it to app data directory
-    if not bookmarks_dir.is_absolute():
-        bookmarks_dir = get_app_data_dir() / bookmarks_dir
-    session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-    vod_paths = get_vod_paths(
-        get_vod_dirs(config), config.get("split", {}).get("extensions", [])
-    )
-    show_all = request.args.get("all") == "1"
-    limit = None if show_all else 10
-    limited_paths = vod_paths if limit is None else vod_paths[:limit]
-    vods = build_vod_entries(limited_paths, bookmarks_dir, session_prefix)
-    remaining_count = max(0, len(vod_paths) - len(limited_paths))
-    selected_vod = str(_selected_vod) if _selected_vod else ""
-    selected_session = str(_selected_session) if _selected_session else ""
-    return render_template(
-        "vods.html",
-        status=status,
-        vods=vods,
-        selected_vod=selected_vod,
-        selected_session=selected_session,
-        remaining_count=remaining_count,
-    )
-
-
-@app.route("/legacy/capture-area")
-def capture_area_page() -> str:
-    config = load_config()
-    status = get_status()
-    return render_template("capture_area.html", status=status, config=config)
-
-
 @app.route("/capture-area/save", methods=["POST"])
 def capture_area_save() -> Any:
     payload = request.get_json(silent=True) or {}
@@ -1297,24 +1184,6 @@ def capture_area_save() -> Any:
         capture["target_height"] = target_height
     save_config(config)
     return jsonify({"ok": True})
-
-
-@app.route("/legacy/vods-list")
-def vods_list_partial() -> str:
-    config = load_config()
-    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-    # If path is relative, resolve it to app data directory
-    if not bookmarks_dir.is_absolute():
-        bookmarks_dir = get_app_data_dir() / bookmarks_dir
-    session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-    vod_paths = get_vod_paths(
-        get_vod_dirs(config), config.get("split", {}).get("extensions", [])
-    )
-    show_all = request.args.get("all") == "1"
-    limit = None if show_all else 10
-    limited_paths = vod_paths if limit is None else vod_paths[:limit]
-    vods = build_vod_entries(limited_paths, bookmarks_dir, session_prefix)
-    return render_template("vods_list.html", vods=vods)
 
 
 @app.route("/media/<path:filename>")
@@ -1462,7 +1331,7 @@ def open_folder(filename: str) -> Any:
         ],
         check=False,
     )
-    return redirect(url_for("clips_page"))
+    return redirect("/clips")
 
 
 @app.route("/delete/<path:filename>", methods=["POST"])
@@ -1489,7 +1358,7 @@ def update_config() -> str:
     payload = request.form.to_dict()
     update_config_from_payload(config, payload)
     save_config(config)
-    return redirect(url_for("index"))
+    return redirect("/")
 
 
 @app.route("/choose-replay-dir", methods=["POST"])
@@ -1506,7 +1375,7 @@ def choose_replay_dir() -> str:
     if selected:
         config.setdefault("replay", {})["directory"] = selected
         save_config(config)
-    return redirect(url_for("index"))
+    return redirect("/")
 
 
 @app.route("/api/choose-replay-dir", methods=["POST"])
@@ -1533,11 +1402,11 @@ def split_selected() -> str:
     if not vod_path or not session_path:
         if request.headers.get("X-Requested-With") == "fetch":
             return jsonify({"ok": False, "error": "Missing VOD or session"}), 400
-        return redirect(url_for("vods_page"))
+        return redirect("/vods")
     split_from_config(CONFIG_PATH, bookmarks_override=Path(session_path), input_override=Path(vod_path))
     if request.headers.get("X-Requested-With") == "fetch":
-        return jsonify({"ok": True, "redirect": url_for("clips_page")})
-    return redirect(url_for("clips_page"))
+        return jsonify({"ok": True, "redirect": "/clips"})
+    return redirect("/clips")
 
 
 @app.route("/api/split-selected", methods=["POST"])
@@ -1555,7 +1424,7 @@ def api_split_selected() -> Any:
 def vod_ocr_run() -> str:
     vod_path = request.form.get("vod_path", "")
     if not vod_path:
-        return redirect(url_for("vods_page"))
+        return redirect("/vods")
     config = load_config()
     log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1568,7 +1437,7 @@ def vod_ocr_run() -> str:
         stdout=log_handle,
         stderr=log_handle,
     )
-    return redirect(url_for("vods_page"))
+    return redirect("/vods")
 
 
 @app.route("/api/vod-ocr", methods=["POST"])
@@ -1736,7 +1605,7 @@ def api_delete_sessions() -> Any:
 @app.route("/control/start", methods=["POST"])
 def control_start() -> str:
     start_bookmark_process()
-    return redirect(url_for("index"))
+    return redirect("/")
 
 
 @app.route("/api/control/start", methods=["POST"])
@@ -1748,7 +1617,7 @@ def api_control_start() -> Any:
 @app.route("/control/stop", methods=["POST"])
 def control_stop() -> str:
     stop_bookmark_process()
-    return redirect(url_for("index"))
+    return redirect("/")
 
 
 @app.route("/api/control/stop", methods=["POST"])
@@ -2386,11 +2255,11 @@ def main() -> None:
     reset_log_file(log_path)
     port = int(os.environ.get("APEX_WEBUI_PORT", "5170"))
     
-    print(f"Starting Apex Event Tracker Web UI on port {port}...")
+    print(f"Starting VOD Insights Web UI on port {port}...")
     print(f"Logs: {log_path}")
     
     if os.environ.get("APEX_WEBUI_WATCH", "1") == "1":
-        watch_paths = [APP_ROOT, get_template_dir(), get_static_dir()]
+        watch_paths = [APP_ROOT]
         ignore_paths = {log_path, get_uploads_dir()}
         watcher = threading.Thread(
             target=watch_for_changes,

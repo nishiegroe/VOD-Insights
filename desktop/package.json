@@ -1,9 +1,13 @@
 {
-  "name": "apex-event-tracker-desktop",
-  "version": "0.1.0",
+  "name": "vod-insights-desktop",
+  "version": "0.1.1",
   "private": true,
   "main": "main.js",
   "scripts": {
+    "predev": "npm --prefix .. run sync:meta",
+    "prebuild": "npm --prefix .. run sync:meta",
+    "prebuild:portable": "npm --prefix .. run sync:meta",
+    "prebuild:dir": "npm --prefix .. run sync:meta",
     "dev": "node dev.js",
     "build": "electron-builder --win",
     "build:portable": "electron-builder --win --config.win.target=portable",
@@ -14,14 +18,14 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.apex.eventtracker",
-    "productName": "ApexEventTracker",
+    "appId": "com.vod.insights",
+    "productName": "VOD Insights",
     "files": [
       "main.js"
     ],
     "extraResources": [
       {
-        "from": "../dist/ApexEventTracker",
+        "from": "../dist/VODInsights",
         "to": "backend"
       },
       {

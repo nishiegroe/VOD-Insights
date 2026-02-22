@@ -41,7 +41,7 @@ Write-Host "Tesseract copied to tools/"
 
 Write-Host "Fetching license texts..."
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/tesseract-ocr/tesseract/main/LICENSE" -OutFile (Join-Path $licensesDir "tesseract_LICENSE.txt")
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FFmpeg/FFmpeg/master/COPYING.LGPLv2.1" -OutFile (Join-Path $licensesDir "ffmpeg_LGPLv2.1.txt")
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/FFmpeg/FFmpeg/master/COPYING.LGPLv3" -OutFile (Join-Path $licensesDir "ffmpeg_LGPLv3.txt")
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/LICENSE" -OutFile (Join-Path $licensesDir "yt-dlp_LICENSE.txt")
 
 Write-Host "Done. Tools are in tools/ and licenses in tools/licenses/."

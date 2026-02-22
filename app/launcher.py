@@ -19,7 +19,7 @@ def _run_with_args(entry: Callable[[], None], argv: list[str]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Apex Event Tracker launcher")
+    parser = argparse.ArgumentParser(description="VOD Insights launcher")
     parser.add_argument(
         "--mode",
         choices=["main", "bookmarks", "split", "vod", "webui"],

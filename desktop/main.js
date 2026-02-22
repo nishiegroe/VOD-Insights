@@ -60,7 +60,7 @@ function getRootDir() {
 
 function resolveBackendCommand() {
   if (app.isPackaged) {
-    const exePath = path.join(process.resourcesPath, "backend", "ApexEventTracker.exe");
+    const exePath = path.join(process.resourcesPath, "backend", "VODInsights.exe");
     return {
       command: exePath,
       args: ["--mode", "webui"],
@@ -177,7 +177,7 @@ function startBackend() {
       extra = "";
     }
     dialog.showErrorBox(
-      "Apex Event Tracker",
+      "VOD Insights",
       `Web UI backend exited unexpectedly (code ${code}).${extra}`
     );
     app.quit();
@@ -343,7 +343,7 @@ function createSplashScreen() {
     <body>
       <div class="container">
         <div class="logo">⚡</div>
-        <div class="app-name">Apex Event Tracker</div>
+        <div class="app-name">VOD Insights</div>
         <div class="spinner"></div>
         <div class="status" id="status">Starting up...</div>
         <div class="progress-text" id="progress"></div>
@@ -445,7 +445,7 @@ app.whenReady().then(async () => {
       splash.destroy();
     }
     dialog.showErrorBox(
-      "Apex Event Tracker",
+      "VOD Insights",
       error instanceof Error ? error.message : "Failed to start web UI."
     );
     app.quit();
