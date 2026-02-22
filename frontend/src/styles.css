@@ -61,6 +61,25 @@ a {
   padding: 0 20px;
 }
 
+.app.app-vod-viewer {
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  margin: 0;
+  padding: 10px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-main-vod-viewer {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -76,6 +95,15 @@ a {
 .header p {
   margin: 0;
   color: var(--muted);
+}
+
+.compact-page-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 4px 0 10px;
 }
 
 .status .badge {
@@ -1540,6 +1568,14 @@ textarea {
   display: block;
 }
 
+.clip-thumb img {
+  width: 100%;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
 .clip-name {
   font-weight: 600;
 }
@@ -1575,11 +1611,20 @@ textarea {
 }
 
 /* VOD Viewer Styles */
-.vod-viewer {
-  padding: 16px;
+.vod-viewer-page {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
+}
+
+.vod-viewer {
+  width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -1588,6 +1633,7 @@ textarea {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   gap: 12px;
 }
 
@@ -1647,9 +1693,33 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.vod-viewer-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vod-viewer-app-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.vod-viewer-title-compact {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-selector {
@@ -1693,6 +1763,7 @@ textarea {
   height: 100%;
   display: block;
   object-fit: contain;
+  object-position: center;
 }
 
 .timeline-markers {
@@ -1759,6 +1830,9 @@ textarea {
   margin-top: 0;
   display: flex;
   flex-direction: column;
+  align-self: stretch;
+  height: 100%;
+  max-height: 100%;
   min-height: 0;
   flex: 1;
   overflow: hidden;
@@ -1801,7 +1875,11 @@ textarea {
   flex-direction: column;
   gap: 8px;
   flex: 1;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding-right: 8px;
 }
 

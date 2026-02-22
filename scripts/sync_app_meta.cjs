@@ -68,10 +68,11 @@ function syncPyInstallerSpec(meta) {
 function syncInnoScript(meta) {
   const filePath = path.join(root, "inno", "VODInsights.iss");
   let content = fs.readFileSync(filePath, "utf8");
+  const desktopExeName = `${meta.displayName}.exe`;
   content = replaceOrThrow(content, /#define MyAppName ".*"/, `#define MyAppName "${meta.displayName}"`, "MyAppName define");
   content = replaceOrThrow(content, /#define MyAppVersion ".*"/, `#define MyAppVersion "${meta.version}"`, "MyAppVersion define");
   content = replaceOrThrow(content, /#define MyAppPublisher ".*"/, `#define MyAppPublisher "${meta.publisher}"`, "MyAppPublisher define");
-  content = replaceOrThrow(content, /#define MyAppExeName ".*"/, `#define MyAppExeName "${meta.internalName}.exe"`, "MyAppExeName define");
+  content = replaceOrThrow(content, /#define MyAppExeName ".*"/, `#define MyAppExeName "${desktopExeName}"`, "MyAppExeName define");
   writeText(filePath, content);
 }
 

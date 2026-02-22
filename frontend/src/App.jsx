@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Vods from "./pages/Vods.jsx";
 import VodViewer from "./pages/VodViewer.jsx";
@@ -15,6 +15,8 @@ const navLinkClass = ({ isActive }) =>
 export default function App() {
   const showSessionRecorder = false;
   const [status, setStatus] = useState(null);
+  const location = useLocation();
+  const isVodViewerRoute = location.pathname === "/vods/view";
 
   useEffect(() => {
     let isMounted = true;
@@ -37,34 +39,36 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app">
-      <header className="header">
-        <div>
-          <h1>Apex Event Tracker</h1>
-        </div>
-        <div className="status">
-          <div className="header-actions">
-            <NavLink className={navLinkClass} to="/">
-              Home
-            </NavLink>
-            <NavLink className={navLinkClass} to="/vods">
-              VODs
-            </NavLink>
-            <NavLink className={navLinkClass} to="/clips">
-              Clips
-            </NavLink>
-            <NavLink className={navLinkClass} to="/settings">
-              Settings
-            </NavLink>
-            {showSessionRecorder ? (
-              <span className={`badge ${status?.bookmark_running ? "on" : "off"}`}>
-                {status?.bookmark_running ? "Recording Active" : "Idle"}
-              </span>
-            ) : null}
+    <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""}`}>
+      {!isVodViewerRoute ? (
+        <header className="header">
+          <div>
+            <h1>VOD Insights</h1>
           </div>
-        </div>
-      </header>
-      <main>
+          <div className="status">
+            <div className="header-actions">
+              <NavLink className={navLinkClass} to="/">
+                Home
+              </NavLink>
+              <NavLink className={navLinkClass} to="/vods">
+                VODs
+              </NavLink>
+              <NavLink className={navLinkClass} to="/clips">
+                Clips
+              </NavLink>
+              <NavLink className={navLinkClass} to="/settings">
+                Settings
+              </NavLink>
+              {showSessionRecorder ? (
+                <span className={`badge ${status?.bookmark_running ? "on" : "off"}`}>
+                  {status?.bookmark_running ? "Recording Active" : "Idle"}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </header>
+      ) : null}
+      <main className={isVodViewerRoute ? "app-main-vod-viewer" : undefined}>
         <Routes>
           <Route path="/" element={<Home status={status} />} />
           <Route path="/vods" element={<Vods status={status} />} />

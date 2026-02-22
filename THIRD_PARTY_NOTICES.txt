@@ -1,4 +1,4 @@
-Apex Event Tracker - Third-Party Notices (Template)
+VOD Insights - Third-Party Notices (Template)
 
 This file lists third-party software and where to pull their license texts for redistribution.
 Replace any TODO markers once verified. This is not legal advice.

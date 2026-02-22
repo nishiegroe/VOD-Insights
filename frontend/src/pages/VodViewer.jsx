@@ -81,6 +81,7 @@ export default function VodViewer() {
   const sessionPath = searchParams.get("session");
 
   const [bookmarks, setBookmarks] = useState([]);
+  const [vodMeta, setVodMeta] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(sessionPath);
   const [duration, setDuration] = useState(0);
@@ -552,9 +553,11 @@ export default function VodViewer() {
 
         if (!vod) {
           setError("VOD not found");
+          setVodMeta(null);
           return;
         }
 
+        setVodMeta(vod);
         setSessions(vod.sessions || []);
         if (!selectedSession && vod.sessions && vod.sessions.length > 0) {
           setSelectedSession(vod.sessions[0].path);
@@ -929,13 +932,23 @@ export default function VodViewer() {
     );
   }
 
+  const viewerTitle =
+    vodMeta?.pretty_time
+    || vodMeta?.name
+    || vodPath?.split(/[/\\]/).pop()
+    || "VOD";
+
   return (
-    <section className="grid">
-      <div className="card vod-viewer">
+    <section className="vod-viewer-page">
+      <div className="vod-viewer">
         <div className="vod-viewer-header">
-          <button onClick={() => navigate("/vods")} className="tertiary">
-            ← Back to VODs
-          </button>
+          <div className="vod-viewer-header-left">
+            <div className="vod-viewer-app-title">VOD Insights</div>
+            <button onClick={() => navigate("/vods")} className="tertiary">
+              ← Back to VODs
+            </button>
+            <div className="vod-viewer-title-compact">{viewerTitle}</div>
+          </div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             <button className="secondary" onClick={() => setShowClipTools((prev) => !prev)}>
               {showClipTools ? "Hide Clip" : "Clip"}
@@ -979,15 +992,6 @@ export default function VodViewer() {
                 />
               </svg>
             </button>
-          </div>
-        </div>
-
-        <div style={{ marginBottom: "8px" }}>
-          <div style={{ fontSize: "18px", fontWeight: 600 }}>
-            {sessions.find((session) => session.path === selectedSession)?.display_name
-              || sessions.find((session) => session.path === selectedSession)?.name
-              || vodPath?.split(/[/\\]/).pop()
-              || "VOD"}
           </div>
         </div>
 

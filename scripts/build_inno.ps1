@@ -26,6 +26,16 @@ function Invoke-TimedStep {
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+$metaPath = Join-Path $root "app_meta.json"
+if (-not (Test-Path $metaPath)) {
+    throw "app_meta.json not found at $metaPath"
+}
+$appMeta = Get-Content -Raw -Path $metaPath | ConvertFrom-Json
+$internalName = [string]$appMeta.internalName
+if ([string]::IsNullOrWhiteSpace($internalName)) {
+    throw "app_meta.json is missing internalName"
+}
+
 Invoke-TimedStep "Sync app metadata" {
     npm run sync:meta
 }
@@ -69,8 +79,8 @@ Invoke-TimedStep "Collect third-party licenses" {
 
 Invoke-TimedStep "Build backend EXE (PyInstaller)" {
     $venvPython = Join-Path $root ".venv\Scripts\python.exe"
-    $backendExe = Join-Path $root "dist\ApexEventTracker\ApexEventTracker.exe"
-    $backendExeLegacy = Join-Path $root "dist\ApexEventTracker.exe"
+    $backendExe = Join-Path $root ("dist\{0}\{0}.exe" -f $internalName)
+    $backendExeLegacy = Join-Path $root ("dist\{0}.exe" -f $internalName)
     if ($reuseBackend -and ((Test-Path $backendExe) -or (Test-Path $backendExeLegacy))) {
         Write-Host "Reusing existing backend EXE"
         return

@@ -1,7 +1,7 @@
 #define MyAppName "VOD Insights"
 #define MyAppVersion "0.1.1"
 #define MyAppPublisher "VODInsights"
-#define MyAppExeName "VODInsights.exe"
+#define MyAppExeName "VOD Insights.exe"
 
 [Setup]
 AppId={{A9BFF5A9-2D63-4B7B-9E38-73B2F8F0D27F}
