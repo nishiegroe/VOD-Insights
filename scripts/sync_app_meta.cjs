@@ -26,6 +26,41 @@ function toNpmName(displayName) {
   return displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
+function syncLogoAsset(filename) {
+  const candidates = [
+    path.join(root, "assets", "branding", filename),
+    path.join(root, "frontend", "public", filename),
+    path.join(root, "desktop", "assets", filename)
+  ];
+
+  const existing = candidates
+    .filter((filePath) => fs.existsSync(filePath))
+    .map((filePath) => ({ filePath, mtimeMs: fs.statSync(filePath).mtimeMs }));
+
+  if (!existing.length) {
+    process.stdout.write(`No ${filename} found to sync.\n`);
+    return;
+  }
+
+  const [latest] = existing.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  const sourcePath = latest.filePath;
+
+  for (const targetPath of candidates) {
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    if (path.resolve(targetPath) === path.resolve(sourcePath)) {
+      continue;
+    }
+    fs.copyFileSync(sourcePath, targetPath);
+  }
+
+  process.stdout.write(`Synced ${filename} from ${path.relative(root, sourcePath)}\n`);
+}
+
+function syncBrandingAssets() {
+  syncLogoAsset("logo.png");
+  syncLogoAsset("logo.ico");
+}
+
 function syncDesktopPackage(meta) {
   const filePath = path.join(root, "desktop", "package.json");
   const pkg = readJson(filePath);
@@ -95,8 +130,8 @@ function syncDesktopMain(meta) {
   );
   content = replaceOrThrow(
     content,
-    /<div class="app-name">[^<]*<\/div>/,
-    `<div class="app-name">${meta.displayName}</div>`,
+    /<div class="app-name">[\s\S]*?<\/div>/,
+    '<div class="app-name">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : ""}<span>' + meta.displayName + '</span></div>',
     "splash title"
   );
   writeText(filePath, content);
@@ -137,6 +172,7 @@ function main() {
   syncRuntimePaths(meta);
   syncDesktopMain(meta);
   syncReadme(meta);
+  syncBrandingAssets();
 
   process.stdout.write(`Synced metadata from ${path.relative(root, metaPath)}\n`);
 }

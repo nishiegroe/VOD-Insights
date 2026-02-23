@@ -162,6 +162,7 @@ class DependencyBootstrapManager:
 
     def start(self, install_gpu_ocr: bool = True) -> Dict[str, Any]:
         status = self.get_status()
+        install_gpu_ocr = bool(install_gpu_ocr)
         
         # If GPU OCR installation already complete and required tools ready, return
         if status["gpu_ocr_ready"] and status["required_ready"]:
@@ -169,7 +170,15 @@ class DependencyBootstrapManager:
                           message="All dependencies are ready.", error="")
             return self.get_status()
         
-        # If we need to install GPU OCR, always do it
+        if status["required_ready"] and not install_gpu_ocr:
+            self._set_state(
+                running=False,
+                phase="ready",
+                message="Required dependencies are ready.",
+                error="",
+            )
+            return self.get_status()
+
         # If required deps are ready and GPU OCR is ready, return
         if status["required_ready"] and status["gpu_ocr_ready"]:
             self._set_state(running=False, phase="ready", 
@@ -188,7 +197,7 @@ class DependencyBootstrapManager:
                 "bytes_downloaded": 0,
                 "bytes_total": 0,
                 "error": "",
-                "install_gpu_ocr": True,  # Always install GPU OCR
+                "install_gpu_ocr": install_gpu_ocr,
             })
             self._save_state()
             self._thread = threading.Thread(target=self._run, daemon=True)
@@ -261,11 +270,42 @@ class DependencyBootstrapManager:
         )
         try:
             import sys
-            subprocess.check_call(
-                [sys.executable, "-m", "pip", "install", "--upgrade", "--quiet", package_name],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+            args = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--upgrade",
+                "--progress-bar=on",
+                package_name,
+            ]
+            process = subprocess.Popen(
+                args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
             )
+            if process.stderr is not None:
+                buffer = ""
+                while True:
+                    chunk = process.stderr.read(1)
+                    if not chunk:
+                        break
+                    buffer += chunk
+                    if "\n" in buffer or "\r" in buffer:
+                        parts = buffer.replace("\r", "\n").split("\n")
+                        for line in parts[:-1]:
+                            cleaned = line.strip()
+                            if cleaned:
+                                self._set_state(
+                                    phase="installing",
+                                    dependency=package_name,
+                                    message=f"{package_name}: {cleaned}",
+                                )
+                        buffer = parts[-1]
+            if process.wait() != 0:
+                raise subprocess.CalledProcessError(process.returncode, args)
         except subprocess.CalledProcessError as exc:
             raise RuntimeError(f"Failed to install {package_name}: {exc}")
 
@@ -309,6 +349,15 @@ class DependencyBootstrapManager:
                     bytes_downloaded=0,
                     bytes_total=0,
                 )
+
+            if not self._state.get("install_gpu_ocr", False):
+                self._set_state(
+                    running=False,
+                    phase="ready",
+                    message="Required dependencies are ready.",
+                    error="",
+                )
+                return
 
             # Install GPU OCR dependencies automatically (non-blocking if they fail)
             # This is done in the background after required tools are ready

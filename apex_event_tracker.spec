@@ -63,6 +63,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
+    icon=str(root / "assets" / "branding" / "logo.ico"),
     console=True,
     disable_windowed_traceback=False,
     target_arch=None,

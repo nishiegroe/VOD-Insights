@@ -1,5 +1,5 @@
 #define MyAppName "VOD Insights"
-#define MyAppVersion "0.1.3"
+#define MyAppVersion "0.1.6"
 #define MyAppPublisher "VODInsights"
 #define MyAppExeName "VOD Insights.exe"
 
@@ -12,6 +12,7 @@ DefaultDirName={pf}\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist-desktop\inno
 OutputBaseFilename=VODInsights-Setup-{#MyAppVersion}
+SetupIconFile=..\assets\branding\logo.ico
 #ifdef AET_FAST_BUILD
 Compression=none
 SolidCompression=no

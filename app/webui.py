@@ -57,6 +57,18 @@ _selected_vod: Optional[Path] = None
 _selected_session: Optional[Path] = None
 
 
+def load_patch_notes() -> List[Any]:
+    meta_path = get_project_root() / "app_meta.json"
+    if not meta_path.exists():
+        return []
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    notes = payload.get("patchNotes") or payload.get("patch_notes") or []
+    return notes if isinstance(notes, list) else []
+
+
 def cleanup_on_exit() -> None:
     """Pause all running VOD scans when the application exits"""
     print("Cleaning up: pausing all active VOD scans...")
@@ -1651,6 +1663,17 @@ def api_bootstrap_start() -> Any:
     return jsonify(dependency_bootstrap.start(install_gpu_ocr=install_gpu_ocr))
 
 
+@app.route("/api/notifications")
+def api_notifications() -> Any:
+    return jsonify(
+        {
+            "bootstrap": dependency_bootstrap.get_status(),
+            "twitch_jobs": list_twitch_jobs(limit=10),
+            "patch_notes": load_patch_notes(),
+        }
+    )
+
+
 @app.route("/api/ocr-gpu-status")
 def api_ocr_gpu_status() -> Any:
     """Check if Torch CUDA is available. Always returns 200 with graceful degradation."""
@@ -2244,6 +2267,18 @@ def api_open_backend_log() -> Any:
     except Exception:
         return jsonify({"ok": False, "error": "Failed to open log"}), 500
     return jsonify({"ok": True})
+
+
+@app.route("/logo.png")
+def react_logo() -> Any:
+    logo_file = REACT_DIST / "logo.png"
+    if not logo_file.exists() or not logo_file.is_file():
+        abort(404)
+    response = send_from_directory(REACT_DIST, "logo.png", conditional=False, etag=False, max_age=0)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 # React catch-all route - MUST be last so it doesn't intercept API routes

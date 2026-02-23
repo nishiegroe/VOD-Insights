@@ -943,7 +943,10 @@ export default function VodViewer() {
       <div className="vod-viewer">
         <div className="vod-viewer-header">
           <div className="vod-viewer-header-left">
-            <div className="vod-viewer-app-title">VOD Insights</div>
+            <div className="vod-viewer-app-title">
+              <img src="/logo.png" alt="" className="brand-logo brand-logo-compact" aria-hidden="true" />
+              <span>VOD Insights</span>
+            </div>
             <button onClick={() => navigate("/vods")} className="tertiary">
               ← Back to VODs
             </button>

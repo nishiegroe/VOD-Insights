@@ -1,6 +1,6 @@
 {
   "name": "apex-event-tracker-root",
-  "version": "0.1.3",
+  "version": "0.1.6",
   "private": true,
   "scripts": {
     "sync:meta": "node ./scripts/sync_app_meta.cjs",

@@ -92,6 +92,42 @@ a {
   margin: 0 0 6px;
 }
 
+.brand-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-title-main {
+  margin: 0 0 6px;
+}
+
+.brand-title-welcome {
+  justify-content: center;
+  margin: 0 0 12px;
+}
+
+.brand-logo {
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.brand-logo-main {
+  width: 40px;
+  height: 40px;
+}
+
+.brand-logo-welcome {
+  width: 32px;
+  height: 32px;
+}
+
+.brand-logo-compact {
+  width: 24px;
+  height: 24px;
+}
+
 .header p {
   margin: 0;
   color: var(--muted);
@@ -118,6 +154,143 @@ a {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-bell {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #0c171b;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.notification-bell svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  display: block;
+  margin-left: 2px;
+}
+
+.notification-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--accent-2);
+  color: #1b0d00;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.notification-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 320px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 18px 40px rgba(5, 8, 10, 0.6);
+  z-index: 20;
+}
+
+.notification-section {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.notification-section:last-child {
+  margin-bottom: 0;
+}
+
+.notification-section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.notification-item {
+  background: #0f1b1f;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+  position: relative;
+}
+
+.notification-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  transform: translateY(-1px);
+  cursor: pointer;
+}
+
+.notification-dismiss:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.notification-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.notification-body {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.notification-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.notification-progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.notification-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.notification-empty {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 2px;
 }
 
 .link-button {
@@ -1706,6 +1879,9 @@ textarea {
 }
 
 .vod-viewer-app-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 18px;
   font-weight: 700;
   color: var(--text);

@@ -119,7 +119,10 @@ export default function Home({ status }) {
 
       {!recordingDir ? (
         <section className="card centered" style={{ padding: '3rem 2rem' }}>
-          <h2>Welcome to VOD Insights!</h2>
+          <h2 className="brand-title brand-title-welcome">
+            <img src="/logo.png" alt="" className="brand-logo brand-logo-welcome" aria-hidden="true" />
+            <span>Welcome to VOD Insights!</span>
+          </h2>
           <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
             To get started, you need to configure where your Apex Legends recordings are stored.
           </p>

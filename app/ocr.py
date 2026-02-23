@@ -128,7 +128,11 @@ def _run_easyocr(image: np.ndarray, settings: OcrSettings) -> List[str]:
 def run_ocr(image: np.ndarray, settings: OcrSettings) -> List[str]:
     engine = (settings.engine or "tesseract").lower()
     if engine == "easyocr":
-        return _run_easyocr(image, settings)
+        try:
+            return _run_easyocr(image, settings)
+        except RuntimeError as exc:
+            logger.warning("EasyOCR unavailable, falling back to Tesseract: %s", exc)
+            return _run_tesseract(image, settings)
     if engine != "tesseract":
         raise RuntimeError(f"Unsupported OCR engine: {settings.engine}")
     return _run_tesseract(image, settings)
