@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const { spawn, spawnSync } = require("child_process");
 const crypto = require("crypto");
 const fs = require("fs");
@@ -28,6 +28,7 @@ app.disableHardwareAcceleration();
 let backendProcess = null;
 let isQuitting = false;
 let isInstallingUpdate = false;
+let isCheckingForUpdates = false;
 
 function resolveDesktopAssetPath(filename) {
   return path.join(__dirname, "assets", filename);
@@ -467,21 +468,34 @@ async function launchInstallerAndQuit(installerPath) {
   app.exit(0);
 }
 
-async function maybeCheckForUpdates() {
+async function maybeCheckForUpdates(options = {}) {
+  const {
+    force = false,
+    notifyIfCurrent = false,
+    notifyOnError = false
+  } = options;
+
+  if (isCheckingForUpdates) {
+    return { status: "busy" };
+  }
+
+  isCheckingForUpdates = true;
+
+  try {
   if (!app.isPackaged) {
-    return;
+    return { status: "not-packaged" };
   }
   if (process.platform !== "win32") {
-    return;
+    return { status: "unsupported-platform" };
   }
   if (String(process.env.AET_DISABLE_UPDATER || "") === "1") {
-    return;
+    return { status: "disabled" };
   }
 
   const state = loadUpdaterState();
   const now = Date.now();
-  if (state.lastCheckedAt > 0 && now - state.lastCheckedAt < UPDATE_CHECK_INTERVAL_MS) {
-    return;
+  if (!force && state.lastCheckedAt > 0 && now - state.lastCheckedAt < UPDATE_CHECK_INTERVAL_MS) {
+    return { status: "throttled" };
   }
 
   saveUpdaterState({ lastCheckedAt: now, lastError: "" });
@@ -490,18 +504,36 @@ async function maybeCheckForUpdates() {
   try {
     metadata = await requestJson(UPDATE_FEED_URL);
   } catch (error) {
-    saveUpdaterState({ lastError: error instanceof Error ? error.message : String(error) });
-    return;
+    const message = error instanceof Error ? error.message : String(error);
+    saveUpdaterState({ lastError: message });
+    if (notifyOnError) {
+      await dialog.showMessageBox({
+        type: "error",
+        buttons: ["OK"],
+        title: "Update check failed",
+        message: "Could not check for updates.",
+        detail: message
+      });
+    }
+    return { status: "metadata-error", error: message };
   }
 
   const latestVersion = String(metadata?.version || "").trim();
   const currentVersion = app.getVersion();
   if (!latestVersion || compareVersions(latestVersion, currentVersion) <= 0) {
-    return;
+    if (notifyIfCurrent) {
+      await dialog.showMessageBox({
+        type: "info",
+        buttons: ["OK"],
+        title: "No updates available",
+        message: `You are up to date (${currentVersion}).`
+      });
+    }
+    return { status: "up-to-date", version: currentVersion };
   }
 
-  if (state.skippedVersion && state.skippedVersion === latestVersion) {
-    return;
+  if (!force && state.skippedVersion && state.skippedVersion === latestVersion) {
+    return { status: "skipped-version", version: latestVersion };
   }
 
   const response = await dialog.showMessageBox({
@@ -517,16 +549,17 @@ async function maybeCheckForUpdates() {
 
   if (response.response === 2) {
     saveUpdaterState({ skippedVersion: latestVersion });
-    return;
+    return { status: "skipped-now", version: latestVersion };
   }
   if (response.response !== 0) {
-    return;
+    return { status: "deferred", version: latestVersion };
   }
 
   try {
     const installerPath = await downloadAndVerifyInstaller(metadata);
     saveUpdaterState({ skippedVersion: "", lastError: "" });
     await launchInstallerAndQuit(installerPath);
+    return { status: "installing", version: latestVersion };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     saveUpdaterState({ lastError: message });
@@ -537,6 +570,10 @@ async function maybeCheckForUpdates() {
       message: "Failed to download or verify the update.",
       detail: message
     });
+    return { status: "install-error", error: message };
+  }
+  } finally {
+    isCheckingForUpdates = false;
   }
 }
 
@@ -882,7 +919,8 @@ function createWindow() {
     show: false,
     webPreferences: {
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js")
     }
   });
 
@@ -919,6 +957,21 @@ function createWindow() {
   win.loadURL(`http://${HOST}:${PORT}`);
   return win;
 }
+
+async function handleUpdateAppRequest() {
+  const result = await maybeCheckForUpdates({
+    force: true,
+    notifyIfCurrent: true,
+    notifyOnError: true
+  });
+  return {
+    ok: true,
+    ...(result || { status: "unknown" })
+  };
+}
+
+ipcMain.handle("desktop:update-app", handleUpdateAppRequest);
+ipcMain.handle("desktop:check-for-updates", handleUpdateAppRequest);
 
 app.on("before-quit", async () => {
   if (isInstallingUpdate) {

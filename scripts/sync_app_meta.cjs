@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { spawnSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 
@@ -159,6 +160,28 @@ function validateMeta(meta) {
   }
 }
 
+function syncReleaseMetadata(meta) {
+  const tag = `v${meta.version}`;
+  const scriptPath = path.join(root, "scripts", "prepare_github_release.cjs");
+  const result = spawnSync(process.execPath, [scriptPath, "--tag", tag], {
+    cwd: root,
+    encoding: "utf8"
+  });
+
+  if (result.status === 0) {
+    process.stdout.write("Synced release metadata assets (latest.json/checksums.txt)\n");
+    return;
+  }
+
+  const combined = `${result.stdout || ""}\n${result.stderr || ""}`;
+  if (/No installer found in|Output directory does not exist:/.test(combined)) {
+    process.stdout.write("Skipped release metadata sync (no built installer for current version yet)\n");
+    return;
+  }
+
+  throw new Error(`Failed to sync release metadata: ${combined.trim() || "unknown error"}`);
+}
+
 function main() {
   const metaPath = path.join(root, "app_meta.json");
   const meta = readJson(metaPath);
@@ -173,6 +196,7 @@ function main() {
   syncDesktopMain(meta);
   syncReadme(meta);
   syncBrandingAssets();
+  syncReleaseMetadata(meta);
 
   process.stdout.write(`Synced metadata from ${path.relative(root, metaPath)}\n`);
 }

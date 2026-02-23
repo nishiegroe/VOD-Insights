@@ -6,11 +6,16 @@ export default function Settings({ status }) {
   const showSessionRecorder = false;
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [checkingLatest, setCheckingLatest] = useState(false);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [latestMessage, setLatestMessage] = useState("");
+  const [updateMessage, setUpdateMessage] = useState("");
   const [gpuStatus, setGpuStatus] = useState("");
   const [gpuTesting, setGpuTesting] = useState(false);
   const [gpuInstalling, setGpuInstalling] = useState(false);
 
   const obsConnected = status?.obs_connected ?? false;
+  const canUpdateApp = Boolean(window?.aetDesktop?.updateApp);
 
   const loadData = async () => {
     const configResponse = await fetch("/api/config");
@@ -109,6 +114,76 @@ export default function Settings({ status }) {
       setGpuStatus(error.message || "Installation failed");
     } finally {
       setGpuInstalling(false);
+    }
+  };
+
+  const checkLatestVersion = async () => {
+    if (checkingLatest) {
+      return;
+    }
+
+    setCheckingLatest(true);
+    setLatestMessage("");
+    try {
+      const response = await fetch("/api/update/latest");
+      const payload = await response.json();
+      if (!response.ok || !payload?.ok) {
+        setLatestMessage(payload?.error || "Could not fetch latest version.");
+        return;
+      }
+
+      const latestVersion = String(payload.latest_version || "").trim();
+      const currentVersion = String(payload.current_version || "").trim();
+      if (!latestVersion) {
+        setLatestMessage("Latest published version is unavailable right now.");
+        return;
+      }
+
+      if (currentVersion && latestVersion === currentVersion) {
+        setLatestMessage(`Latest published version: ${latestVersion} (you are up to date).`);
+      } else if (currentVersion) {
+        setLatestMessage(`Latest published version: ${latestVersion} (current: ${currentVersion}).`);
+      } else {
+        setLatestMessage(`Latest published version: ${latestVersion}.`);
+      }
+    } catch (error) {
+      setLatestMessage(error?.message || "Could not fetch latest version.");
+    } finally {
+      setCheckingLatest(false);
+    }
+  };
+
+  const updateApp = async () => {
+    if (!canUpdateApp || checkingUpdates) {
+      return;
+    }
+
+    setCheckingUpdates(true);
+    setUpdateMessage("");
+    try {
+      const result = await window.aetDesktop.updateApp();
+      const status = result?.status;
+      if (status === "busy") {
+        setUpdateMessage("An update check is already in progress.");
+      } else if (status === "installing") {
+        setUpdateMessage("Launching installer...");
+      } else if (status === "up-to-date") {
+        setUpdateMessage("You are on the latest version.");
+      } else if (status === "not-packaged") {
+        setUpdateMessage("Update checks are available only in installed desktop builds.");
+      } else if (status === "unsupported-platform") {
+        setUpdateMessage("Update checks are currently supported on Windows desktop builds.");
+      } else if (status === "disabled") {
+        setUpdateMessage("Updater is currently disabled.");
+      } else if (status === "metadata-error") {
+        setUpdateMessage(result?.error || "Could not check for updates.");
+      } else {
+        setUpdateMessage("Update action completed.");
+      }
+    } catch (error) {
+      setUpdateMessage(error?.message || "Could not check for updates.");
+    } finally {
+      setCheckingUpdates(false);
     }
   };
 
@@ -304,9 +379,37 @@ export default function Settings({ status }) {
           </div>
         ) : null}
 
-        <button type="submit" className="primary" disabled={saving} style={{ marginTop: '24px' }}>
-          {saving ? "Saving..." : "Save Settings"}
-        </button>
+        <div className="settings-footer">
+          <button type="submit" className="primary" disabled={saving}>
+            {saving ? "Saving..." : "Save Settings"}
+          </button>
+
+          <div className="settings-update-actions">
+            <div className="input-row settings-update-buttons">
+              <button
+                type="button"
+                className="secondary"
+                onClick={checkLatestVersion}
+                disabled={checkingLatest}
+              >
+                {checkingLatest ? "Checking..." : "Check Latest Version"}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={updateApp}
+                disabled={!canUpdateApp || checkingUpdates}
+              >
+                {checkingUpdates ? "Updating..." : "Update App"}
+              </button>
+            </div>
+            {latestMessage ? <p className="hint settings-update-hint">{latestMessage}</p> : null}
+            {updateMessage ? <p className="hint settings-update-hint">{updateMessage}</p> : null}
+            {!canUpdateApp ? (
+              <p className="hint settings-update-hint">Update install is available in the packaged desktop app.</p>
+            ) : null}
+          </div>
+        </div>
       </form>
     </div>
   );

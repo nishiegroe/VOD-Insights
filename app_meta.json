@@ -1,10 +1,17 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
+    {
+      "version": "1.0.2",
+      "items": [
+        "Improved in-app update experience with clearer status and smoother update checks.",
+        "Update notifications and patch note visibility are now more consistent across sessions."
+      ]
+    },
     {
       "version": "1.0.1",
       "summary": "Welcome to the official release!!!"

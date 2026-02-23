@@ -16,6 +16,7 @@ import time
 import tkinter as tk
 import uuid
 from urllib.parse import quote
+from urllib.request import urlopen
 from tkinter import filedialog
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -47,6 +48,14 @@ CONFIG_PATH = get_config_path()
 EXIT_RESTART_CODE = 3
 REACT_DIST = get_react_dist()
 DOWNLOADS_DIR = get_downloads_dir()
+UPDATE_REQUEST_TIMEOUT_SECONDS = 30
+
+UPDATE_REPO_OWNER = os.environ.get("AET_UPDATE_REPO_OWNER", "nishiegroe")
+UPDATE_REPO_NAME = os.environ.get("AET_UPDATE_REPO_NAME", "VOD-Insights")
+DEFAULT_UPDATE_FEED_URL = (
+    f"https://github.com/{UPDATE_REPO_OWNER}/{UPDATE_REPO_NAME}/releases/latest/download/latest.json"
+)
+UPDATE_FEED_URL = os.environ.get("AET_UPDATE_FEED_URL", DEFAULT_UPDATE_FEED_URL)
 
 app = Flask(__name__)
 
@@ -67,6 +76,33 @@ def load_patch_notes() -> List[Any]:
         return []
     notes = payload.get("patchNotes") or payload.get("patch_notes") or []
     return notes if isinstance(notes, list) else []
+
+
+def get_current_app_version() -> str:
+    meta_path = get_project_root() / "app_meta.json"
+    if not meta_path.exists():
+        return ""
+    try:
+        payload = json.loads(meta_path.read_text(encoding="utf-8"))
+    except Exception:
+        return ""
+    value = payload.get("version")
+    return str(value).strip() if isinstance(value, str) else ""
+
+
+def fetch_latest_update_metadata() -> Dict[str, Any]:
+    with urlopen(UPDATE_FEED_URL, timeout=UPDATE_REQUEST_TIMEOUT_SECONDS) as response:
+        status = getattr(response, "status", 200)
+        if status < 200 or status >= 300:
+            raise RuntimeError(f"Update feed request failed with status {status}.")
+        raw = response.read().decode("utf-8")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Invalid update metadata received.") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("Invalid update metadata received.")
+    return payload
 
 
 def cleanup_on_exit() -> None:
@@ -1670,6 +1706,35 @@ def api_notifications() -> Any:
             "bootstrap": dependency_bootstrap.get_status(),
             "twitch_jobs": list_twitch_jobs(limit=10),
             "patch_notes": load_patch_notes(),
+        }
+    )
+
+
+@app.route("/api/update/latest")
+def api_update_latest() -> Any:
+    current_version = get_current_app_version()
+    try:
+        metadata = fetch_latest_update_metadata()
+    except Exception as exc:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "latest_version": "",
+                    "current_version": current_version,
+                    "error": str(exc),
+                }
+            ),
+            502,
+        )
+
+    latest_version = str(metadata.get("version", "")).strip()
+    return jsonify(
+        {
+            "ok": True,
+            "latest_version": latest_version,
+            "current_version": current_version,
+            "feed_url": UPDATE_FEED_URL,
         }
     )
 
