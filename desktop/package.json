@@ -22,6 +22,7 @@
     "productName": "VOD Insights",
     "files": [
       "main.js",
+      "preload.js",
       "assets/**"
     ],
     "extraResources": [
