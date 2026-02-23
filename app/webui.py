@@ -13,11 +13,9 @@ import subprocess
 import sys
 import threading
 import time
-import tkinter as tk
 import uuid
 from urllib.parse import quote
 from urllib.request import urlopen
-from tkinter import filedialog
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -204,12 +202,38 @@ def save_config(data: Dict[str, Any]) -> None:
 
 
 def choose_directory(initial: Optional[str] = None) -> str:
-    root = tk.Tk()
-    root.withdraw()
-    root.attributes("-topmost", True)
-    selected = filedialog.askdirectory(initialdir=initial or str(get_project_root()))
-    root.destroy()
-    return selected or ""
+    initial_dir = initial or str(get_project_root())
+
+    if sys.platform == "win32":
+        script = """
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.ShowNewFolderButton = $false
+$dialog.Description = 'Select replay directory'
+$initial = $env:AET_INITIAL_DIR
+if ($initial -and (Test-Path $initial)) { $dialog.SelectedPath = $initial }
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+  Write-Output $dialog.SelectedPath
+}
+"""
+        env = os.environ.copy()
+        env["AET_INITIAL_DIR"] = initial_dir
+        try:
+            result = subprocess.run(
+                ["powershell", "-NoProfile", "-STA", "-Command", script],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+        except OSError:
+            return ""
+        if result.returncode == 0:
+            return result.stdout.strip()
+        return ""
+
+    return ""
 
 
 def get_status() -> Dict[str, Any]:
