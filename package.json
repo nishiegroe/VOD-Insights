@@ -9,7 +9,7 @@
     "build:desktop": "npm run sync:meta && npm --prefix desktop run build",
     "build:desktop:portable": "npm run sync:meta && npm --prefix desktop run build:portable",
     "release:assets": "node ./scripts/prepare_github_release.cjs",
-    "release:prep": "npm run build && npm run release:assets --",
+    "release:prep": "node ./scripts/release_prep.cjs",
     "release:github": "node ./scripts/publish_github_release.cjs"
   }
 }
