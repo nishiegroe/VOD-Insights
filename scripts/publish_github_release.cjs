@@ -193,14 +193,10 @@ function main() {
     throw new Error('app_meta.json is missing a valid version.');
   }
 
-  const tag = args.tag || `v${version}`;
+  // Always use app_meta.json version for tag
+  const tag = `v${version}`;
   if (!/^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(tag)) {
-    throw new Error(`Tag must match vX.Y.Z format, received: ${tag}`);
-  }
-
-  const expectedTag = `v${version}`;
-  if (tag !== expectedTag) {
-    throw new Error(`Version mismatch: app_meta.json=${version}, tag=${tag}. Expected tag ${expectedTag}.`);
+    throw new Error(`app_meta.json version is not valid for tag: ${tag}`);
   }
 
   const outputDir = args.outputDir
