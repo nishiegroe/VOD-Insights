@@ -64,32 +64,62 @@ function resolveRepo(args) {
   return { owner, repo };
 }
 
-function npmCommand() {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+function npmRunner() {
+  if (process.env.npm_execpath) {
+    return {
+      command: process.execPath,
+      baseArgs: [process.env.npm_execpath],
+      shell: false,
+    };
+  }
+
+  return {
+    command: 'npm',
+    baseArgs: [],
+    shell: process.platform === 'win32',
+  };
 }
 
 function runOrThrow(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, {
+  const spawnOptions = {
     stdio: 'inherit',
-    cwd: options.cwd,
-    env: options.env,
-  });
+    shell: Boolean(options.shell),
+  };
+  if (options.cwd) {
+    spawnOptions.cwd = options.cwd;
+  }
+
+  const result = spawnSync(command, commandArgs, spawnOptions);
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
     throw new Error(`Command failed: ${command} ${commandArgs.join(' ')}`);
   }
 }
 
-function runCapture(command, commandArgs, options = {}) {
-  return spawnSync(command, commandArgs, {
-    stdio: ['ignore', 'pipe', 'pipe'],
+function runNpmOrThrow(args, options = {}) {
+  const runner = npmRunner();
+  runOrThrow(runner.command, [...runner.baseArgs, ...args], {
     cwd: options.cwd,
-    env: options.env,
-    encoding: 'utf8',
+    shell: runner.shell,
   });
 }
 
+function runCapture(command, commandArgs, options = {}) {
+  const spawnOptions = {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
+  };
+  if (options.cwd) {
+    spawnOptions.cwd = options.cwd;
+  }
+
+  return spawnSync(command, commandArgs, spawnOptions);
+}
+
 function localTagExists(tag, root) {
-  const result = runCapture('git', ['tag', '--list', tag], { cwd: root, env: process.env });
+  const result = runCapture('git', ['tag', '--list', tag], { cwd: root });
   if (result.status !== 0) {
     throw new Error(`Failed to check local tags: ${(result.stderr || '').trim()}`);
   }
@@ -97,10 +127,7 @@ function localTagExists(tag, root) {
 }
 
 function remoteTagExists(tag, remote, root) {
-  const result = runCapture('git', ['ls-remote', '--tags', remote, `refs/tags/${tag}`], {
-    cwd: root,
-    env: process.env,
-  });
+  const result = runCapture('git', ['ls-remote', '--tags', remote, `refs/tags/${tag}`], { cwd: root });
   if (result.status !== 0) {
     throw new Error(`Failed to check remote tags on ${remote}: ${(result.stderr || '').trim()}`);
   }
@@ -122,11 +149,11 @@ function ensureTagPushed(tag, remote, root, dryRun) {
   }
 
   if (!localExists) {
-    runOrThrow('git', ['tag', tag], { cwd: root, env: process.env });
+    runOrThrow('git', ['tag', tag], { cwd: root });
   }
 
   if (!remoteExists) {
-    runOrThrow('git', ['push', remote, tag], { cwd: root, env: process.env });
+    runOrThrow('git', ['push', remote, tag], { cwd: root });
   }
 }
 
@@ -209,9 +236,9 @@ function main() {
 
   if (!args.skipPrep) {
     if (args.dryRun) {
-      console.log(`Dry run: would execute ${npmCommand()} run release:prep -- --tag ${tag}`);
+      console.log(`Dry run: would execute npm run release:prep -- --tag ${tag}`);
     } else {
-      runOrThrow(npmCommand(), ['run', 'release:prep', '--', '--tag', tag], { cwd: root, env: process.env });
+      runNpmOrThrow(['run', 'release:prep', '--', '--tag', tag], { cwd: root });
     }
   }
 
@@ -260,7 +287,7 @@ function main() {
     return;
   }
 
-  runOrThrow('gh', ghArgs, { cwd: root, env: process.env });
+  runOrThrow('gh', ghArgs, { cwd: root });
 }
 
 main();
