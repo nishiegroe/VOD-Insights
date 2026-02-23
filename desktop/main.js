@@ -17,6 +17,7 @@ const HOST = "127.0.0.1";
 const PORT = parseInt(process.env.APEX_WEBUI_PORT || "5170", 10);
 const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const UPDATE_REQUEST_TIMEOUT_MS = 30000;
+const UPDATE_MAX_REDIRECTS = 5;
 
 const UPDATE_REPO_OWNER = process.env.AET_UPDATE_REPO_OWNER || "nishiegroe";
 const UPDATE_REPO_NAME = process.env.AET_UPDATE_REPO_NAME || "VOD-Insights";
@@ -96,10 +97,23 @@ function compareVersions(a, b) {
   return parsedA.prerelease.localeCompare(parsedB.prerelease);
 }
 
-function requestJson(url, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS) {
+function requestJson(url, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS, redirectCount = 0) {
   return new Promise((resolve, reject) => {
-    const request = https.get(url, (response) => {
-      const { statusCode = 0 } = response;
+    const urlObj = new URL(url);
+    const transport = urlObj.protocol === "http:" ? require("http") : https;
+    const request = transport.get(urlObj, (response) => {
+      const { statusCode = 0, headers } = response;
+      if (statusCode >= 300 && statusCode < 400 && headers?.location) {
+        if (redirectCount >= UPDATE_MAX_REDIRECTS) {
+          response.resume();
+          reject(new Error("Update feed request exceeded redirect limit."));
+          return;
+        }
+        const nextUrl = new URL(headers.location, urlObj).toString();
+        response.resume();
+        requestJson(nextUrl, timeoutMs, redirectCount + 1).then(resolve).catch(reject);
+        return;
+      }
       if (statusCode < 200 || statusCode >= 300) {
         response.resume();
         reject(new Error(`Update feed request failed with status ${statusCode}.`));
