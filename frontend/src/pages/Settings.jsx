@@ -8,6 +8,7 @@ export default function Settings({ status }) {
   const [saving, setSaving] = useState(false);
   const [gpuStatus, setGpuStatus] = useState("");
   const [gpuTesting, setGpuTesting] = useState(false);
+  const [gpuInstalling, setGpuInstalling] = useState(false);
 
   const obsConnected = status?.obs_connected ?? false;
 
@@ -90,6 +91,24 @@ export default function Settings({ status }) {
       setGpuStatus(error.message || "GPU check failed");
     } finally {
       setGpuTesting(false);
+    }
+  };
+
+  const installGpuOcr = async () => {
+    setGpuInstalling(true);
+    setGpuStatus("Installing GPU OCR dependencies...");
+    try {
+      const response = await fetch("/api/install-gpu-ocr", { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        setGpuStatus(payload.message || "Installation failed");
+      } else {
+        setGpuStatus(payload.message || "GPU OCR installed successfully");
+      }
+    } catch (error) {
+      setGpuStatus(error.message || "Installation failed");
+    } finally {
+      setGpuInstalling(false);
     }
   };
 
@@ -245,8 +264,11 @@ export default function Settings({ status }) {
             Use GPU OCR (EasyOCR)
           </label>
           <div className="input-row">
-            <button type="button" className="secondary" onClick={testGpuOcr} disabled={gpuTesting}>
+            <button type="button" className="secondary" onClick={testGpuOcr} disabled={gpuTesting || gpuInstalling}>
               {gpuTesting ? "Testing..." : "Test GPU OCR"}
+            </button>
+            <button type="button" className="secondary" onClick={installGpuOcr} disabled={gpuInstalling || gpuTesting}>
+              {gpuInstalling ? "Installing..." : "Download and Install GPU OCR"}
             </button>
             {gpuStatus ? <span className="hint">{gpuStatus}</span> : null}
           </div>

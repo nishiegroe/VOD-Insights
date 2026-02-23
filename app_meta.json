@@ -1,11 +1,13 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "0.1.6",
+  "version": "1.0.0",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
-  "patchNotes": []
+  "patchNotes": [
+    {
+      "version": "1.0.0",
+      "summary": "Welcome to the official release!!!"
+    }
+  ]
 }
-
-
-
