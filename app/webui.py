@@ -37,6 +37,7 @@ from app.runtime_paths import (
     resolve_tool,
     reset_log_file,
 )
+from app.dependency_bootstrap import dependency_bootstrap
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
 
@@ -166,9 +167,11 @@ def choose_directory(initial: Optional[str] = None) -> str:
 def get_status() -> Dict[str, Any]:
     with _process_lock:
         running = _bookmark_process is not None and _bookmark_process.poll() is None
+    bootstrap_status = dependency_bootstrap.get_status()
     return {
         "bookmark_running": running,
         "dev_mode": not is_frozen(),
+        "bootstrap_required_ready": bool(bootstrap_status.get("required_ready")),
     }
 
 
@@ -1634,6 +1637,18 @@ def api_status() -> Any:
 @app.route("/api/test-connection")
 def api_test_connection() -> Any:
     return jsonify({"status": "ok", "message": "Server is running with latest code"})
+
+
+@app.route("/api/bootstrap/status")
+def api_bootstrap_status() -> Any:
+    return jsonify(dependency_bootstrap.get_status())
+
+
+@app.route("/api/bootstrap/start", methods=["POST"])
+def api_bootstrap_start() -> Any:
+    payload = request.get_json() or {}
+    install_gpu_ocr = bool(payload.get("install_gpu_ocr", False))
+    return jsonify(dependency_bootstrap.start(install_gpu_ocr=install_gpu_ocr))
 
 
 @app.route("/api/ocr-gpu-status")

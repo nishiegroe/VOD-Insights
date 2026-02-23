@@ -183,6 +183,12 @@ Notes:
 - If you keep a custom Tesseract install path, ensure it is in your PATH
    before launching the desktop EXE.
 - The build script installs PyInstaller in the venv if missing.
+- **Thin builds are now the default**: GPU OCR dependencies and pre-downloaded models are not bundled, making the installer smaller (~500–700 MB instead of 2.3 GB). They are installed on-demand on first run.
+- To include GPU OCR dependencies and models in a custom local build for offline use:
+
+   ```powershell
+   scripts\\build_inno.ps1 -IncludeGpuOcrDeps -IncludeEasyOcrModels
+   ```
 
 ## GitHub Releases (Tagged)
 
@@ -244,6 +250,27 @@ Notes:
 
 - `AET_UPDATE_FEED_URL`: override update metadata URL (defaults to GitHub `releases/latest/download/latest.json`).
 - `AET_DISABLE_UPDATER=1`: disable in-app update checks for a build/session.
+
+### First-run dependency bootstrap
+
+- On packaged desktop startup, the app checks required runtime tools (`ffmpeg`, `yt-dlp`) before opening the main UI.
+- Missing required tools are downloaded automatically on first run and installed into the app installation directory (`<InstallDir>\tools\`), or fall back to `%APPDATA%\VODInsights\tools` if install directory is not writable.
+- Startup is temporarily blocked while required tools install, and progress is shown on the splash screen.
+- `AET_DISABLE_BOOTSTRAP=1` can disable this startup bootstrap check for troubleshooting.
+
+### Optional GPU OCR installation
+
+- GPU OCR dependencies (Torch, TorchVision, TorchAudio, EasyOCR) are not bundled by default in the thin installer but are automatically downloaded and installed on first run.
+- Installation happens in the background during startup after required tools are ready. No user action is needed.
+- If GPU OCR installation fails for any reason, the app will still start normally with CPU-only OCR available.
+- Once installed, GPU OCR will be available as an option in the OCR settings.
+- Installation can take several minutes on first launch depending on internet speed (Torch is large, ~600 MB for CPU).
+- To skip GPU OCR installation and use CPU-only OCR, set `AET_DISABLE_GPU_OCR=1`.
+- To include GPU OCR in a custom local build for offline use:
+
+   ```powershell
+   scripts\\build_inno.ps1 -IncludeGpuOcrDeps -IncludeEasyOcrModels
+   ```
 
 ## Notes
 

@@ -1,8 +1,8 @@
 param(
     [string]$ISCC = "E:\Inno Setup 6\ISCC.exe",
     [switch]$Fast,
-    [switch]$SkipOcrDeps,
-    [switch]$SkipModels,
+    [switch]$IncludeGpuOcrDeps,
+    [switch]$IncludeEasyOcrModels,
     [switch]$ReuseBackend
 )
 
@@ -51,11 +51,15 @@ if (-not $isccPath) {
 }
 
 $useFastBuild = $Fast -or ($env:AET_FAST_BUILD -eq "1")
-$skipOcrDeps = $SkipOcrDeps -or ($env:AET_SKIP_OCR_DEPS -eq "1")
-$skipModels = $SkipModels -or ($env:AET_SKIP_MODELS -eq "1")
+$legacySkipOcrDeps = ($env:AET_SKIP_OCR_DEPS -eq "1")
+$legacySkipModels = ($env:AET_SKIP_MODELS -eq "1")
+$includeGpuOcrDeps = $IncludeGpuOcrDeps -or ($env:AET_INCLUDE_GPU_OCR_DEPS -eq "1")
+$includeEasyOcrModels = $IncludeEasyOcrModels -or ($env:AET_INCLUDE_EASYOCR_MODELS -eq "1")
+$skipOcrDeps = (-not $includeGpuOcrDeps) -or $legacySkipOcrDeps
+$skipModels = (-not $includeEasyOcrModels) -or $legacySkipModels
 $reuseBackend = $ReuseBackend -or ($env:AET_REUSE_BACKEND -eq "1")
 
-Write-Host "Build flags: Fast=$useFastBuild SkipOcrDeps=$skipOcrDeps SkipModels=$skipModels ReuseBackend=$reuseBackend"
+Write-Host "Build flags: Fast=$useFastBuild IncludeGpuOcrDeps=$includeGpuOcrDeps IncludeEasyOcrModels=$includeEasyOcrModels ReuseBackend=$reuseBackend"
 
 Invoke-TimedStep "Frontend install (if needed)" {
     if (-not (Test-Path "frontend\node_modules")) {

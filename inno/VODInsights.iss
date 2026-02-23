@@ -1,5 +1,5 @@
 #define MyAppName "VOD Insights"
-#define MyAppVersion "0.1.2"
+#define MyAppVersion "0.1.3"
 #define MyAppPublisher "VODInsights"
 #define MyAppExeName "VOD Insights.exe"
 

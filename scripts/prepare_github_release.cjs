@@ -3,6 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
+const GITHUB_RELEASE_ASSET_MAX_BYTES = 2147483648;
+
 function parseArgs(argv) {
   const args = {
     tag: '',
@@ -117,6 +119,13 @@ async function main() {
 
   const installerPath = path.join(outputDir, installerName);
   const installerStat = fs.statSync(installerPath);
+  if (installerStat.size >= GITHUB_RELEASE_ASSET_MAX_BYTES) {
+    const gib = (installerStat.size / (1024 ** 3)).toFixed(2);
+    throw new Error(
+      `Installer is ${gib} GiB (${installerStat.size} bytes), which exceeds GitHub Releases asset limit of 2 GiB. ` +
+      `Build a smaller installer (for example, tesseract-only release) before publishing.`
+    );
+  }
   const installerSha256 = await sha256File(installerPath);
   const { owner, repo } = resolveRepo(args);
   const releaseUrl = `https://github.com/${owner}/${repo}/releases/download/${tag}/${encodeURIComponent(installerName)}`;

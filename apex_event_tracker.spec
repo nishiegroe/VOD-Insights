@@ -22,16 +22,8 @@ pathex = [str(root)]
 hiddenimports = []
 hiddenimports += collect_submodules("numpy")
 hiddenimports += collect_submodules("cv2")
-hiddenimports += [
-    "easyocr",
-    "torch",
-    "torchvision",
-    "torchaudio",
-]
 
 binaries = []
-if tools_dir.exists():
-    binaries.append((str(tools_dir), "tools"))
 
 # Bundle frontend dist and default config.
 datas = []
@@ -39,9 +31,6 @@ if frontend_dist.exists():
     datas.append((str(frontend_dist), "frontend/dist"))
 if config_path.exists():
     datas.append((str(config_path), "app"))
-easyocr_models_dir = root / "easyocr_models"
-if easyocr_models_dir.exists():
-    datas.append((str(easyocr_models_dir), "easyocr_models"))
 if notices_path.exists():
     datas.append((str(notices_path), "."))
 if licenses_dir.exists():

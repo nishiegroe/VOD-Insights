@@ -112,6 +112,123 @@ function requestJson(url, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS) {
   });
 }
 
+function requestApiJson(method, pathName, payload = null, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const body = payload ? JSON.stringify(payload) : null;
+    const req = httpRequest(
+      {
+        host: HOST,
+        port: PORT,
+        path: pathName,
+        method,
+        headers: body
+          ? {
+              "Content-Type": "application/json",
+              "Content-Length": Buffer.byteLength(body)
+            }
+          : undefined
+      },
+      (res) => {
+        const { statusCode = 0 } = res;
+        let raw = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => {
+          raw += chunk;
+        });
+        res.on("end", () => {
+          if (statusCode < 200 || statusCode >= 300) {
+            reject(new Error(`Request ${pathName} failed with status ${statusCode}.`));
+            return;
+          }
+          try {
+            resolve(JSON.parse(raw || "{}"));
+          } catch (error) {
+            reject(new Error(`Invalid JSON response from ${pathName}.`));
+          }
+        });
+      }
+    );
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Request timed out: ${pathName}`));
+    });
+    req.on("error", (error) => reject(error));
+    if (body) {
+      req.write(body);
+    }
+    req.end();
+  });
+}
+
+function httpRequest(options, callback) {
+  return require("http").request(options, callback);
+}
+
+function updateSplashStatus(splash, statusText, progressText = "") {
+  if (!splash || splash.isDestroyed()) {
+    return;
+  }
+  const escapedStatus = JSON.stringify(String(statusText || ""));
+  const escapedProgress = JSON.stringify(String(progressText || ""));
+  splash.webContents
+    .executeJavaScript(
+      `
+      const statusEl = document.getElementById('status');
+      const progressEl = document.getElementById('progress');
+      if (statusEl) statusEl.textContent = ${escapedStatus};
+      if (progressEl) progressEl.textContent = ${escapedProgress};
+      true;
+      `,
+      true
+    )
+    .catch(() => {
+      // Ignore splash update errors.
+    });
+}
+
+async function waitForDependencyBootstrap(splash) {
+  if (!app.isPackaged) {
+    return;
+  }
+  if (String(process.env.AET_DISABLE_BOOTSTRAP || "") === "1") {
+    return;
+  }
+
+  let status = await requestApiJson("GET", "/api/bootstrap/status");
+  if (status.required_ready) {
+    return;
+  }
+
+  updateSplashStatus(splash, "Preparing dependencies...", "Starting first-run setup");
+  await requestApiJson("POST", "/api/bootstrap/start", { install_gpu_ocr: true });
+
+  const startedAt = Date.now();
+  const timeoutMs = 30 * 60 * 1000;
+  while (true) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error("Dependency bootstrap timed out after 30 minutes.");
+    }
+
+    status = await requestApiJson("GET", "/api/bootstrap/status");
+    const dep = status.dependency ? `(${status.dependency})` : "";
+    let progress = "";
+    if (status.bytes_total > 0) {
+      const pct = Math.min(100, Math.floor((status.bytes_downloaded / status.bytes_total) * 100));
+      progress = `${pct}% downloaded`;
+    }
+    updateSplashStatus(splash, status.message || `Preparing dependencies ${dep}`, progress);
+
+    if (status.gpu_ocr_ready) {
+      return;
+    }
+    if (status.phase === "error") {
+      throw new Error(status.error || "Dependency bootstrap failed.");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+}
+
 function downloadFile(url, destinationPath, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const request = https.get(url, (response) => {
@@ -427,6 +544,15 @@ function waitForPort(host, port, timeoutMs = 120000, intervalMs = 500) {
   });
 }
 
+function getInstallDir() {
+  // For packaged apps, the executable is in the install directory.
+  // For dev, use the project root.
+  if (app.isPackaged) {
+    return path.dirname(process.execPath);
+  }
+  return getRootDir();
+}
+
 function startBackend() {
   const { command, args, cwd } = resolveBackendCommand();
 
@@ -438,6 +564,7 @@ function startBackend() {
   fs.mkdirSync(pyiTempDir, { recursive: true });
   const logStream = fs.createWriteStream(backendLogPath, { flags: "a" });
 
+  const installDir = getInstallDir();
   backendProcess = spawn(command, args, {
     cwd,
     windowsHide: true,
@@ -446,6 +573,7 @@ function startBackend() {
       APEX_WEBUI_WATCH: "0",
       APEX_WEBUI_PORT: String(PORT),
       AET_APPDATA_DIR: userDataDir,
+      AET_INSTALL_DIR: installDir,
       PYINSTALLER_TMPDIR: pyiTempDir,
       TEMP: pyiTempDir,
       TMP: pyiTempDir
@@ -733,6 +861,7 @@ app.whenReady().then(async () => {
     splash = createSplashScreen();
     startBackend();
     await waitForPort(HOST, PORT);
+    await waitForDependencyBootstrap(splash);
     const win = createWindow();
     
     // Close splash when main window is ready

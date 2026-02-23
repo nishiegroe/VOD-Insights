@@ -35,6 +35,23 @@ def get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def get_install_dir() -> Path:
+    """Get the application installation directory.
+    
+    For packaged apps, this is where the .exe is located.
+    For dev, this returns the project root.
+    Can be overridden with AET_INSTALL_DIR environment variable.
+    """
+    env_dir = os.environ.get("AET_INSTALL_DIR")
+    if env_dir:
+        candidate = Path(env_dir)
+        if candidate.exists():
+            return candidate
+    if is_frozen():
+        return get_exe_dir()
+    return get_project_root()
+
+
 def _get_app_data_base() -> Path:
     env_path = os.environ.get("APPDATA") or os.environ.get("LOCALAPPDATA")
     if env_path:
