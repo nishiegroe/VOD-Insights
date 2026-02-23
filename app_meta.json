@@ -1,7 +1,7 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
