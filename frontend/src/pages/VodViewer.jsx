@@ -502,6 +502,36 @@ export default function VodViewer() {
     ]);
   };
 
+  const nearbyManualMarker = useMemo(() => {
+    if (!manualMarkers.length) return null;
+    const now = currentTimeRef.current || currentTime;
+    let nearestIndex = -1;
+    let nearestDiff = Number.POSITIVE_INFINITY;
+
+    manualMarkers.forEach((marker, index) => {
+      const diff = Math.abs((marker?.seconds ?? 0) - now);
+      if (diff < nearestDiff) {
+        nearestDiff = diff;
+        nearestIndex = index;
+      }
+    });
+
+    if (nearestIndex < 0 || nearestDiff > 10) return null;
+    return {
+      index: nearestIndex,
+      marker: manualMarkers[nearestIndex],
+      diff: nearestDiff,
+    };
+  }, [manualMarkers, currentTime]);
+
+  const toggleManualMarker = () => {
+    if (nearbyManualMarker) {
+      setManualMarkers((prev) => prev.filter((_, index) => index !== nearbyManualMarker.index));
+      return;
+    }
+    addManualMarker();
+  };
+
   useEffect(() => {
     if (!bookmarkListRef.current || !activeBookmarkRef.current || bookmarksCollapsed) return;
 
@@ -958,10 +988,14 @@ export default function VodViewer() {
             </button>
             <button
               className="secondary"
-              onClick={addManualMarker}
-              title="Add a manual event marker at the current timestamp"
+              onClick={toggleManualMarker}
+              title={
+                nearbyManualMarker
+                  ? "Remove the nearest manual marker (within 10 seconds)"
+                  : "Add a manual event marker at the current timestamp"
+              }
             >
-              Add Marker
+              {nearbyManualMarker ? "Remove Marker" : "Add Marker"}
             </button>
             <button
               type="button"

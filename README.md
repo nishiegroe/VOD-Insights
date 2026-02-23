@@ -241,6 +241,26 @@ gh release create v0.1.1 \
   --notes "VOD Insights v0.1.1"
 ```
 
+Or run the full publish flow in one command (build + asset prep + GitHub release):
+
+```powershell
+npm run release:github
+```
+
+This command reads release notes from the matching `patchNotes` entry in [app_meta.json](app_meta.json) and uses that text for `gh release create --notes`.
+
+It also creates the version tag (`v${version}`) if missing and pushes it to `origin` before publishing.
+
+Optional flags:
+
+```powershell
+npm run release:github -- --dry-run
+npm run release:github -- --skip-prep
+npm run release:github -- --skip-tag
+npm run release:github -- --remote upstream
+npm run release:github -- --owner <owner> --repo <repo>
+```
+
 Notes:
 - `--tag` must match `app_meta.json` version (`v${version}`).
 - `latest.json` is intended for desktop in-app update checks.

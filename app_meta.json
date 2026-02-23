@@ -1,10 +1,17 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
+    {
+      "version": "1.0.4",
+      "items": [
+        "VOD Viewer marker button now switches to Remove Marker when playback is within 10 seconds of a custom marker.",
+        "Clicking that button in range removes the nearest custom marker; otherwise it adds a new marker as before."
+      ]
+    },
     {
       "version": "1.0.2",
       "items": [
