@@ -29,6 +29,10 @@ jobs:
         shell: powershell
         run: choco install innosetup --no-progress -y
 
+      - name: Install Tesseract OCR
+        shell: powershell
+        run: choco install tesseract --no-progress -y
+
       - name: Create CI venv and install packaging dependencies
         shell: powershell
         run: |
