@@ -7,6 +7,7 @@ permissions:
   contents: read
   actions: read
   pull-requests: write
+  issues: write
 
 jobs:
   build-windows-installer:
@@ -75,6 +76,24 @@ jobs:
               return;
             }
             const { owner, repo } = context.repo;
+            const commentPrefix = "Windows installer artifact:";
+            const comments = await github.rest.issues.listComments({
+              owner,
+              repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const botComments = comments.data.filter((comment) =>
+              comment.user?.login === "github-actions[bot]" &&
+              comment.body?.startsWith(commentPrefix)
+            );
+            for (const comment of botComments) {
+              await github.rest.issues.deleteComment({
+                owner,
+                repo,
+                comment_id: comment.id,
+              });
+            }
             const runId = context.runId;
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
               owner,
@@ -89,7 +108,7 @@ jobs:
               return;
             }
             const artifactUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
-            const body = `Windows installer artifact: [${artifact.name}](${artifactUrl})`;
+            const body = `${commentPrefix} [${artifact.name}](${artifactUrl})`;
             await github.rest.issues.createComment({
               owner,
               repo,
