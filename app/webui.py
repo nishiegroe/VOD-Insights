@@ -1863,7 +1863,7 @@ def api_install_gpu_ocr() -> Any:
             status="running",
             message="Preparing GPU OCR install...",
             step=0,
-            step_total=4,
+            step_total=5,
             error="",
         )
         python_candidates: List[List[str]] = []
@@ -1913,6 +1913,15 @@ def api_install_gpu_ocr() -> Any:
         target_dir = get_gpu_ocr_packages_dir()
         target_dir.mkdir(parents=True, exist_ok=True)
 
+        _set_gpu_ocr_install_state(message="Cleaning GPU OCR packages...", step=2)
+        for item in target_dir.iterdir():
+            name = item.name.lower()
+            if name.startswith(("torch", "torchaudio", "torchvision", "easyocr")):
+                if item.is_dir():
+                    shutil.rmtree(item, ignore_errors=True)
+                else:
+                    item.unlink(missing_ok=True)
+
         required_bytes = 10 * 1024 * 1024 * 1024
         try:
             free_bytes = shutil.disk_usage(Path(python_exe_path).anchor or str(Path.home().anchor)).free
@@ -1938,6 +1947,26 @@ def api_install_gpu_ocr() -> Any:
             timeout=120,
         )
 
+        torch_version = "2.6.0+cu124"
+        torchvision_version = "0.21.0+cu124"
+        torchaudio_version = "2.6.0+cu124"
+        install_torch_cmd = [
+            *chosen_python,
+            "-m",
+            "pip",
+            "install",
+            f"torch=={torch_version}",
+            f"torchvision=={torchvision_version}",
+            f"torchaudio=={torchaudio_version}",
+            "--index-url",
+            "https://download.pytorch.org/whl/cu124",
+            "--target",
+            str(target_dir),
+            "--no-cache-dir",
+            "--disable-pip-version-check",
+            "--upgrade",
+            "--force-reinstall",
+        ]
         install_easyocr_cmd = [
             *chosen_python,
             "-m",
@@ -1948,45 +1977,7 @@ def api_install_gpu_ocr() -> Any:
             str(target_dir),
             "--no-cache-dir",
             "--disable-pip-version-check",
-            "--upgrade",
         ]
-        install_torch_cmd = [
-            *chosen_python,
-            "-m",
-            "pip",
-            "install",
-            "torch",
-            "torchvision",
-            "torchaudio",
-            "--index-url",
-            "https://download.pytorch.org/whl/cu124",
-            "--target",
-            str(target_dir),
-            "--no-cache-dir",
-            "--disable-pip-version-check",
-            "--upgrade",
-        ]
-
-        _set_gpu_ocr_install_state(message="Installing EasyOCR...", step=2)
-        print(f"Installing EasyOCR: {' '.join(install_easyocr_cmd)}")
-        easyocr_result = subprocess.run(
-            install_easyocr_cmd,
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-        if easyocr_result.returncode != 0:
-            error_msg = easyocr_result.stderr or easyocr_result.stdout
-            _set_gpu_ocr_install_state(
-                running=False,
-                status="error",
-                message="EasyOCR install failed.",
-                error=error_msg[:400],
-            )
-            return jsonify({
-                "ok": False,
-                "message": f"EasyOCR install failed: {error_msg[:300]}",
-            }), 400
 
         _set_gpu_ocr_install_state(message="Installing CUDA Torch...", step=3)
         print(f"Installing CUDA Torch: {' '.join(install_torch_cmd)}")
@@ -2024,7 +2015,28 @@ def api_install_gpu_ocr() -> Any:
                 "message": f"Torch install failed: {error_msg[:300]}",
             }), 400
 
-        _set_gpu_ocr_install_state(message="Verifying CUDA...", step=4)
+        _set_gpu_ocr_install_state(message="Installing EasyOCR...", step=4)
+        print(f"Installing EasyOCR: {' '.join(install_easyocr_cmd)}")
+        easyocr_result = subprocess.run(
+            install_easyocr_cmd,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+        if easyocr_result.returncode != 0:
+            error_msg = easyocr_result.stderr or easyocr_result.stdout
+            _set_gpu_ocr_install_state(
+                running=False,
+                status="error",
+                message="EasyOCR install failed.",
+                error=error_msg[:400],
+            )
+            return jsonify({
+                "ok": False,
+                "message": f"EasyOCR install failed: {error_msg[:300]}",
+            }), 400
+
+        _set_gpu_ocr_install_state(message="Verifying CUDA...", step=5)
         python_code = (
             "import sys; "
             f"sys.path.insert(0, {repr(str(target_dir))}); "
