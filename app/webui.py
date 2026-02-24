@@ -25,6 +25,7 @@ from flask import Flask, Response, abort, jsonify, redirect, request, send_file,
 from app.runtime_paths import (
     build_mode_command,
     get_app_data_dir,
+    get_gpu_ocr_packages_dir,
     get_config_path,
     get_downloads_dir,
     prepare_torch_runtime,
@@ -62,6 +63,27 @@ _bookmark_process: Optional[subprocess.Popen] = None
 _vod_ocr_processes: Dict[str, subprocess.Popen] = {}
 _selected_vod: Optional[Path] = None
 _selected_session: Optional[Path] = None
+_gpu_ocr_lock = threading.Lock()
+_gpu_ocr_install_state: Dict[str, Any] = {
+    "running": False,
+    "status": "idle",
+    "message": "",
+    "step": 0,
+    "step_total": 0,
+    "error": "",
+    "updated_at": time.time(),
+}
+
+
+def _set_gpu_ocr_install_state(**fields: Any) -> None:
+    with _gpu_ocr_lock:
+        _gpu_ocr_install_state.update(fields)
+        _gpu_ocr_install_state["updated_at"] = time.time()
+
+
+def _get_gpu_ocr_install_state() -> Dict[str, Any]:
+    with _gpu_ocr_lock:
+        return dict(_gpu_ocr_install_state)
 
 
 def load_patch_notes() -> List[Any]:
@@ -1729,6 +1751,7 @@ def api_notifications() -> Any:
     return jsonify(
         {
             "bootstrap": dependency_bootstrap.get_status(),
+            "gpu_ocr_install": _get_gpu_ocr_install_state(),
             "twitch_jobs": list_twitch_jobs(limit=10),
             "patch_notes": load_patch_notes(),
         }
@@ -1835,6 +1858,14 @@ def api_ocr_gpu_diagnostics() -> Any:
 def api_install_gpu_ocr() -> Any:
     """Download and install Torch/CUDA for GPU OCR support."""
     try:
+        _set_gpu_ocr_install_state(
+            running=True,
+            status="running",
+            message="Preparing GPU OCR install...",
+            step=0,
+            step_total=4,
+            error="",
+        )
         python_candidates: List[List[str]] = []
         if not is_frozen():
             python_candidates.append([sys.executable])
@@ -1844,6 +1875,7 @@ def api_install_gpu_ocr() -> Any:
             ["python"],
         ])
 
+        _set_gpu_ocr_install_state(message="Detecting Python runtime...", step=1)
         chosen_python: Optional[List[str]] = None
         for candidate in python_candidates:
             probe = subprocess.run(
@@ -1857,6 +1889,12 @@ def api_install_gpu_ocr() -> Any:
                 break
 
         if chosen_python is None:
+            _set_gpu_ocr_install_state(
+                running=False,
+                status="error",
+                message="No system Python found.",
+                error="python-not-found",
+            )
             return jsonify({
                 "ok": False,
                 "message": "No system Python found. Install Python 3.12+ and try again.",
@@ -1871,6 +1909,9 @@ def api_install_gpu_ocr() -> Any:
         python_exe_path = (python_path_probe.stdout or "").strip()
         if not python_exe_path:
             python_exe_path = " ".join(chosen_python)
+
+        target_dir = get_gpu_ocr_packages_dir()
+        target_dir.mkdir(parents=True, exist_ok=True)
 
         required_bytes = 10 * 1024 * 1024 * 1024
         try:
@@ -1903,6 +1944,8 @@ def api_install_gpu_ocr() -> Any:
             "pip",
             "install",
             "easyocr",
+            "--target",
+            str(target_dir),
             "--no-cache-dir",
             "--disable-pip-version-check",
             "--upgrade",
@@ -1917,11 +1960,14 @@ def api_install_gpu_ocr() -> Any:
             "torchaudio",
             "--index-url",
             "https://download.pytorch.org/whl/cu124",
+            "--target",
+            str(target_dir),
             "--no-cache-dir",
             "--disable-pip-version-check",
             "--upgrade",
         ]
 
+        _set_gpu_ocr_install_state(message="Installing EasyOCR...", step=2)
         print(f"Installing EasyOCR: {' '.join(install_easyocr_cmd)}")
         easyocr_result = subprocess.run(
             install_easyocr_cmd,
@@ -1931,11 +1977,18 @@ def api_install_gpu_ocr() -> Any:
         )
         if easyocr_result.returncode != 0:
             error_msg = easyocr_result.stderr or easyocr_result.stdout
+            _set_gpu_ocr_install_state(
+                running=False,
+                status="error",
+                message="EasyOCR install failed.",
+                error=error_msg[:400],
+            )
             return jsonify({
                 "ok": False,
                 "message": f"EasyOCR install failed: {error_msg[:300]}",
             }), 400
 
+        _set_gpu_ocr_install_state(message="Installing CUDA Torch...", step=3)
         print(f"Installing CUDA Torch: {' '.join(install_torch_cmd)}")
         torch_result = subprocess.run(
             install_torch_cmd,
@@ -1947,6 +2000,12 @@ def api_install_gpu_ocr() -> Any:
         if torch_result.returncode != 0:
             error_msg = torch_result.stderr or torch_result.stdout
             if "No space left on device" in error_msg or "Errno 28" in error_msg:
+                _set_gpu_ocr_install_state(
+                    running=False,
+                    status="error",
+                    message="Torch install failed: insufficient disk space.",
+                    error=error_msg[:400],
+                )
                 return jsonify({
                     "ok": False,
                     "message": (
@@ -1954,12 +2013,25 @@ def api_install_gpu_ocr() -> Any:
                         "Free at least 10 GB on the Python install drive and try again."
                     ),
                 }), 400
+            _set_gpu_ocr_install_state(
+                running=False,
+                status="error",
+                message="Torch install failed.",
+                error=error_msg[:400],
+            )
             return jsonify({
                 "ok": False,
                 "message": f"Torch install failed: {error_msg[:300]}",
             }), 400
 
-        verify_cmd = [*chosen_python, "-c", "import torch; print(torch.cuda.is_available())"]
+        _set_gpu_ocr_install_state(message="Verifying CUDA...", step=4)
+        python_code = (
+            "import sys; "
+            f"sys.path.insert(0, {repr(str(target_dir))}); "
+            "import torch; "
+            "print(torch.cuda.is_available())"
+        )
+        verify_cmd = [*chosen_python, "-c", python_code]
         verify_result = subprocess.run(
             verify_cmd,
             capture_output=True,
@@ -1968,6 +2040,12 @@ def api_install_gpu_ocr() -> Any:
         )
         cuda_available = verify_result.returncode == 0 and "True" in (verify_result.stdout or "")
 
+        _set_gpu_ocr_install_state(
+            running=False,
+            status="success",
+            message="GPU OCR dependencies installed.",
+            error="",
+        )
         return jsonify({
             "ok": True,
             "message": "GPU OCR dependencies installed.",
@@ -1976,6 +2054,12 @@ def api_install_gpu_ocr() -> Any:
         })
             
     except subprocess.TimeoutExpired:
+        _set_gpu_ocr_install_state(
+            running=False,
+            status="error",
+            message="Installation timed out.",
+            error="timeout",
+        )
         return jsonify({
             "ok": False,
             "message": "Installation timed out. Check internet connection and try again."
@@ -1983,6 +2067,12 @@ def api_install_gpu_ocr() -> Any:
     except Exception as e:
         error_str = str(e)
         print(f"GPU install error: {error_str[:200]}")
+        _set_gpu_ocr_install_state(
+            running=False,
+            status="error",
+            message="GPU OCR install failed.",
+            error=error_str[:400],
+        )
         return jsonify({
             "ok": False,
             "message": f"Error: {error_str[:200]}"

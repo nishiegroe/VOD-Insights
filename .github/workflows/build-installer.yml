@@ -5,6 +5,8 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: write
 
 jobs:
   build-windows-installer:
@@ -61,3 +63,36 @@ jobs:
           path: dist-desktop/inno/VODInsights-Setup-*.exe
           if-no-files-found: error
           retention-days: 14
+
+      - name: Comment with installer artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request?.number;
+            if (!prNumber) {
+              core.info("No pull request number found.");
+              return;
+            }
+            const { owner, repo } = context.repo;
+            const runId = context.runId;
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner,
+              repo,
+              run_id: runId,
+            });
+            const artifact = artifacts.data.artifacts.find((item) =>
+              item.name.startsWith("vod-insights-setup-")
+            );
+            if (!artifact) {
+              core.info("No installer artifact found to link.");
+              return;
+            }
+            const artifactUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
+            const body = `Windows installer artifact: [${artifact.name}](${artifactUrl})`;
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNumber,
+              body,
+            });

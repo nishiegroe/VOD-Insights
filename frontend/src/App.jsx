@@ -19,6 +19,7 @@ export default function App() {
   const [status, setStatus] = useState(null);
   const [notificationData, setNotificationData] = useState({
     bootstrap: null,
+    gpu_ocr_install: null,
     twitch_jobs: [],
     patch_notes: []
   });
@@ -44,6 +45,12 @@ export default function App() {
   const activeTwitchJobs = useMemo(() => {
     return (notificationData.twitch_jobs || []).filter(isActiveTwitchJob);
   }, [notificationData.twitch_jobs]);
+
+  const gpuOcrInstall = notificationData.gpu_ocr_install;
+  const gpuOcrInstalling = Boolean(gpuOcrInstall?.running);
+  const gpuOcrVisible = Boolean(
+    gpuOcrInstall && (gpuOcrInstall.running || gpuOcrInstall.status === "success" || gpuOcrInstall.status === "error")
+  );
 
   const bootstrapBusy = useMemo(() => {
     const bootstrap = notificationData.bootstrap;
@@ -81,6 +88,7 @@ export default function App() {
 
   const notificationCount =
     (bootstrapBusy && !isDismissed("bootstrap") ? 1 : 0) +
+    (gpuOcrVisible && !isDismissed("gpu-ocr-install") ? 1 : 0) +
     activeTwitchJobs.filter((job) => !isDismissed(`twitch:${job.id}`)).length;
 
   const loadNotifications = async () => {
@@ -217,6 +225,55 @@ export default function App() {
                       ) : (
                         <div className="notification-empty">No active dependency downloads.</div>
                       )}
+                      {gpuOcrVisible && !isDismissed("gpu-ocr-install") ? (
+                        <div className="notification-item">
+                          <button
+                            type="button"
+                            className="notification-dismiss"
+                            onClick={() => dismissNotification("gpu-ocr-install")}
+                            aria-label="Dismiss GPU OCR notification"
+                            title="Dismiss"
+                          >
+                            ×
+                          </button>
+                          <div className="notification-title">GPU OCR</div>
+                          <div className="notification-body">
+                            {gpuOcrInstall?.message || "Installing GPU OCR dependencies..."}
+                          </div>
+                          <div className="notification-meta">
+                            {gpuOcrInstall?.status === "error"
+                              ? "Failed"
+                              : gpuOcrInstall?.status === "success"
+                              ? "Completed"
+                              : gpuOcrInstall?.step_total
+                              ? `Step ${gpuOcrInstall.step || 0} of ${gpuOcrInstall.step_total}`
+                              : "Installing"}
+                          </div>
+                          {gpuOcrInstall?.status !== "error" ? (
+                            <div className="notification-progress">
+                              <div
+                                className={`notification-progress-bar${
+                                  gpuOcrInstall?.step_total ? "" : " indeterminate"
+                                }`}
+                                style={
+                                  gpuOcrInstall?.step_total
+                                    ? {
+                                        width: `${Math.max(
+                                          5,
+                                          Math.round(
+                                            ((gpuOcrInstall.step || 0) / gpuOcrInstall.step_total) * 100
+                                          )
+                                        )}%`
+                                      }
+                                    : gpuOcrInstall?.status === "success"
+                                    ? { width: "100%" }
+                                    : undefined
+                                }
+                              ></div>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                       {activeTwitchJobs.length > 0 ? (
                         activeTwitchJobs
                           .filter((job) => !isDismissed(`twitch:${job.id}`))
