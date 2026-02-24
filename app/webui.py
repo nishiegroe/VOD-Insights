@@ -2114,20 +2114,15 @@ def api_install_gpu_ocr() -> Any:
             }), 400
 
         _set_gpu_ocr_install_state(message="Verifying CUDA...", step=5)
-        python_code = (
-            "import sys; "
-            f"sys.path.insert(0, {repr(str(target_dir))}); "
-            "import torch; "
-            "print(torch.cuda.is_available())"
-        )
-        verify_cmd = [*chosen_python, "-c", python_code]
-        verify_result = subprocess.run(
-            verify_cmd,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        cuda_available = verify_result.returncode == 0 and "True" in (verify_result.stdout or "")
+        cuda_available = False
+        try:
+            prepare_torch_runtime()
+            _reset_gpu_ocr_imports()
+            import torch  # type: ignore
+
+            cuda_available = bool(torch.cuda.is_available())
+        except Exception as verify_err:
+            print(f"CUDA post-install verification failed: {str(verify_err)[:200]}")
 
         if cuda_available:
             final_message = "GPU OCR dependencies installed. CUDA GPU detected."

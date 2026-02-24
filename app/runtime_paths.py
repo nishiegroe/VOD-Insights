@@ -288,6 +288,19 @@ def prepare_torch_runtime() -> Dict[str, Any]:
         torch_dir / "lib",
         torch_dir / "lib" / "nvidia",
     ]
+    if packages_dir.exists():
+        try:
+            nvidia_root = packages_dir / "nvidia"
+            if nvidia_root.exists():
+                for child in nvidia_root.iterdir():
+                    if not child.is_dir():
+                        continue
+                    for name in ("bin", "lib"):
+                        candidate = child / name
+                        if candidate.exists():
+                            lib_dirs.append(candidate)
+        except Exception:
+            logger.exception("Failed to discover NVIDIA runtime directories under %s", packages_dir)
     seen: set[str] = set()
     for directory in lib_dirs:
         if not directory.exists():
