@@ -86,6 +86,25 @@ export default function App() {
     });
   };
 
+  const undismissNotification = (key) => {
+    setDismissedNotifications((prev) => {
+      if (!prev.has(key)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.delete(key);
+      try {
+        window.localStorage.setItem(
+          "vodinsights.dismissedNotifications",
+          JSON.stringify(Array.from(next))
+        );
+      } catch (error) {
+        // Ignore localStorage errors.
+      }
+      return next;
+    });
+  };
+
   const notificationCount =
     (bootstrapBusy && !isDismissed("bootstrap") ? 1 : 0) +
     (gpuOcrVisible && !isDismissed("gpu-ocr-install") ? 1 : 0) +
@@ -140,6 +159,12 @@ export default function App() {
       clearInterval(interval);
     };
   }, [notificationsOpen]);
+
+  useEffect(() => {
+    if (gpuOcrInstall?.running) {
+      undismissNotification("gpu-ocr-install");
+    }
+  }, [gpuOcrInstall?.running, gpuOcrInstall?.updated_at]);
 
   return (
     <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""}`}>
