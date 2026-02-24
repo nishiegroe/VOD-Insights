@@ -30,9 +30,19 @@ jobs:
         shell: powershell
         run: choco install innosetup --no-progress -y
 
-      - name: Ensure Python venv and install requirements
+      - name: Create CI venv and install packaging dependencies
         shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File ./scripts/ensure_venv.ps1
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python -m pip install --upgrade pip
+          .\.venv\Scripts\python -m pip install `
+            dxcam==0.0.5 `
+            mss==9.0.1 `
+            numpy==1.26.4 `
+            opencv-python==4.9.0.80 `
+            pytesseract==0.3.10 `
+            flask==3.0.3 `
+            pyinstaller
 
       - name: Build installer
         shell: powershell
