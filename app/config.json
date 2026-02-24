@@ -72,5 +72,8 @@
     "file": "app.log",
     "level": "INFO",
     "log_ocr": true
+  },
+  "ui": {
+    "vods_wizard_completed": false
   }
 }

@@ -1165,6 +1165,7 @@ def update_config_from_payload(config: Dict[str, Any], payload: Dict[str, Any]) 
         "split_pre": ("split", "pre_seconds", float),
         "split_post": ("split", "post_seconds", float),
         "split_gap": ("split", "merge_gap_seconds", float),
+        "wizard_vods_completed": ("ui", "vods_wizard_completed", _to_bool),
     }
 
     for field, (section, key, caster) in mapping.items():

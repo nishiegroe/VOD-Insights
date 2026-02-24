@@ -1,10 +1,18 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
+    {
+      "version": "1.0.6",
+      "items": [
+        "Added a first-time VOD setup guide to help new users scan and create clips faster.",
+        "Improved clip splitting reliability with safer FFmpeg encoding and clip validation.",
+        "Refined VOD navigation and setup flow for a smoother first launch experience."
+      ]
+    },
     {
       "version": "1.0.5",
       "items": [

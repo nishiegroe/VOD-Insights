@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function Vods({ status }) {
+  const WIZARD_STEP_START_SCAN = 1;
+  const WIZARD_STEP_LET_IT_RUN = 2;
   const [vods, setVods] = useState([]);
   const [remaining, setRemaining] = useState(0);
   const [loadingAll, setLoadingAll] = useState(false);
@@ -17,11 +19,30 @@ export default function Vods({ status }) {
   });
   const [recordingDir, setRecordingDir] = useState(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [wizardCompleted, setWizardCompleted] = useState(null);
+  const [wizardVisible, setWizardVisible] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0);
+  const [wizardSpotlightRect, setWizardSpotlightRect] = useState(null);
+  const [wizardPanelStyle, setWizardPanelStyle] = useState(null);
   const navigate = useNavigate();
   const eventSourceRef = useRef(null);
   const fileInputRef = useRef(null);
   const dropRef = useRef(null);
   const toastTimerRef = useRef(null);
+
+  const completeWizard = async () => {
+    setWizardCompleted(true);
+    setWizardVisible(false);
+    try {
+      await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wizard_vods_completed: true }),
+      });
+    } catch (error) {
+      // Ignore persistence errors.
+    }
+  };
 
   const showToast = (message, type = "error", action = null) => {
     if (toastTimerRef.current) {
@@ -41,6 +62,25 @@ export default function Vods({ status }) {
     }
   };
 
+  const resetWizardForDev = async () => {
+    try {
+      const response = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wizard_vods_completed: false }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to reset wizard state.");
+      }
+      setWizardCompleted(false);
+      setWizardStep(0);
+      setWizardVisible(true);
+      showToast("Wizard reset.", "info");
+    } catch (error) {
+      showToast(error.message || "Failed to reset wizard state.");
+    }
+  };
+
   const loadVods = async (all = showAll) => {
     const endpoint = all ? "/api/vods?all=1" : "/api/vods";
     const response = await fetch(endpoint);
@@ -54,6 +94,7 @@ export default function Vods({ status }) {
     const configRes = await fetch("/api/config");
     const config = await configRes.json();
     const replayDir = config.replay?.directory || "";
+    setWizardCompleted(Boolean(config.ui?.vods_wizard_completed));
     setRecordingDir(replayDir);
     setConfigLoaded(true);
     return replayDir;
@@ -68,6 +109,17 @@ export default function Vods({ status }) {
     };
     init().catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!configLoaded || wizardCompleted === null) {
+      return;
+    }
+    if (wizardCompleted) {
+      return;
+    }
+    setWizardVisible(true);
+    setWizardStep(0);
+  }, [configLoaded, wizardCompleted]);
 
   useEffect(() => {
     if (eventSourceRef.current) {
@@ -169,12 +221,29 @@ export default function Vods({ status }) {
   };
 
   const handleScan = async (vod) => {
-    setVods((prev) =>
-      prev.map((item) =>
-        item.path === vod.path ? { ...item, scanning: true, scan_progress: 0 } : item
-      )
-    );
+    if (wizardVisible && wizardStep === WIZARD_STEP_START_SCAN) {
+      setWizardStep(WIZARD_STEP_LET_IT_RUN);
+    }
     try {
+      if (vod.scanned) {
+        const clearResponse = await fetch("/api/delete-sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vod_path: vod.path }),
+        });
+        if (!clearResponse.ok) {
+          throw new Error("Failed to clear previous scan results.");
+        }
+      }
+
+      setVods((prev) =>
+        prev.map((item) =>
+          item.path === vod.path
+            ? { ...item, scanning: true, scan_progress: 0, scanned: false, sessions: [] }
+            : item
+        )
+      );
+
       const response = await fetch("/api/vod-ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -227,72 +296,6 @@ export default function Vods({ status }) {
     }
   };
 
-  const handlePauseScan = async (vod) => {
-    try {
-      const response = await fetch("/api/pause-vod-ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vod_path: vod.path }),
-      });
-      if (response.ok) {
-        showToast("Scan paused.");
-        // Reload VODs to sync state from server
-        const payload = await loadVods(showAll);
-        setVods(payload.vods || []);
-      } else {
-        const error = await response.json();
-        showToast(`Failed to pause scan: ${error.error || "Unknown error"}`);
-      }
-    } catch (error) {
-      console.error("Pause scan error:", error);
-      showToast("Failed to pause scan.");
-    }
-  };
-
-  const handleResumeScan = async (vod) => {
-    try {
-      const response = await fetch("/api/resume-vod-ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vod_path: vod.path }),
-      });
-      if (response.ok) {
-        showToast("Scan resumed.");
-        // Reload VODs to sync state from server
-        const payload = await loadVods(showAll);
-        setVods(payload.vods || []);
-      } else {
-        const error = await response.json();
-        showToast(`Failed to resume scan: ${error.error || "Unknown error"}`);
-      }
-    } catch (error) {
-      console.error("Resume scan error:", error);
-      showToast("Failed to resume scan.");
-    }
-  };
-
-  const handleDeleteSessions = async (vod) => {
-    try {
-      const response = await fetch("/api/delete-sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vod_path: vod.path }),
-      });
-      if (response.ok) {
-        setVods((prev) =>
-          prev.map((item) =>
-            item.path === vod.path ? { ...item, scanned: false, sessions: [] } : item
-          )
-        );
-        showToast("Sessions deleted.");
-      } else {
-        showToast("Failed to delete sessions.");
-      }
-    } catch (error) {
-      showToast("Failed to delete sessions.");
-    }
-  };
-
   const handleConfigureDirectory = async () => {
     const response = await fetch("/api/choose-replay-dir", { method: "POST" });
     const payload = await response.json();
@@ -306,6 +309,116 @@ export default function Vods({ status }) {
     const fileInput = fileInputRef.current;
     return Boolean(fileInput && fileInput.files && fileInput.files[0] && !uploadState.uploading);
   }, [uploadState.uploading]);
+
+  const hasScanStarted = useMemo(
+    () => vods.some((item) => item.scanning || item.paused || item.scanned),
+    [vods]
+  );
+
+  const hasScanResults = useMemo(
+    () => vods.some((item) => item.scanned && item.sessions && item.sessions.length > 0),
+    [vods]
+  );
+
+  const wizardSteps = [
+    {
+      title: "Welcome",
+      body: "This quick setup shows you how to get from raw recordings to viewable events and clips.",
+      ready: true,
+      targetSelector: null,
+    },
+    {
+      title: "Start a scan",
+      body: "On a VOD card, click Scan. This analyzes the video and detects events to build sessions.",
+      body2:
+        "Because this app uses image text recognition, you can customize it in Settings with the 'Capture Area' tool and 'Detection Keywords' options to tune it for other games.",
+      ready: hasScanStarted,
+      targetSelector: ".vod-item .vod-scan-trigger",
+    },
+    {
+      title: "Let it run",
+      body: "Scanning can take a while, especially on longer videos. You can monitor progress in the status bar.",
+      body2: "For faster processing, turn on GPU OCR in Settings if you have a supported GPU.",
+      ready: hasScanResults,
+      targetSelector: ".vod-item .vod-scan-row",
+    },
+    {
+      title: "View and clip",
+      body: "When scan results are ready, you can watch back the vod, or view your clips!",
+      details: [
+        "'Watch VOD' opens a video player with your VOD's events highlighted.",
+        "'Split into clips' creates clips from the events detected during scan.",
+      ],
+      ready: hasScanResults,
+      targetSelector: ".vod-item .vod-primary-actions",
+    },
+  ];
+
+  const currentWizard = wizardSteps[wizardStep];
+  const isLastWizardStep = wizardStep === wizardSteps.length - 1;
+
+  useEffect(() => {
+    if (!wizardVisible) {
+      setWizardSpotlightRect(null);
+      setWizardPanelStyle(null);
+      return;
+    }
+
+    const updateWizardPosition = () => {
+      const selector = currentWizard?.targetSelector;
+      if (!selector) {
+        setWizardSpotlightRect(null);
+        setWizardPanelStyle(null);
+        return;
+      }
+
+      const target = document.querySelector(selector);
+      if (!target) {
+        setWizardSpotlightRect(null);
+        setWizardPanelStyle(null);
+        return;
+      }
+
+      const rect = target.getBoundingClientRect();
+      const padding = 8;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const spotlight = {
+        top: Math.max(8, rect.top - padding),
+        left: Math.max(8, rect.left - padding),
+        width: Math.min(viewportWidth - 16, rect.width + padding * 2),
+        height: Math.min(viewportHeight - 16, rect.height + padding * 2),
+      };
+
+      const panelWidth = Math.min(460, viewportWidth - 24);
+      const estimatedPanelHeight = 290;
+      let panelLeft = spotlight.left;
+      if (panelLeft + panelWidth > viewportWidth - 12) {
+        panelLeft = viewportWidth - panelWidth - 12;
+      }
+      panelLeft = Math.max(12, panelLeft);
+
+      let panelTop = spotlight.top + spotlight.height + 12;
+      if (panelTop + estimatedPanelHeight > viewportHeight - 12) {
+        panelTop = Math.max(12, spotlight.top - estimatedPanelHeight - 12);
+      }
+
+      setWizardSpotlightRect(spotlight);
+      setWizardPanelStyle({
+        top: `${panelTop}px`,
+        left: `${panelLeft}px`,
+        width: `${panelWidth}px`,
+      });
+    };
+
+    updateWizardPosition();
+    window.addEventListener("resize", updateWizardPosition);
+    window.addEventListener("scroll", updateWizardPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateWizardPosition);
+      window.removeEventListener("scroll", updateWizardPosition, true);
+    };
+  }, [wizardVisible, currentWizard, vods, recordingDir, showAll]);
 
   const updateFile = (file) => {
     if (!file) {
@@ -447,13 +560,22 @@ export default function Vods({ status }) {
               <h2>Recordings</h2>
               <div className="card-header-actions">
                 {status?.dev_mode ? (
-                  <button
-                    type="button"
-                    className="secondary button-compact"
-                    onClick={openBackendLog}
-                  >
-                    Open App Log
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="secondary button-compact"
+                      onClick={resetWizardForDev}
+                    >
+                      Reset Wizard
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary button-compact"
+                      onClick={openBackendLog}
+                    >
+                      Open App Log
+                    </button>
+                  </>
                 ) : null}
                 <button
                   type="button"
@@ -473,7 +595,12 @@ export default function Vods({ status }) {
               <p className="hint">No recordings found.</p>
             ) : (
           <div className="vod-list">
-            {vods.map((vod) => (
+            {vods.map((vod) => {
+              const splitNeedsScan = !vod.scanned || !vod.sessions || !vod.sessions.length;
+              const splitDisabled =
+                splitNeedsScan || splitLoading[vod.path] || (vod.scanning && !vod.paused);
+
+              return (
               <div className="vod-item" key={vod.path}>
                 <div className="vod-preview">
                   {vod.thumbnail_url ? (
@@ -537,96 +664,61 @@ export default function Vods({ status }) {
                   ) : null}
                 </div>
                 <div className="vod-actions">
-                  <button
-                    type="button"
-                    className="primary vod-action-button"
-                    disabled={!vod.scanned || !vod.sessions || !vod.sessions.length || (vod.scanning && !vod.paused)}
-                    onClick={() => {
-                      const sessionPath = vod.sessions?.[0]?.path;
-                      if (sessionPath) {
-                        navigate(`/vods/view?path=${encodeURIComponent(vod.path)}&session=${encodeURIComponent(sessionPath)}`);
-                      }
-                    }}
-                  >
-                    View
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary vod-action-button"
-                    disabled={!vod.scanned || !vod.sessions || !vod.sessions.length || splitLoading[vod.path] || (vod.scanning && !vod.paused)}
-                    onClick={() => handleSplit(vod)}
-                  >
-                    {splitLoading[vod.path] ? "Splitting..." : "Split Clips"}
-                  </button>
+                  <div className="vod-primary-actions">
+                    <button
+                      type="button"
+                      className={`${vod.scanning || !vod.scanned ? "secondary" : "primary"} vod-action-button`}
+                      onClick={() => {
+                        const sessionPath = vod.sessions?.[0]?.path;
+                        const base = `/vods/view?path=${encodeURIComponent(vod.path)}`;
+                        const target = sessionPath
+                          ? `${base}&session=${encodeURIComponent(sessionPath)}`
+                          : base;
+                        navigate(target);
+                      }}
+                    >
+                      Watch VOD
+                    </button>
+                    <span
+                      title={splitNeedsScan ? "Scan this VOD first to enable clipping." : ""}
+                      style={{ display: "contents" }}
+                    >
+                      <button
+                        type="button"
+                        className="secondary vod-action-button"
+                        disabled={splitDisabled}
+                        onClick={() => handleSplit(vod)}
+                      >
+                        {splitLoading[vod.path] ? "Splitting..." : "Split into clips"}
+                      </button>
+                    </span>
+                  </div>
                   <div style={{ display: "flex", gap: "8px", width: "100%", flexWrap: "wrap" }}>
-                    {vod.paused ? (
-                      <button
-                        type="button"
-                        className="primary vod-action-button"
-                        onClick={() => handleResumeScan(vod)}
-                        style={{ flex: "1 1 auto", minWidth: "110px" }}
-                      >
-                        Resume
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={vod.scanned ? "secondary vod-action-button" : "primary vod-action-button"}
-                        onClick={() => handleScan(vod)}
-                        disabled={vod.scanning}
-                        style={{ flex: "1 1 auto", minWidth: "110px" }}
-                      >
-                        {vod.scanning ? "Scanning..." : vod.scanned ? "Rescan" : "Scan"}
-                      </button>
-                    )}
-                    {vod.scanning && !vod.paused && (
-                      <>
-                        <button
-                          type="button"
-                          className="secondary"
-                          style={{ flex: "1 1 auto", height: "44px", minWidth: "90px" }}
-                          onClick={() => handlePauseScan(vod)}
-                          title="Pause scanning"
-                        >
-                          Pause
-                        </button>
-                        <button
-                          type="button"
-                          className="danger"
-                          style={{ flex: "1 1 auto", height: "44px", minWidth: "80px" }}
-                          onClick={() => handleStopScan(vod)}
-                          title="Stop scanning"
-                        >
-                          Stop
-                        </button>
-                      </>
-                    )}
-                    {vod.paused && (
+                    <button
+                      type="button"
+                      className={`${vod.scanning || vod.paused || !vod.scanned ? "primary" : "tertiary"} vod-action-button vod-scan-trigger`}
+                      onClick={() => handleScan(vod)}
+                      disabled={vod.scanning || vod.paused}
+                      style={{ flex: "1 1 auto", minWidth: "110px" }}
+                    >
+                      {vod.paused ? "Paused" : vod.scanning ? "Scanning..." : vod.scanned ? "Rescan" : "Scan"}
+                    </button>
+                    {(vod.scanning || vod.paused) && (
                       <button
                         type="button"
                         className="danger"
                         style={{ flex: "1 1 auto", height: "44px", minWidth: "80px" }}
                         onClick={() => handleStopScan(vod)}
-                        title="Stop and discard paused scan"
+                        title={vod.paused ? "Stop and discard paused scan" : "Stop scanning"}
                       >
                         Stop
-                      </button>
-                    )}
-                    {vod.scanned && !vod.scanning && !vod.paused && (
-                      <button
-                        type="button"
-                        className="danger"
-                        style={{ flex: "1 1 auto", height: "44px", minWidth: "100px" }}
-                        onClick={() => handleDeleteSessions(vod)}
-                        title="Delete scan results"
-                      >
-                        Delete
                       </button>
                     )}
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {remaining > 0 && (
@@ -703,6 +795,81 @@ export default function Vods({ status }) {
           </div>
         </div>
       )}
+      {wizardVisible ? (
+        <div
+          className={`onboarding-overlay ${wizardSpotlightRect ? "has-target" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-label="First-time VOD setup guide"
+        >
+          {wizardSpotlightRect ? (
+            <div
+              className="onboarding-spotlight"
+              style={{
+                top: `${wizardSpotlightRect.top}px`,
+                left: `${wizardSpotlightRect.left}px`,
+                width: `${wizardSpotlightRect.width}px`,
+                height: `${wizardSpotlightRect.height}px`,
+              }}
+            ></div>
+          ) : null}
+          <div
+            className={`onboarding-panel ${wizardSpotlightRect ? "floating" : "centered"}`}
+            style={wizardPanelStyle || undefined}
+          >
+            <div className="onboarding-header">
+              <h3>First-time setup guide</h3>
+            </div>
+            <div className="onboarding-step">Step {wizardStep + 1} of {wizardSteps.length}</div>
+            <h4>{currentWizard.title}</h4>
+            <p>{currentWizard.body}</p>
+            {currentWizard.body2 ? <p>{currentWizard.body2}</p> : null}
+            {Array.isArray(currentWizard.details) && currentWizard.details.length ? (
+              <ul className="onboarding-list">
+                {currentWizard.details.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="onboarding-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={completeWizard}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setWizardStep((prev) => Math.max(0, prev - 1))}
+                disabled={wizardStep === 0}
+              >
+                Back
+              </button>
+              {isLastWizardStep ? (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={completeWizard}
+                  disabled={!currentWizard.ready}
+                >
+                  Finish
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => setWizardStep((prev) => Math.min(wizardSteps.length - 1, prev + 1))}
+                  disabled={!currentWizard.ready}
+                >
+                  Next
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
       {toast ? (
         <div className="toast-container" role="status" aria-live="polite">
           <button

@@ -97,6 +97,37 @@ def find_newest_recording(directory: Path, extensions: Iterable[str]) -> Optiona
     return files[0]
 
 
+def validate_clip(output_file: Path) -> bool:
+    """Validate that a clip file has valid metadata and is readable."""
+    if not output_file.exists():
+        return False
+    if output_file.stat().st_size < 1024:  # Less than 1KB is likely corrupt
+        return False
+    # Try to probe the file metadata with ffmpeg
+    ffprobe_path = resolve_tool("ffprobe", ["ffprobe.exe"])
+    if not ffprobe_path:
+        return output_file.exists()
+    try:
+        cmd = [
+            ffprobe_path,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1:nokey=1",
+            str(output_file),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+        duration_str = result.stdout.strip()
+        if duration_str and duration_str != "N/A":
+            duration_val = float(duration_str)
+            return duration_val > 0
+    except (subprocess.TimeoutExpired, ValueError, OSError):
+        pass
+    return output_file.exists()
+
+
 def run_ffmpeg(input_file: Path, output_file: Path, start: float, duration: float) -> None:
     ffmpeg_path = resolve_tool("ffmpeg", ["ffmpeg.exe"])
     if not ffmpeg_path:
@@ -110,8 +141,16 @@ def run_ffmpeg(input_file: Path, output_file: Path, start: float, duration: floa
         str(input_file),
         "-t",
         f"{duration:.3f}",
-        "-c",
-        "copy",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
         str(output_file),
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -190,6 +229,7 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
     if vod_start is None:
         vod_start = datetime.fromtimestamp(input_file.stat().st_mtime)
 
+    failed_clips = []
     for index, window in enumerate(windows, start=1):
         duration = max(0.1, window.end - window.start)
         offset_seconds = int(round(window.start))
@@ -204,11 +244,29 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
         logging.info("Exporting %s (%.2fs to %.2fs)", output_file, window.start, window.end)
         try:
             run_ffmpeg(input_file, output_file, window.start, duration)
+            if not validate_clip(output_file):
+                logging.error("Clip validation failed: %s (corrupt or invalid metadata)", output_file)
+                failed_clips.append(output_file.name)
+                # Remove corrupt file
+                try:
+                    output_file.unlink()
+                except OSError:
+                    pass
+            else:
+                logging.info("Clip created successfully: %s", output_file.name)
         except (subprocess.CalledProcessError, RuntimeError) as exc:
-            logging.error("FFmpeg failed: %s", exc)
-            return
+            logging.error("Clip encoding failed for %s: %s", output_file.name, exc)
+            failed_clips.append(output_file.name)
+            # Remove file if it exists but failed
+            try:
+                output_file.unlink()
+            except OSError:
+                pass
 
-    logging.info("Split completed. %d clips written to %s", len(windows), output_dir)
+    if failed_clips:
+        logging.warning("Split completed with %d failures out of %d clips: %s", len(failed_clips), len(windows), ", ".join(failed_clips))
+    else:
+        logging.info("Split completed successfully. %d clips written to %s", len(windows), output_dir)
 
 
 def resolve_bookmarks_path(config: object) -> Path:

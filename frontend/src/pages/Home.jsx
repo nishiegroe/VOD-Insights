@@ -48,14 +48,7 @@ export default function Home({ status }) {
     const payload = await response.json();
     if (payload.directory) {
       setRecordingDir(payload.directory);
-      // Reload the page data
-      const vodRes = await fetch("/api/vods?limit=5");
-      const vodPayload = await vodRes.json();
-      setVods(vodPayload.vods || []);
-
-      const clipsRes = await fetch("/api/clips?limit=5");
-      const clipsPayload = await clipsRes.json();
-      setClips(clipsPayload.clips || []);
+      navigate("/vods");
     }
   };
 

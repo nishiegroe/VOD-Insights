@@ -148,7 +148,7 @@ export default function App() {
               <NavLink className={navLinkClass} to="/">
                 Home
               </NavLink>
-              <NavLink className={navLinkClass} to="/vods">
+              <NavLink id="nav-vods-link" className={navLinkClass} to="/vods">
                 VODs
               </NavLink>
               <NavLink className={navLinkClass} to="/clips">
@@ -276,9 +276,11 @@ export default function App() {
                               <div className="notification-meta">{note.date}</div>
                             ) : null}
                             {Array.isArray(note?.items) ? (
-                              <div className="notification-body">
-                                {note.items.join(" · ")}
-                              </div>
+                              <ul className="notification-body notification-list">
+                                {note.items.map((item, itemIndex) => (
+                                  <li key={`${note?.version || index}-${itemIndex}`}>{item}</li>
+                                ))}
+                              </ul>
                             ) : typeof note === "string" ? null : (
                               <div className="notification-body">{note?.summary || ""}</div>
                             )}

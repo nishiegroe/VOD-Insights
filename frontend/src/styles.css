@@ -268,6 +268,13 @@ a {
   color: var(--text);
 }
 
+.notification-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
 .notification-meta {
   font-size: 11px;
   color: var(--muted);
@@ -812,6 +819,112 @@ button.danger {
   color: var(--text);
 }
 
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(8, 15, 18, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 16px;
+  pointer-events: none;
+}
+
+.onboarding-overlay.has-target {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.onboarding-spotlight {
+  position: fixed;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 179, 71, 0.75);
+  box-shadow: 0 0 0 9999px rgba(8, 15, 18, 0.78), 0 0 0 4px rgba(255, 179, 71, 0.22);
+  pointer-events: none;
+}
+
+.onboarding-panel {
+  width: min(560px, 100%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.onboarding-panel.floating {
+  position: fixed;
+}
+
+.onboarding-panel.centered {
+  position: relative;
+}
+
+.onboarding-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.onboarding-header h3 {
+  margin: 0;
+  font-size: 20px;
+
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.onboarding-panel h4 {
+  margin: 0;
+  font-size: 18px;
+}
+.onboarding-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.onboarding-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.onboarding-list li {
+  line-height: 1.4;
+}
+.onboarding-status {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.onboarding-status.waiting {
+  background: rgba(15, 27, 31, 0.7);
+  color: var(--muted);
+}
+.onboarding-status.ready {
+  background: rgba(255, 179, 71, 0.14);
+  border-color: rgba(255, 179, 71, 0.45);
+  color: var(--text);
+}
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 .section-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -937,6 +1050,11 @@ button.danger {
   align-items: stretch;
   justify-content: center;
   text-align: right;
+}
+
+.vod-primary-actions {
+  display: grid;
+  gap: 10px;
 }
 
 .vod-action-button {
