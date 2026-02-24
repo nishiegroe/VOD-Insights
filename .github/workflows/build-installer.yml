@@ -44,6 +44,9 @@ jobs:
             flask==3.0.3 `
             pyinstaller
 
+      - name: Download bundled tools (Tesseract, FFmpeg, yt-dlp)
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File ./scripts/download_tools.ps1
       - name: Build installer
         shell: powershell
         run: npm run build
