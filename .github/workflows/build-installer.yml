@@ -1,0 +1,47 @@
+name: Build Installer
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --no-progress -y
+
+      - name: Ensure Python venv and install requirements
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File ./scripts/ensure_venv.ps1
+
+      - name: Build installer
+        shell: powershell
+        run: npm run build
+
+      - name: Upload setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vod-insights-setup-${{ github.sha }}
+          path: dist-desktop/inno/VODInsights-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 14
