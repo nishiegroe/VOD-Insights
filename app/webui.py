@@ -1947,13 +1947,20 @@ def api_install_gpu_ocr() -> Any:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         _set_gpu_ocr_install_state(message="Cleaning GPU OCR packages...", step=2)
+        _reset_gpu_ocr_imports()
         for item in target_dir.iterdir():
             name = item.name.lower()
-            if name.startswith(("torch", "torchaudio", "torchvision", "easyocr")):
+            if name.startswith(("easyocr",)):
                 if item.is_dir():
-                    shutil.rmtree(item, ignore_errors=True)
+                    try:
+                        shutil.rmtree(item, ignore_errors=True)
+                    except PermissionError:
+                        pass
                 else:
-                    item.unlink(missing_ok=True)
+                    try:
+                        item.unlink(missing_ok=True)
+                    except PermissionError:
+                        pass
 
         required_bytes = 10 * 1024 * 1024 * 1024
         try:
@@ -2025,7 +2032,6 @@ def api_install_gpu_ocr() -> Any:
             "--disable-pip-version-check",
             "--prefer-binary",
             "--upgrade",
-            "--force-reinstall",
         ]
         install_easyocr_cmd = [
             *chosen_python,
@@ -2063,6 +2069,21 @@ def api_install_gpu_ocr() -> Any:
                     "message": (
                         "Torch install failed: insufficient disk space. "
                         "Free at least 10 GB on the Python install drive and try again."
+                    ),
+                }), 400
+            if "WinError 5" in error_msg or "Access is denied" in error_msg:
+                _set_gpu_ocr_install_state(
+                    running=False,
+                    status="error",
+                    message="Torch install failed: file is locked by another process.",
+                    error=summary,
+                )
+                return jsonify({
+                    "ok": False,
+                    "message": (
+                        "Torch install failed because a Torch DLL is currently locked (WinError 5). "
+                        "Close all VOD Insights windows/processes, then reopen and run GPU OCR install once. "
+                        f"Details: {summary}"
                     ),
                 }), 400
             if "No matching distribution found" in error_msg and "torch==" in error_msg:
