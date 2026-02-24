@@ -26,6 +26,7 @@ from flask import Flask, Response, abort, jsonify, redirect, request, send_file,
 from app.runtime_paths import (
     build_mode_command,
     get_app_data_dir,
+    get_easyocr_models_dir,
     get_gpu_ocr_packages_dir,
     get_config_path,
     get_downloads_dir,
@@ -1896,7 +1897,7 @@ def api_install_gpu_ocr() -> Any:
             status="running",
             message="Preparing GPU OCR install...",
             step=0,
-            step_total=5,
+            step_total=6,
             error="",
         )
         python_candidates: List[List[str]] = []
@@ -2134,7 +2135,38 @@ def api_install_gpu_ocr() -> Any:
                 "message": f"EasyOCR install failed: {summary}",
             }), 400
 
-        _set_gpu_ocr_install_state(message="Verifying CUDA...", step=5)
+        _set_gpu_ocr_install_state(message="Downloading EasyOCR model files...", step=5)
+        models_dir = get_easyocr_models_dir()
+        models_dir.mkdir(parents=True, exist_ok=True)
+        download_models_code = (
+            "import sys; "
+            f"sys.path.insert(0, {repr(str(target_dir))}); "
+            "import easyocr; "
+            f"reader = easyocr.Reader(['en'], gpu=False, verbose=False, model_storage_directory={repr(str(models_dir))}); "
+            "print('ok')"
+        )
+        download_models_cmd = [*chosen_python, "-c", download_models_code]
+        download_models_result = subprocess.run(
+            download_models_cmd,
+            capture_output=True,
+            text=True,
+            timeout=900,
+        )
+        if download_models_result.returncode != 0:
+            error_msg = download_models_result.stderr or download_models_result.stdout
+            summary = _summarize_pip_error(error_msg)
+            _set_gpu_ocr_install_state(
+                running=False,
+                status="error",
+                message="EasyOCR model download failed.",
+                error=summary,
+            )
+            return jsonify({
+                "ok": False,
+                "message": f"EasyOCR model download failed: {summary}",
+            }), 400
+
+        _set_gpu_ocr_install_state(message="Verifying CUDA...", step=6)
         cuda_available = False
         try:
             prepare_torch_runtime()
