@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import atexit
 import csv
+import importlib
 import json
 import os
 import re
@@ -84,6 +85,14 @@ def _set_gpu_ocr_install_state(**fields: Any) -> None:
 def _get_gpu_ocr_install_state() -> Dict[str, Any]:
     with _gpu_ocr_lock:
         return dict(_gpu_ocr_install_state)
+
+
+def _reset_gpu_ocr_imports() -> None:
+    prefixes = ("torch", "torchvision", "torchaudio", "easyocr")
+    for module_name in list(sys.modules.keys()):
+        if module_name in prefixes or module_name.startswith(("torch.", "torchvision.", "torchaudio.", "easyocr.")):
+            sys.modules.pop(module_name, None)
+    importlib.invalidate_caches()
 
 
 def load_patch_notes() -> List[Any]:
@@ -1792,6 +1801,7 @@ def api_ocr_gpu_status() -> Any:
     """Check if Torch CUDA is available. Always returns 200 with graceful degradation."""
     runtime_info = prepare_torch_runtime()
     try:
+        _reset_gpu_ocr_imports()
         import torch  # type: ignore
         cuda_available = torch.cuda.is_available()
         payload: Dict[str, Any] = {
@@ -1826,6 +1836,7 @@ def api_ocr_gpu_status() -> Any:
 def api_ocr_gpu_diagnostics() -> Any:
     """Detailed diagnostics for packaged Torch/CUDA runtime issues."""
     runtime_info = prepare_torch_runtime()
+    _reset_gpu_ocr_imports()
     payload: Dict[str, Any] = {
         "ok": True,
         "runtime": runtime_info,
@@ -2052,15 +2063,23 @@ def api_install_gpu_ocr() -> Any:
         )
         cuda_available = verify_result.returncode == 0 and "True" in (verify_result.stdout or "")
 
+        if cuda_available:
+            final_message = "GPU OCR dependencies installed. CUDA GPU detected."
+        else:
+            final_message = (
+                "GPU OCR dependencies installed, but no CUDA GPU was detected. "
+                "Check NVIDIA driver/GPU support or keep using Tesseract."
+            )
+
         _set_gpu_ocr_install_state(
             running=False,
             status="success",
-            message="GPU OCR dependencies installed.",
+            message=final_message,
             error="",
         )
         return jsonify({
             "ok": True,
-            "message": "GPU OCR dependencies installed.",
+            "message": final_message,
             "cuda_available": cuda_available,
             "python": " ".join(chosen_python),
         })
