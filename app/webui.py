@@ -95,6 +95,28 @@ def _reset_gpu_ocr_imports() -> None:
     importlib.invalidate_caches()
 
 
+def _summarize_pip_error(output: str) -> str:
+    text = (output or "").strip()
+    if not text:
+        return "Unknown pip error"
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in reversed(lines):
+        lowered = line.lower()
+        if (
+            lowered.startswith("error:")
+            or "no matching distribution found" in lowered
+            or "could not find a version" in lowered
+            or "certificate_verify_failed" in lowered
+            or "ssl:" in lowered
+            or "read timed out" in lowered
+            or "connection" in lowered and "failed" in lowered
+            or "winerror" in lowered
+            or "errno" in lowered
+        ):
+            return line[:320]
+    return lines[-1][:320]
+
+
 def load_patch_notes() -> List[Any]:
     meta_path = get_project_root() / "app_meta.json"
     if not meta_path.exists():
@@ -1958,6 +1980,30 @@ def api_install_gpu_ocr() -> Any:
             timeout=120,
         )
 
+        _set_gpu_ocr_install_state(message="Preparing pip installer...", step=2)
+        subprocess.run(
+            [*chosen_python, "-m", "ensurepip", "--upgrade"],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        subprocess.run(
+            [
+                *chosen_python,
+                "-m",
+                "pip",
+                "install",
+                "--upgrade",
+                "pip",
+                "setuptools",
+                "wheel",
+                "--disable-pip-version-check",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=420,
+        )
+
         torch_version = "2.6.0+cu124"
         torchvision_version = "0.21.0+cu124"
         torchaudio_version = "2.6.0+cu124"
@@ -1971,10 +2017,13 @@ def api_install_gpu_ocr() -> Any:
             f"torchaudio=={torchaudio_version}",
             "--index-url",
             "https://download.pytorch.org/whl/cu124",
+            "--extra-index-url",
+            "https://pypi.org/simple",
             "--target",
             str(target_dir),
             "--no-cache-dir",
             "--disable-pip-version-check",
+            "--prefer-binary",
             "--upgrade",
             "--force-reinstall",
         ]
@@ -2001,6 +2050,7 @@ def api_install_gpu_ocr() -> Any:
 
         if torch_result.returncode != 0:
             error_msg = torch_result.stderr or torch_result.stdout
+            summary = _summarize_pip_error(error_msg)
             if "No space left on device" in error_msg or "Errno 28" in error_msg:
                 _set_gpu_ocr_install_state(
                     running=False,
@@ -2015,15 +2065,30 @@ def api_install_gpu_ocr() -> Any:
                         "Free at least 10 GB on the Python install drive and try again."
                     ),
                 }), 400
+            if "No matching distribution found" in error_msg and "torch==" in error_msg:
+                _set_gpu_ocr_install_state(
+                    running=False,
+                    status="error",
+                    message="Torch install failed: unsupported Python version.",
+                    error=summary,
+                )
+                return jsonify({
+                    "ok": False,
+                    "message": (
+                        "Torch install failed because this Python version is not supported by the selected CUDA build. "
+                        "Use Python 3.12 (64-bit) and try again. "
+                        f"Details: {summary}"
+                    ),
+                }), 400
             _set_gpu_ocr_install_state(
                 running=False,
                 status="error",
                 message="Torch install failed.",
-                error=error_msg[:400],
+                error=summary,
             )
             return jsonify({
                 "ok": False,
-                "message": f"Torch install failed: {error_msg[:300]}",
+                "message": f"Torch install failed: {summary}",
             }), 400
 
         _set_gpu_ocr_install_state(message="Installing EasyOCR...", step=4)
@@ -2036,15 +2101,16 @@ def api_install_gpu_ocr() -> Any:
         )
         if easyocr_result.returncode != 0:
             error_msg = easyocr_result.stderr or easyocr_result.stdout
+            summary = _summarize_pip_error(error_msg)
             _set_gpu_ocr_install_state(
                 running=False,
                 status="error",
                 message="EasyOCR install failed.",
-                error=error_msg[:400],
+                error=summary,
             )
             return jsonify({
                 "ok": False,
-                "message": f"EasyOCR install failed: {error_msg[:300]}",
+                "message": f"EasyOCR install failed: {summary}",
             }), 400
 
         _set_gpu_ocr_install_state(message="Verifying CUDA...", step=5)
