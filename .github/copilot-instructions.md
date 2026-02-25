@@ -1,7 +1,7 @@
 # Project Guidelines
 
 ## Code Style
-- Python backend code uses typed functions, `Path` objects, dataclasses, and `from __future__ import annotations` patterns: [app/main.py](app/main.py), [app/config.py](app/config.py), [app/capture.py](app/capture.py).
+- Python backend code uses typed functions, `Path` objects, and dataclasses; many runtime modules also use `from __future__ import annotations` patterns: [app/main.py](app/main.py), [app/config.py](app/config.py), [app/capture.py](app/capture.py), [app/ocr.py](app/ocr.py).
 - Keep backend modules focused and composable (capture, OCR, detect, write): [app/capture.py](app/capture.py), [app/ocr.py](app/ocr.py), [app/detector.py](app/detector.py), [app/bookmark_writer.py](app/bookmark_writer.py).
 - Desktop code is Electron + CommonJS (`require`, semicolons): [desktop/main.js](desktop/main.js), [desktop/dev.js](desktop/dev.js).
 - Frontend code is React (ESM + hooks) with plain CSS tokens; avoid introducing Tailwind: [frontend/src/main.jsx](frontend/src/main.jsx), [frontend/src/styles.css](frontend/src/styles.css).
@@ -18,8 +18,9 @@
 - Install Python deps: `pip install -r requirements.txt`
 - Install JS deps (root + subprojects): `npm install`, `npm --prefix frontend install`, `npm --prefix desktop install`
 - Root workflows: `npm run sync:meta`, `npm run dev`, `npm run build`, `npm run build:desktop`, `npm run build:desktop:portable` ([package.json](package.json)).
-- Python entrypoints: `python -m app.main`, `python -m app.bookmark_main`, `python -m app.split_bookmarks`, `python -m app.webui`, `python -m app.launcher --mode <mode>` ([README.md](README.md)).
+- Python entrypoints: `python -m app.main`, `python -m app.bookmark_main`, `python -m app.split_bookmarks`, `python -m app.vod_ocr --vod <file>`, `python -m app.webui`, `python -m app.launcher --mode <mode>` ([README.md](README.md)).
 - Packaging helpers: `scripts\build_inno.ps1`, `scripts\download_tools.ps1` ([README.md](README.md), [scripts/build_inno.ps1](scripts/build_inno.ps1)).
+- CI is packaging-focused (installer build), not test-focused: [.github/workflows/build-installer.yml](.github/workflows/build-installer.yml).
 - There is no first-party automated test suite configured yet; do targeted runtime/build checks for changed areas.
 
 ## Project Conventions
@@ -33,6 +34,7 @@
 - Capture stack: `dxcam` preferred with `mss` fallback; VOD processing uses OpenCV video reads: [app/capture.py](app/capture.py), [app/vod_ocr.py](app/vod_ocr.py).
 - Clip splitting depends on FFmpeg discovery from PATH/bundled tools: [app/split_bookmarks.py](app/split_bookmarks.py), [app/runtime_paths.py](app/runtime_paths.py), [tools/README.txt](tools/README.txt).
 - Twitch import depends on yt-dlp flows handled in web API jobs: [app/webui.py](app/webui.py).
+- Dependency bootstrap and optional runtime installs are handled by desktop startup and web API bootstrap routes: [desktop/main.js](desktop/main.js), [app/webui.py](app/webui.py), [app/dependency_bootstrap.py](app/dependency_bootstrap.py).
 
 ## Security
 - For file-serving/deletion endpoints, always keep path allowlist checks (`resolve_allowed_path`) before file access: [app/webui.py](app/webui.py).

@@ -40,6 +40,7 @@ export default function App() {
   });
   const location = useLocation();
   const isVodViewerRoute = location.pathname === "/vods/view";
+  const isSettingsRoute = location.pathname === "/settings";
 
   const activeTwitchJobs = useMemo(() => {
     return (notificationData.twitch_jobs || []).filter(isActiveTwitchJob);
@@ -134,7 +135,7 @@ export default function App() {
   }, [notificationsOpen]);
 
   return (
-    <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""}`}>
+    <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""} ${isSettingsRoute ? "app-settings" : ""}`}>
       {!isVodViewerRoute ? (
         <header className="header">
           <div>

@@ -55,6 +55,23 @@ function classifyEventByKeywords(eventText, source, keywords) {
   return OTHER_FILTER_KEY;
 }
 
+function buildEventWindowMap(keywords, rawWindows, fallbackPre, fallbackPost) {
+  const normalized = {};
+  const source = rawWindows && typeof rawWindows === "object" ? rawWindows : {};
+  for (const keyword of keywords || []) {
+    const text = String(keyword || "").trim();
+    if (!text) continue;
+    const row = source[text] || source[text.toLowerCase()] || {};
+    const pre = Number(row.pre_seconds ?? fallbackPre);
+    const post = Number(row.post_seconds ?? fallbackPost);
+    normalized[keywordFilterKey(text)] = {
+      pre: Number.isFinite(pre) ? Math.max(0, pre) : Math.max(0, fallbackPre),
+      post: Number.isFinite(post) ? Math.max(0, post) : Math.max(0, fallbackPost),
+    };
+  }
+  return normalized;
+}
+
 function getEventColor(filterKey) {
   if (filterKey === MANUAL_FILTER_KEY) return "#7dd3fc";
   if (filterKey === OTHER_FILTER_KEY) return "#cbd5f5";
@@ -89,9 +106,9 @@ export default function VodViewer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [detectionKeywords, setDetectionKeywords] = useState([]);
-  const [preRollSeconds, setPreRollSeconds] = useState(0);
-  const [splitPreSeconds, setSplitPreSeconds] = useState(0);
-  const [splitPostSeconds, setSplitPostSeconds] = useState(0);
+  const [defaultPreRollSeconds, setDefaultPreRollSeconds] = useState(0);
+  const [defaultPostRollSeconds, setDefaultPostRollSeconds] = useState(0);
+  const [eventWindowMap, setEventWindowMap] = useState({});
 
   const [clipStart, setClipStart] = useState(0);
   const [clipEnd, setClipEnd] = useState(0);
@@ -265,18 +282,27 @@ export default function VodViewer() {
   }, [timelineEvents, eventFilters]);
 
   const nearbyEventIds = useMemo(() => {
+    const getWindow = (entry) => {
+      if (!entry || entry.source === "manual") {
+        return { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
+      }
+      return eventWindowMap[entry.filterKey] || { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
+    };
+
     const primaryNearby = filteredEvents.filter(
-      (entry) =>
-        entry.seconds >= currentTime - splitPreSeconds &&
-        entry.seconds <= currentTime + splitPostSeconds
+      (entry) => {
+        const window = getWindow(entry);
+        return entry.seconds >= currentTime - window.pre && entry.seconds <= currentTime + window.post;
+      }
     );
 
     const secondaryNearby = new Set();
     primaryNearby.forEach((primary) => {
+      const primaryWindow = getWindow(primary);
       filteredEvents.forEach((entry) => {
         if (
-          entry.seconds >= primary.seconds - splitPreSeconds &&
-          entry.seconds <= primary.seconds + splitPostSeconds
+          entry.seconds >= primary.seconds - primaryWindow.pre &&
+          entry.seconds <= primary.seconds + primaryWindow.post
         ) {
           secondaryNearby.add(entry.id);
         }
@@ -284,7 +310,7 @@ export default function VodViewer() {
     });
 
     return secondaryNearby;
-  }, [filteredEvents, currentTime, splitPreSeconds, splitPostSeconds]);
+  }, [filteredEvents, currentTime, eventWindowMap, defaultPreRollSeconds, defaultPostRollSeconds]);
 
   const windowEvents = useMemo(() => {
     return filteredEvents.filter(
@@ -396,8 +422,13 @@ export default function VodViewer() {
     setCurrentTime(target);
   };
 
-  const seekTo = (seconds) => {
-    const targetTime = Math.max(0, seconds - preRollSeconds);
+  const seekTo = (entryOrSeconds) => {
+    const isEntry = typeof entryOrSeconds === "object" && entryOrSeconds !== null;
+    const seconds = isEntry ? Number(entryOrSeconds.seconds || 0) : Number(entryOrSeconds || 0);
+    const eventWindow = isEntry
+      ? eventWindowMap[entryOrSeconds.filterKey] || { pre: defaultPreRollSeconds, post: defaultPostRollSeconds }
+      : { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
+    const targetTime = Math.max(0, seconds - eventWindow.pre);
     seekToExact(targetTime);
   };
 
@@ -408,7 +439,7 @@ export default function VodViewer() {
   const jumpToAdjacentEvent = (direction) => {
     if (!filteredEvents.length) return;
     const now = currentTimeRef.current || currentTime;
-    const effectiveNow = now + (preRollSeconds || 0);
+    const effectiveNow = now;
     if (direction < 0) {
       const previous = [...filteredEvents]
         .reverse()
@@ -553,15 +584,20 @@ export default function VodViewer() {
       try {
         const response = await fetch("/api/config");
         const config = await response.json();
-        setDetectionKeywords(config.detection?.keywords || []);
-        setPreRollSeconds(config.split?.pre_seconds || 0);
-        setSplitPreSeconds(config.split?.pre_seconds || 0);
-        setSplitPostSeconds(config.split?.post_seconds || 0);
+        const keywords = config.detection?.keywords || [];
+        const fallbackPre = Number(config.split?.pre_seconds || 0);
+        const fallbackPost = Number(config.split?.post_seconds || 0);
+        setDetectionKeywords(keywords);
+        setDefaultPreRollSeconds(fallbackPre);
+        setDefaultPostRollSeconds(fallbackPost);
+        setEventWindowMap(
+          buildEventWindowMap(keywords, config.split?.event_windows || {}, fallbackPre, fallbackPost)
+        );
       } catch {
         setDetectionKeywords([]);
-        setPreRollSeconds(0);
-        setSplitPreSeconds(0);
-        setSplitPostSeconds(0);
+        setDefaultPreRollSeconds(0);
+        setDefaultPostRollSeconds(0);
+        setEventWindowMap({});
       }
     };
 
@@ -738,12 +774,26 @@ export default function VodViewer() {
     if (durationRef.current <= 0 || clipDefaultsRef.current) return;
 
     const center = currentTimeRef.current || 0;
-    const start = Math.max(scrubWindowStart, center - splitPreSeconds);
-    const end = Math.min(scrubWindowEnd, center + splitPostSeconds);
+    const nearest = filteredEvents.reduce(
+      (best, entry) => {
+        const distance = Math.abs(entry.seconds - center);
+        if (!best || distance < best.distance) {
+          return { entry, distance };
+        }
+        return best;
+      },
+      null
+    );
+    const baseWindow =
+      nearest && nearest.distance <= 12
+        ? eventWindowMap[nearest.entry.filterKey] || { pre: defaultPreRollSeconds, post: defaultPostRollSeconds }
+        : { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
+    const start = Math.max(scrubWindowStart, center - baseWindow.pre);
+    const end = Math.min(scrubWindowEnd, center + baseWindow.post);
     setClipStart(start);
     setClipEnd(Math.max(end, start + 1));
     clipDefaultsRef.current = true;
-  }, [showClipTools, splitPreSeconds, splitPostSeconds, scrubWindowStart, scrubWindowEnd]);
+  }, [showClipTools, scrubWindowStart, scrubWindowEnd, filteredEvents, eventWindowMap, defaultPreRollSeconds, defaultPostRollSeconds]);
 
   useEffect(() => {
     const handlePointerMove = (e) => {

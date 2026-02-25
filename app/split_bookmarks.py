@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from app.config import load_config
 from app.runtime_paths import get_app_data_dir, get_config_path, resolve_log_path, resolve_tool, reset_log_file
@@ -61,12 +61,37 @@ def load_bookmarks(bookmark_path: Path) -> List[BookmarkEvent]:
 
 
 def build_windows(
-    events: Iterable[BookmarkEvent], pre: float, post: float
+    events: Iterable[BookmarkEvent],
+    pre: float,
+    post: float,
+    event_windows: Optional[Dict[str, Dict[str, float]]] = None,
 ) -> List[ClipWindow]:
+    def _window_for_event(event_text: str) -> Tuple[float, float]:
+        if not event_windows:
+            return pre, post
+        lowered = str(event_text or "").lower()
+        for keyword, window in event_windows.items():
+            normalized_keyword = str(keyword or "").strip().lower()
+            if not normalized_keyword:
+                continue
+            if normalized_keyword not in lowered:
+                continue
+            try:
+                window_pre = float(window.get("pre_seconds", pre))
+            except (TypeError, ValueError, AttributeError):
+                window_pre = pre
+            try:
+                window_post = float(window.get("post_seconds", post))
+            except (TypeError, ValueError, AttributeError):
+                window_post = post
+            return max(0.0, window_pre), max(0.0, window_post)
+        return pre, post
+
     windows = []
     for event in events:
+        event_pre, event_post = _window_for_event(event.event)
         windows.append(
-            ClipWindow(max(0.0, event.time - pre), max(0.0, event.time + post))
+            ClipWindow(max(0.0, event.time - event_pre), max(0.0, event.time + event_post))
         )
     windows.sort(key=lambda w: w.start)
     return windows
@@ -214,7 +239,12 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
         logging.error("Recording file not found.")
         return
 
-    windows = build_windows(events, config.split.pre_seconds, config.split.post_seconds)
+    windows = build_windows(
+        events,
+        config.split.pre_seconds,
+        config.split.post_seconds,
+        getattr(config.split, "event_windows", None),
+    )
     windows = merge_windows(windows, config.split.merge_gap_seconds)
 
     output_dir = Path(config.split.output_dir)
