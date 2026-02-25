@@ -444,11 +444,11 @@ export default function VodViewer() {
       const previous = [...filteredEvents]
         .reverse()
         .find((entry) => entry.seconds < effectiveNow - 0.2);
-      if (previous) seekTo(previous.seconds);
+      if (previous) seekTo(previous);
       return;
     }
     const next = filteredEvents.find((entry) => entry.seconds > effectiveNow + 0.2);
-    if (next) seekTo(next.seconds);
+    if (next) seekTo(next);
   };
 
   const jumpDeadAir = () => {
@@ -1687,7 +1687,7 @@ export default function VodViewer() {
                         key={entry.id}
                         ref={isNear ? activeBookmarkRef : null}
                         className={`bookmark-item ${isNear ? "active" : ""} ${isNearby ? "nearby" : ""}`}
-                        onClick={() => seekTo(entry.seconds)}
+                        onClick={() => seekTo(entry)}
                       >
                         <div className="bookmark-time">{formatTime(entry.seconds)}</div>
                         <div className="bookmark-content">
