@@ -3,10 +3,10 @@
  * Allows users to download Twitch VODs directly in the application
  *
  * Created: 2026-02-26
+ * Updated: 2026-02-26 - Fixed UI styling and progress tracking
  */
 
 import React, { useState, useEffect } from 'react';
-import '../styles/vod-download-modal.css';
 
 export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
   const [url, setUrl] = useState('');
@@ -14,17 +14,28 @@ export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
   const [progress, setProgress] = useState(0);
   const [jobId, setJobId] = useState(null);
   const [error, setError] = useState(null);
-  const [speed, setSpeed] = useState('0 B/s');
-  const [eta, setEta] = useState('unknown');
+  const [speed, setSpeed] = useState('—');
+  const [eta, setEta] = useState('—');
   const [toolsReady, setToolsReady] = useState(null);
+  const [downloadComplete, setDownloadComplete] = useState(false);
   const pollIntervalRef = React.useRef(null);
 
   // Check if tools are ready when modal opens
   useEffect(() => {
     if (isOpen) {
       checkTools();
+      setDownloadComplete(false);
     }
   }, [isOpen]);
+
+  // Cleanup polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
 
   const checkTools = async () => {
     try {
@@ -65,6 +76,12 @@ export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
 
     try {
       setIsDownloading(true);
+      setDownloadComplete(false);
+      setError(null);
+      setProgress(0);
+      setSpeed('—');
+      setEta('—');
+
       const response = await fetch('/api/vod/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,38 +115,41 @@ export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
       clearInterval(pollIntervalRef.current);
     }
 
+    // Start polling every 500ms for more responsive updates
     pollIntervalRef.current = setInterval(async () => {
       try {
         const response = await fetch(`/api/vod/progress/${jId}`);
         const data = await response.json();
 
         if (!response.ok) {
-          setError('Failed to get progress');
-          clearInterval(pollIntervalRef.current);
+          // Don't set error for progress polling failures
           return;
         }
 
-        setProgress(data.percentage || 0);
-        setSpeed(data.speed || '0 B/s');
-        setEta(data.eta || 'calculating...');
+        // Update progress display
+        setProgress(Math.min(data.percentage || 0, 100));
+        setSpeed(data.speed || '—');
+        setEta(data.eta || '—');
 
         if (data.status === 'completed') {
           clearInterval(pollIntervalRef.current);
           setIsDownloading(false);
-          // Keep modal open for a moment to show completion
+          setDownloadComplete(true);
+          setProgress(100);
+          // Auto-close after showing completion
           setTimeout(() => {
             handleClose();
-          }, 1500);
+          }, 2000);
         } else if (data.status === 'error') {
           clearInterval(pollIntervalRef.current);
           setError(data.error || 'Download failed');
           setIsDownloading(false);
         }
       } catch (err) {
-        // Silently ignore polling errors during download
+        // Silently ignore polling errors
         console.error('Progress fetch error:', err);
       }
-    }, 1000);
+    }, 500);
   };
 
   const handleClose = () => {
@@ -141,8 +161,9 @@ export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
     setProgress(0);
     setJobId(null);
     setError(null);
-    setSpeed('0 B/s');
-    setEta('unknown');
+    setSpeed('—');
+    setEta('—');
+    setDownloadComplete(false);
     onClose();
   };
 
@@ -150,93 +171,240 @@ export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="modal-content vod-download-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>🎥 Download Twitch VOD</h2>
+          <h2>Download Twitch VOD</h2>
           <button className="modal-close" onClick={handleClose} disabled={isDownloading}>
             ×
           </button>
         </div>
 
-        <div className="modal-body">
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          padding: '0'
+        }}>
           {error && (
-            <div className="error-message">
-              <span className="error-icon">⚠️</span>
+            <div style={{
+              padding: '12px 16px',
+              background: 'rgba(255, 112, 67, 0.12)',
+              border: '1px solid rgba(255, 112, 67, 0.5)',
+              borderRadius: '8px',
+              color: '#ffd0c0',
+              fontSize: '14px',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'flex-start'
+            }}>
+              <span style={{ fontSize: '16px', flexShrink: 0 }}>⚠️</span>
               <span>{error}</span>
             </div>
           )}
 
           {toolsReady === false && !error && (
-            <div className="warning-message">
-              <span className="warning-icon">⚙️</span>
-              <span>yt-dlp is not installed. Install with: <code>pip install yt-dlp</code></span>
+            <div style={{
+              padding: '12px 16px',
+              background: 'rgba(255, 179, 71, 0.1)',
+              border: '1px solid rgba(255, 179, 71, 0.3)',
+              borderRadius: '8px',
+              color: '#ffb347',
+              fontSize: '14px',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'flex-start'
+            }}>
+              <span style={{ fontSize: '16px', flexShrink: 0 }}>⚙️</span>
+              <span>yt-dlp is not installed. Install with: <code style={{
+                background: 'rgba(0, 0, 0, 0.3)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontFamily: 'monospace'
+              }}>pip install yt-dlp</code></span>
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor="vod-url">Twitch VOD URL:</label>
-            <input
-              id="vod-url"
-              type="text"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://twitch.tv/videos/123456789"
-              disabled={isDownloading || !toolsReady}
-              className="url-input"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !isDownloading && toolsReady) {
-                  handleDownload();
-                }
-              }}
-            />
-            <div className="input-help">
-              Example: <code>https://twitch.tv/videos/123456789</code>
+          {!isDownloading && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontSize: '13px', color: '#9fb0b7', fontWeight: '600' }}>
+                Twitch VOD URL
+              </label>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://twitch.tv/videos/123456789"
+                disabled={isDownloading || !toolsReady}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !isDownloading && toolsReady) {
+                    handleDownload();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: '#0c171b',
+                  border: '1px solid #1f3640',
+                  borderRadius: '8px',
+                  color: '#f4f7f8',
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  transition: 'border-color 0.2s ease',
+                  cursor: !toolsReady ? 'not-allowed' : 'text',
+                  opacity: !toolsReady ? 0.6 : 1
+                }}
+                onFocus={(e) => {
+                  if (toolsReady) {
+                    e.target.style.borderColor = '#ffb347';
+                  }
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#1f3640';
+                }}
+              />
+              <div style={{
+                fontSize: '12px',
+                color: '#9fb0b7',
+                marginTop: '4px'
+              }}>
+                Example: <code style={{
+                  background: '#1f3640',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                  color: '#ffb347'
+                }}>https://twitch.tv/videos/123456789</code>
+              </div>
             </div>
-          </div>
+          )}
 
           {isDownloading && (
-            <div className="progress-container">
-              <div className="progress-info">
-                <div className="progress-label">
-                  <span>Downloading...</span>
-                  <span className="progress-percentage">{progress}%</span>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              padding: '0'
+            }}>
+              <div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                  fontSize: '13px'
+                }}>
+                  <span style={{ color: '#9fb0b7' }}>
+                    {downloadComplete ? 'Download Complete!' : 'Downloading...'}
+                  </span>
+                  <span style={{
+                    color: '#ffb347',
+                    fontWeight: '600'
+                  }}>
+                    {progress}%
+                  </span>
                 </div>
-                <progress
-                  className="progress-bar"
-                  value={progress}
-                  max="100"
-                ></progress>
+                <div style={{
+                  width: '100%',
+                  height: '6px',
+                  background: 'rgba(255, 179, 71, 0.2)',
+                  borderRadius: '3px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${progress}%`,
+                    background: 'linear-gradient(90deg, #ffb347, #ff7043)',
+                    transition: 'width 0.3s ease',
+                    borderRadius: '3px'
+                  }} />
+                </div>
               </div>
 
-              <div className="progress-details">
-                <div className="progress-detail">
-                  <span className="detail-label">Speed:</span>
-                  <span className="detail-value">{speed}</span>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '8px'
+              }}>
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'rgba(12, 23, 27, 0.6)',
+                  border: '1px solid #1f3640',
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}>
+                  <div style={{ color: '#9fb0b7', marginBottom: '4px' }}>Speed</div>
+                  <div style={{
+                    color: '#ffb347',
+                    fontFamily: 'monospace',
+                    fontWeight: '600'
+                  }}>
+                    {speed}
+                  </div>
                 </div>
-                <div className="progress-detail">
-                  <span className="detail-label">ETA:</span>
-                  <span className="detail-value">{eta}</span>
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'rgba(12, 23, 27, 0.6)',
+                  border: '1px solid #1f3640',
+                  borderRadius: '6px',
+                  fontSize: '12px'
+                }}>
+                  <div style={{ color: '#9fb0b7', marginBottom: '4px' }}>ETA</div>
+                  <div style={{
+                    color: '#ffb347',
+                    fontFamily: 'monospace',
+                    fontWeight: '600'
+                  }}>
+                    {eta}
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="modal-footer">
-          <button
-            className="btn btn-secondary"
-            onClick={handleClose}
-            disabled={isDownloading}
-          >
-            {isDownloading ? 'Downloading...' : 'Close'}
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleDownload}
-            disabled={isDownloading || !toolsReady || !url.trim()}
-          >
-            {isDownloading ? 'Downloading...' : 'Download VOD'}
-          </button>
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          paddingTop: '16px',
+          borderTop: '1px solid #1f3640',
+          justifyContent: 'flex-end'
+        }}>
+          {!isDownloading && (
+            <button
+              className="secondary"
+              onClick={handleClose}
+              style={{
+                minWidth: '100px'
+              }}
+            >
+              Cancel
+            </button>
+          )}
+          {!isDownloading && (
+            <button
+              className="primary"
+              onClick={handleDownload}
+              disabled={!toolsReady || !url.trim()}
+              style={{
+                minWidth: '140px',
+                opacity: (!toolsReady || !url.trim()) ? 0.5 : 1,
+                cursor: (!toolsReady || !url.trim()) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Download VOD
+            </button>
+          )}
+          {isDownloading && (
+            <button
+              className="secondary"
+              disabled={true}
+              style={{
+                minWidth: '140px',
+                opacity: 0.6
+              }}
+            >
+              {downloadComplete ? 'Closing...' : 'Downloading...'}
+            </button>
+          )}
         </div>
       </div>
     </div>
