@@ -39,6 +39,7 @@ from app.runtime_paths import (
 from app.dependency_bootstrap import dependency_bootstrap
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
+from app.vod_download import TwitchVODDownloader
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -62,6 +63,9 @@ _bookmark_process: Optional[subprocess.Popen] = None
 _vod_ocr_processes: Dict[str, subprocess.Popen] = {}
 _selected_vod: Optional[Path] = None
 _selected_session: Optional[Path] = None
+
+# Initialize VOD downloader (will be set after config is loaded)
+_vod_downloader: Optional[TwitchVODDownloader] = None
 
 
 def load_patch_notes() -> List[Any]:
@@ -631,7 +635,14 @@ def parse_vod_timestamp(filename: str) -> Optional[datetime]:
     if not ts_match:
         dashed_match = re.search(r"(\d{4}-\d{2}-\d{2})[ _](\d{2}-\d{2}-\d{2})", stem)
         if not dashed_match:
-            return None
+            # Try date-only format: YYYY-MM-DD (e.g. ImperialHal___2024-01-30)
+            date_only_match = re.search(r"(\d{4}-\d{2}-\d{2})", stem)
+            if not date_only_match:
+                return None
+            try:
+                return datetime.strptime(date_only_match.group(1), "%Y-%m-%d")
+            except ValueError:
+                return None
         try:
             return datetime.strptime(
                 f"{dashed_match.group(1)} {dashed_match.group(2).replace('-', ':')}",
@@ -670,6 +681,35 @@ def format_date_label(timestamp: Optional[datetime]) -> str:
     day = timestamp.day
     suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     return f"{timestamp.strftime('%A, %b')} {day}{suffix}"
+
+
+def parse_streamer_name(filename: str) -> Optional[str]:
+    """Extract streamer/channel name from a VOD filename if present before a date pattern."""
+    stem = Path(filename).stem
+    # Format: Name___YYYY-MM-DD (e.g. ImperialHal___2024-01-30)
+    match = re.match(r"^(.+?)_{2,}\d{4}-\d{2}-\d{2}", stem)
+    if match:
+        name = match.group(1).strip("_")
+        return name or None
+    # Format: Name_YYYYMMDD_HHMMSS (e.g. ImperialHal_20240130_120000)
+    match = re.match(r"^([A-Za-z][A-Za-z0-9]*)_\d{8}_\d{6}", stem)
+    if match:
+        return match.group(1)
+    return None
+
+
+def format_vod_display_title(filename: str) -> str:
+    """Format a human-readable VOD title: 'StreamerName, Weekday, Mon Dayth'."""
+    timestamp = parse_vod_timestamp(filename)
+    streamer = parse_streamer_name(filename)
+    date_label = ""
+    if isinstance(timestamp, datetime):
+        day = timestamp.day
+        suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+        date_label = f"{timestamp.strftime('%A, %b')} {day}{suffix}"
+    if streamer and date_label:
+        return f"{streamer}, {date_label}"
+    return date_label
 
 
 def format_session_offset(timestamp: Optional[datetime], start: Optional[datetime]) -> str:
@@ -718,6 +758,9 @@ def get_vod_paths(directories: List[Path], extensions: List[str]) -> List[Path]:
             if not path.is_file():
                 continue
             if allowed and path.suffix.lower() not in allowed:
+                continue
+            # Skip yt-dlp in-progress temp files (e.g. foo.temp.mp4, foo.part)
+            if path.stem.endswith(".temp") or path.suffix.lower() == ".part":
                 continue
             files.append(path)
     files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
@@ -772,6 +815,7 @@ def build_vod_entries(
         stat = path.stat()
         duration = get_media_duration(path)
         pretty_time = format_timestamp(parse_vod_timestamp(path.name))
+        display_title = format_vod_display_title(path.name)
         scan_state = find_vod_scan_state(bookmarks_dir, session_prefix, path.stem)
         sessions = list_sessions_for_vod(bookmarks_dir, session_prefix, path.stem)
         thumbnail_time = None
@@ -791,6 +835,7 @@ def build_vod_entries(
                 "size": stat.st_size,
                 "duration": duration,
                 "pretty_time": pretty_time,
+                "display_title": display_title,
                 "scanned": scan_state["scanned"],
                 "scanning": scan_state["scanning"],
                 "paused": scan_state["paused"],
@@ -1744,12 +1789,39 @@ def api_bootstrap_start() -> Any:
     return jsonify(dependency_bootstrap.start(install_gpu_ocr=install_gpu_ocr))
 
 
+_STATUS_MAP = {
+    "initializing": "downloading",
+    "fetching_metadata": "downloading",
+    "downloading": "downloading",
+    "completed": "completed",
+    "error": "failed",
+}
+
+
+def _vod_downloader_as_twitch_jobs() -> List[Dict[str, Any]]:
+    """Convert in-memory TwitchVODDownloader jobs to the twitch_jobs shape."""
+    if not _vod_downloader:
+        return []
+    result = []
+    for job_id, job in _vod_downloader.list_jobs():
+        result.append({
+            "id": job_id,
+            "url": job.get("url", ""),
+            "status": _STATUS_MAP.get(job.get("status", ""), "downloading"),
+            "progress": job.get("percentage", 0),
+            "message": job.get("error") or job.get("status", ""),
+            "eta": job.get("eta"),
+            "speed": job.get("speed"),
+        })
+    return result
+
+
 @app.route("/api/notifications")
 def api_notifications() -> Any:
     return jsonify(
         {
             "bootstrap": dependency_bootstrap.get_status(),
-            "twitch_jobs": list_twitch_jobs(limit=10),
+            "twitch_jobs": list_twitch_jobs(limit=10) + _vod_downloader_as_twitch_jobs(),
             "patch_notes": load_patch_notes(),
         }
     )
@@ -2391,6 +2463,113 @@ def react_logo() -> Any:
     return response
 
 
+# ==================== Twitch VOD Download Routes ====================
+
+@app.route("/api/vod/download", methods=["POST"])
+def vod_download_start() -> Any:
+    """
+    Start a Twitch VOD download job
+
+    Request JSON:
+    {
+        "url": "https://twitch.tv/videos/123456789"
+    }
+
+    Response:
+    {
+        "job_id": "uuid-string",
+        "status": "downloading"
+    }
+    """
+    if not _vod_downloader:
+        return jsonify({"error": "VOD downloader not initialized"}), 500
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+
+        url = data.get("url", "").strip()
+        if not url:
+            return jsonify({"error": "URL is required"}), 400
+
+        # Validate URL
+        if not _vod_downloader.validate_url(url):
+            return jsonify({
+                "error": "Invalid Twitch VOD URL",
+                "example": "https://twitch.tv/videos/123456789"
+            }), 400
+
+        # Check if yt-dlp is installed
+        if not _vod_downloader.check_yt_dlp():
+            return jsonify({
+                "error": "yt-dlp not installed",
+                "install": "pip install yt-dlp"
+            }), 400
+
+        # Start the download
+        job_id = str(uuid.uuid4())
+        _vod_downloader.start_download(url, job_id)
+
+        return jsonify({
+            "job_id": job_id,
+            "status": "initializing",
+            "message": "Download started. Check progress with /api/vod/progress/<job_id>"
+        }), 202
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/vod/progress/<job_id>", methods=["GET"])
+def vod_download_progress(job_id: str) -> Any:
+    """
+    Get the progress of a VOD download job
+
+    Response:
+    {
+        "status": "downloading|completed|error",
+        "percentage": 0-100,
+        "speed": "1.5 MB/s",
+        "eta": "00:15:30",
+        "error": null or error message,
+        "output_file": null or path to downloaded file
+    }
+    """
+    if not _vod_downloader:
+        return jsonify({"error": "VOD downloader not initialized"}), 500
+
+    progress = _vod_downloader.get_progress(job_id)
+    if not progress:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(progress), 200
+
+
+@app.route("/api/vod/check-tools", methods=["GET"])
+def vod_check_tools() -> Any:
+    """
+    Check if required tools are installed
+
+    Response:
+    {
+        "yt_dlp_installed": true/false,
+        "message": "All tools ready" or error message
+    }
+    """
+    if not _vod_downloader:
+        return jsonify({"error": "VOD downloader not initialized"}), 500
+
+    yt_dlp_ok = _vod_downloader.check_yt_dlp()
+
+    return jsonify({
+        "yt_dlp_installed": yt_dlp_ok,
+        "message": "All tools ready" if yt_dlp_ok else "yt-dlp not installed: pip install yt-dlp"
+    }), 200
+
+
+# =====================================================================
+
 # React catch-all route - MUST be last so it doesn't intercept API routes
 @app.route("/")
 @app.route("/<path:path>")
@@ -2410,14 +2589,22 @@ def react_app(path: str = "") -> Any:
 
 
 def main() -> None:
+    global _vod_downloader
+
     config = load_config()
     log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
     reset_log_file(log_path)
     port = int(os.environ.get("APEX_WEBUI_PORT", "5170"))
-    
+
+    # Initialize VOD downloader
+    replay_dir = Path(config.get("replay", {}).get("directory", get_downloads_dir()))
+    replay_dir.mkdir(parents=True, exist_ok=True)
+    _vod_downloader = TwitchVODDownloader(replay_dir)
+
     print(f"Starting VOD Insights Web UI on port {port}...")
     print(f"Logs: {log_path}")
-    
+    print(f"VOD Download Directory: {replay_dir}")
+
     if os.environ.get("APEX_WEBUI_WATCH", "1") == "1":
         watch_paths = [APP_ROOT]
         ignore_paths = {log_path, get_uploads_dir()}

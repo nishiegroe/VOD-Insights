@@ -234,15 +234,22 @@ export default function App() {
                               </button>
                             <div className="notification-title">Twitch VOD</div>
                             <div className="notification-body">{job.url}</div>
-                            <div className="notification-meta">{job.status}</div>
                             {job.progress != null ? (
-                              <div className="notification-progress">
-                                <div
-                                  className="notification-progress-bar"
-                                  style={{ width: `${job.progress}%` }}
-                                ></div>
-                              </div>
-                            ) : null}
+                              <>
+                                <div className="notification-progress">
+                                  <div
+                                    className="notification-progress-bar"
+                                    style={{ width: `${job.progress}%` }}
+                                  ></div>
+                                </div>
+                                <div className="notification-meta" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>{job.speed || job.status}</span>
+                                  {job.eta ? <span>ETA {job.eta}</span> : null}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="notification-meta">{job.status}</div>
+                            )}
                             </div>
                           ))
                       ) : null}
