@@ -163,7 +163,7 @@ export default function Home({ status }) {
                   </div>
                   <div className="clip-row clip-title-row">
                     <div className="clip-meta clip-time">
-                      {vod.pretty_time || vod.name}
+                      {vod.display_title || vod.pretty_time || vod.name}
                     </div>
                     {vod.paused ? (
                       <span className="chip highlight">Paused</span>

@@ -56,6 +56,7 @@ export default function Vods({ status }) {
     }, 4000);
   };
 
+
   const openBackendLog = async () => {
     try {
       await fetch("/api/open-backend-log", { method: "POST" });
@@ -190,7 +191,7 @@ export default function Vods({ status }) {
   };
 
   const handleDeleteVod = async (vod) => {
-    const label = vod.pretty_time || vod.name || "this VOD";
+    const label = vod.display_title || vod.pretty_time || vod.name || "this VOD";
     const confirmed = window.confirm(`Delete ${label}? This will remove the file from disk.`);
     if (!confirmed) return;
     try {
@@ -581,14 +582,15 @@ export default function Vods({ status }) {
                 ) : null}
                 <button
                   type="button"
-                  className="icon-button"
+                  className="secondary button-compact"
                   onClick={() => setShowDownloadModal(true)}
                   title="Download Twitch VOD"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 6v6m3-3H9"></path>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                    <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
                   </svg>
+                  Download VOD
                 </button>
                 <button
                   type="button"
@@ -624,7 +626,7 @@ export default function Vods({ status }) {
                 </div>
                 <div className="vod-info">
                   <div className="vod-title-row">
-                    <div className="vod-name">{vod.pretty_time || vod.name}</div>
+                    <div className="vod-name">{vod.display_title || vod.pretty_time || vod.name}</div>
                     <button
                       type="button"
                       className="icon-button danger vod-delete"
@@ -812,8 +814,8 @@ export default function Vods({ status }) {
       <DownloadVODModal
         isOpen={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
-        onDownloadStart={(jobId) => {
-          showToast("Download started! Check progress in the modal.", "info");
+        onDownloadStart={() => {
+          setShowDownloadModal(false);
         }}
       />
 

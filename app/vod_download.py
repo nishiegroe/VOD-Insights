@@ -7,13 +7,16 @@ Created: 2026-02-26
 
 import subprocess
 import json
+import logging
 import threading
 import re
 from pathlib import Path
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, List
 from datetime import datetime
 import uuid
 import shutil
+
+logger = logging.getLogger(__name__)
 
 
 class TwitchVODDownloader:
@@ -95,6 +98,11 @@ class TwitchVODDownloader:
             daemon=True,
         )
         thread.start()
+
+    def list_jobs(self) -> List[Dict[str, Any]]:
+        """Return a snapshot of all jobs, thread-safely."""
+        with self._lock:
+            return list(self.jobs.items())
 
     def get_progress(self, job_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -244,9 +252,15 @@ class TwitchVODDownloader:
         """
         try:
             # Build yt-dlp command
+            # --progress-template gives structured output instead of human-readable bar
+            # (Twitch uses HLS so the normal bar includes "~" for estimated size,
+            #  which makes ad-hoc regex matching unreliable)
             cmd = [
                 "yt-dlp",
                 "--no-warnings",
+                "--newline",
+                "--progress-template",
+                "download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s",
                 "-f",
                 "best",  # Best quality available
                 "-o",
@@ -257,26 +271,19 @@ class TwitchVODDownloader:
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
                 text=True,
+                bufsize=1,  # Line-buffered for real-time output
             )
 
-            # Monitor progress
-            while process.poll() is None:
-                # Poll for output to detect progress
-                # yt-dlp outputs progress to stderr
-                try:
-                    _, stderr_data = process.communicate(timeout=1)
-                    if stderr_data:
-                        # Parse progress from stderr
-                        self._parse_progress(job_id, stderr_data, progress_callback)
-                except subprocess.TimeoutExpired:
-                    pass
+            # Read output line by line for real-time progress updates.
+            # Use iter(readline, '') instead of 'for line in stdout' to avoid
+            # Python's internal read-ahead buffering on Windows.
+            for line in iter(process.stdout.readline, ''):
+                print(f"[vod_download] yt-dlp: {line!r}", flush=True)
+                self._parse_progress(job_id, line, progress_callback)
 
-            # Final poll for any remaining output
-            stdout_data, stderr_data = process.communicate()
-            if stderr_data:
-                self._parse_progress(job_id, stderr_data, progress_callback)
+            process.wait()
 
             # Check if download succeeded
             if process.returncode == 0 and output_path.exists():
@@ -306,30 +313,39 @@ class TwitchVODDownloader:
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         """
-        Parse progress information from yt-dlp output
+        Parse progress information from yt-dlp --progress-template output.
+
+        Expected line format:
+            download:  1.5%|  1.50MiB/s|00:27:35
 
         Args:
             job_id: Job identifier
-            output: Output from yt-dlp
+            output: One line of output from yt-dlp
             progress_callback: Optional progress callback
         """
-        # yt-dlp outputs progress like:
-        # [download]   1.5% of 2.50GiB at  1.50MiB/s ETA 00:27:35
-        pattern = r"\[download\]\s+([\d.]+)%\s+of\s+([\d.]+\w+)\s+at\s+([\d.]+\w+/s)\s+ETA\s+([\d:]+)"
-        match = re.search(pattern, output)
+        # yt-dlp outputs the template content only (no "download:" prefix —
+        # that part is the type selector, not literal text).
+        # Line format: "  84.7%|  30.37MiB/s|00:01"
+        template_re = re.compile(r"^\s*([\d.]+)%\s*\|(.*?)\|(.*?)\s*$")
 
-        if match:
-            percentage = float(match.group(1))
-            speed = match.group(3)
-            eta = match.group(4)
+        match = template_re.search(output)
+        if not match:
+            return
 
-            with self._lock:
-                self.jobs[job_id]["percentage"] = int(percentage)
-                self.jobs[job_id]["speed"] = speed
-                self.jobs[job_id]["eta"] = eta
+        percentage = min(100.0, float(match.group(1)))
+        speed_str = match.group(2).strip()
+        eta_str = match.group(3).strip()
 
-            if progress_callback:
-                progress_callback(self.jobs[job_id])
+        print(f"[vod_download] parsed: {percentage:.1f}% speed={speed_str!r} eta={eta_str!r}", flush=True)
+        with self._lock:
+            self.jobs[job_id]["percentage"] = int(percentage)
+            if speed_str:
+                self.jobs[job_id]["speed"] = speed_str
+            if eta_str:
+                self.jobs[job_id]["eta"] = eta_str
+
+        if progress_callback:
+            progress_callback(self.jobs[job_id])
 
     @staticmethod
     def _sanitize_filename(filename: str) -> str:

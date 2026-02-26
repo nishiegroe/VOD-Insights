@@ -635,7 +635,14 @@ def parse_vod_timestamp(filename: str) -> Optional[datetime]:
     if not ts_match:
         dashed_match = re.search(r"(\d{4}-\d{2}-\d{2})[ _](\d{2}-\d{2}-\d{2})", stem)
         if not dashed_match:
-            return None
+            # Try date-only format: YYYY-MM-DD (e.g. ImperialHal___2024-01-30)
+            date_only_match = re.search(r"(\d{4}-\d{2}-\d{2})", stem)
+            if not date_only_match:
+                return None
+            try:
+                return datetime.strptime(date_only_match.group(1), "%Y-%m-%d")
+            except ValueError:
+                return None
         try:
             return datetime.strptime(
                 f"{dashed_match.group(1)} {dashed_match.group(2).replace('-', ':')}",
@@ -674,6 +681,35 @@ def format_date_label(timestamp: Optional[datetime]) -> str:
     day = timestamp.day
     suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     return f"{timestamp.strftime('%A, %b')} {day}{suffix}"
+
+
+def parse_streamer_name(filename: str) -> Optional[str]:
+    """Extract streamer/channel name from a VOD filename if present before a date pattern."""
+    stem = Path(filename).stem
+    # Format: Name___YYYY-MM-DD (e.g. ImperialHal___2024-01-30)
+    match = re.match(r"^(.+?)_{2,}\d{4}-\d{2}-\d{2}", stem)
+    if match:
+        name = match.group(1).strip("_")
+        return name or None
+    # Format: Name_YYYYMMDD_HHMMSS (e.g. ImperialHal_20240130_120000)
+    match = re.match(r"^([A-Za-z][A-Za-z0-9]*)_\d{8}_\d{6}", stem)
+    if match:
+        return match.group(1)
+    return None
+
+
+def format_vod_display_title(filename: str) -> str:
+    """Format a human-readable VOD title: 'StreamerName, Weekday, Mon Dayth'."""
+    timestamp = parse_vod_timestamp(filename)
+    streamer = parse_streamer_name(filename)
+    date_label = ""
+    if isinstance(timestamp, datetime):
+        day = timestamp.day
+        suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+        date_label = f"{timestamp.strftime('%A, %b')} {day}{suffix}"
+    if streamer and date_label:
+        return f"{streamer}, {date_label}"
+    return date_label
 
 
 def format_session_offset(timestamp: Optional[datetime], start: Optional[datetime]) -> str:
@@ -722,6 +758,9 @@ def get_vod_paths(directories: List[Path], extensions: List[str]) -> List[Path]:
             if not path.is_file():
                 continue
             if allowed and path.suffix.lower() not in allowed:
+                continue
+            # Skip yt-dlp in-progress temp files (e.g. foo.temp.mp4, foo.part)
+            if path.stem.endswith(".temp") or path.suffix.lower() == ".part":
                 continue
             files.append(path)
     files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
@@ -776,6 +815,7 @@ def build_vod_entries(
         stat = path.stat()
         duration = get_media_duration(path)
         pretty_time = format_timestamp(parse_vod_timestamp(path.name))
+        display_title = format_vod_display_title(path.name)
         scan_state = find_vod_scan_state(bookmarks_dir, session_prefix, path.stem)
         sessions = list_sessions_for_vod(bookmarks_dir, session_prefix, path.stem)
         thumbnail_time = None
@@ -795,6 +835,7 @@ def build_vod_entries(
                 "size": stat.st_size,
                 "duration": duration,
                 "pretty_time": pretty_time,
+                "display_title": display_title,
                 "scanned": scan_state["scanned"],
                 "scanning": scan_state["scanning"],
                 "paused": scan_state["paused"],
@@ -1748,12 +1789,39 @@ def api_bootstrap_start() -> Any:
     return jsonify(dependency_bootstrap.start(install_gpu_ocr=install_gpu_ocr))
 
 
+_STATUS_MAP = {
+    "initializing": "downloading",
+    "fetching_metadata": "downloading",
+    "downloading": "downloading",
+    "completed": "completed",
+    "error": "failed",
+}
+
+
+def _vod_downloader_as_twitch_jobs() -> List[Dict[str, Any]]:
+    """Convert in-memory TwitchVODDownloader jobs to the twitch_jobs shape."""
+    if not _vod_downloader:
+        return []
+    result = []
+    for job_id, job in _vod_downloader.list_jobs():
+        result.append({
+            "id": job_id,
+            "url": job.get("url", ""),
+            "status": _STATUS_MAP.get(job.get("status", ""), "downloading"),
+            "progress": job.get("percentage", 0),
+            "message": job.get("error") or job.get("status", ""),
+            "eta": job.get("eta"),
+            "speed": job.get("speed"),
+        })
+    return result
+
+
 @app.route("/api/notifications")
 def api_notifications() -> Any:
     return jsonify(
         {
             "bootstrap": dependency_bootstrap.get_status(),
-            "twitch_jobs": list_twitch_jobs(limit=10),
+            "twitch_jobs": list_twitch_jobs(limit=10) + _vod_downloader_as_twitch_jobs(),
             "patch_notes": load_patch_notes(),
         }
     )

@@ -1013,7 +1013,8 @@ export default function VodViewer() {
   }
 
   const viewerTitle =
-    vodMeta?.pretty_time
+    vodMeta?.display_title
+    || vodMeta?.pretty_time
     || vodMeta?.name
     || vodPath?.split(/[/\\]/).pop()
     || "VOD";
