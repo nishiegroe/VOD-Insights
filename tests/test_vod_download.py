@@ -7,6 +7,7 @@ Run with: python -m pytest tests/test_vod_download.py -v
 import pytest
 import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 from app.vod_download import TwitchVODDownloader
 
 
@@ -83,11 +84,16 @@ class TestTwitchVODDownloader:
         assert isinstance(result, bool)
 
     def test_job_creation(self, downloader):
-        """Test that jobs are created correctly"""
+        """Test that jobs are created correctly without starting a real download"""
         job_id = "test-job-123"
-        downloader.start_download("https://twitch.tv/videos/123456789", job_id)
 
-        # Job should exist
+        mock_thread = MagicMock()
+        with patch("app.vod_download.threading.Thread", return_value=mock_thread):
+            downloader.start_download("https://twitch.tv/videos/123456789", job_id)
+            # A background thread should have been created and started
+            mock_thread.start.assert_called_once()
+
+        # Job should exist with correct initial values
         job = downloader.get_progress(job_id)
         assert job is not None
         assert job["status"] == "initializing"
