@@ -262,19 +262,6 @@ export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
                   e.target.style.borderColor = '#1f3640';
                 }}
               />
-              <div style={{
-                fontSize: '12px',
-                color: '#9fb0b7',
-                marginTop: '4px'
-              }}>
-                Example: <code style={{
-                  background: '#1f3640',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                  color: '#ffb347'
-                }}>https://twitch.tv/videos/123456789</code>
-              </div>
             </div>
           )}
 
