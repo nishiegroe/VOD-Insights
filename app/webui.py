@@ -39,6 +39,7 @@ from app.runtime_paths import (
 from app.dependency_bootstrap import dependency_bootstrap
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
+from app.vod_download import TwitchVODDownloader
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -62,6 +63,9 @@ _bookmark_process: Optional[subprocess.Popen] = None
 _vod_ocr_processes: Dict[str, subprocess.Popen] = {}
 _selected_vod: Optional[Path] = None
 _selected_session: Optional[Path] = None
+
+# Initialize VOD downloader (will be set after config is loaded)
+_vod_downloader: Optional[TwitchVODDownloader] = None
 
 
 def load_patch_notes() -> List[Any]:
@@ -2391,6 +2395,113 @@ def react_logo() -> Any:
     return response
 
 
+# ==================== Twitch VOD Download Routes ====================
+
+@app.route("/api/vod/download", methods=["POST"])
+def vod_download_start() -> Any:
+    """
+    Start a Twitch VOD download job
+
+    Request JSON:
+    {
+        "url": "https://twitch.tv/videos/123456789"
+    }
+
+    Response:
+    {
+        "job_id": "uuid-string",
+        "status": "downloading"
+    }
+    """
+    if not _vod_downloader:
+        return jsonify({"error": "VOD downloader not initialized"}), 500
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+
+        url = data.get("url", "").strip()
+        if not url:
+            return jsonify({"error": "URL is required"}), 400
+
+        # Validate URL
+        if not _vod_downloader.validate_url(url):
+            return jsonify({
+                "error": "Invalid Twitch VOD URL",
+                "example": "https://twitch.tv/videos/123456789"
+            }), 400
+
+        # Check if yt-dlp is installed
+        if not _vod_downloader.check_yt_dlp():
+            return jsonify({
+                "error": "yt-dlp not installed",
+                "install": "pip install yt-dlp"
+            }), 400
+
+        # Start the download
+        job_id = str(uuid.uuid4())
+        _vod_downloader.start_download(url, job_id)
+
+        return jsonify({
+            "job_id": job_id,
+            "status": "initializing",
+            "message": "Download started. Check progress with /api/vod/progress/<job_id>"
+        }), 202
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/vod/progress/<job_id>", methods=["GET"])
+def vod_download_progress(job_id: str) -> Any:
+    """
+    Get the progress of a VOD download job
+
+    Response:
+    {
+        "status": "downloading|completed|error",
+        "percentage": 0-100,
+        "speed": "1.5 MB/s",
+        "eta": "00:15:30",
+        "error": null or error message,
+        "output_file": null or path to downloaded file
+    }
+    """
+    if not _vod_downloader:
+        return jsonify({"error": "VOD downloader not initialized"}), 500
+
+    progress = _vod_downloader.get_progress(job_id)
+    if not progress:
+        return jsonify({"error": "Job not found"}), 404
+
+    return jsonify(progress), 200
+
+
+@app.route("/api/vod/check-tools", methods=["GET"])
+def vod_check_tools() -> Any:
+    """
+    Check if required tools are installed
+
+    Response:
+    {
+        "yt_dlp_installed": true/false,
+        "message": "All tools ready" or error message
+    }
+    """
+    if not _vod_downloader:
+        return jsonify({"error": "VOD downloader not initialized"}), 500
+
+    yt_dlp_ok = _vod_downloader.check_yt_dlp()
+
+    return jsonify({
+        "yt_dlp_installed": yt_dlp_ok,
+        "message": "All tools ready" if yt_dlp_ok else "yt-dlp not installed: pip install yt-dlp"
+    }), 200
+
+
+# =====================================================================
+
 # React catch-all route - MUST be last so it doesn't intercept API routes
 @app.route("/")
 @app.route("/<path:path>")
@@ -2410,14 +2521,22 @@ def react_app(path: str = "") -> Any:
 
 
 def main() -> None:
+    global _vod_downloader
+
     config = load_config()
     log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
     reset_log_file(log_path)
     port = int(os.environ.get("APEX_WEBUI_PORT", "5170"))
-    
+
+    # Initialize VOD downloader
+    replay_dir = Path(config.get("replay", {}).get("directory", get_downloads_dir()))
+    replay_dir.mkdir(parents=True, exist_ok=True)
+    _vod_downloader = TwitchVODDownloader(replay_dir)
+
     print(f"Starting VOD Insights Web UI on port {port}...")
     print(f"Logs: {log_path}")
-    
+    print(f"VOD Download Directory: {replay_dir}")
+
     if os.environ.get("APEX_WEBUI_WATCH", "1") == "1":
         watch_paths = [APP_ROOT]
         ignore_paths = {log_path, get_uploads_dir()}
