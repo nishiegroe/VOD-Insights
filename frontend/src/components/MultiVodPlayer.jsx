@@ -1,0 +1,478 @@
+/**
+ * MultiVodPlayer Component
+ * Renders multiple synchronized VOD players with controls
+ */
+
+import React, { useRef, useEffect, useState } from "react";
+import { useMultiVodSync } from "../hooks/useMultiVodSync";
+
+export function MultiVodPlayer({
+  vodData = [],
+  onVodAdded = () => {},
+  onVodRemoved = () => {},
+  onTimeUpdate = () => {},
+  className = "",
+}) {
+  const sync = useMultiVodSync();
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newVodUrl, setNewVodUrl] = useState("");
+  const [newVodLabel, setNewVodLabel] = useState("");
+
+  // Initialize with provided VOD data
+  useEffect(() => {
+    if (vodData.length === 0 && sync.vods.length > 0) {
+      sync.clearAllVods();
+    }
+    vodData.forEach((vod) => {
+      if (!sync.vods.find((v) => v.url === vod.url)) {
+        sync.addVod({
+          url: vod.url,
+          label: vod.label || "",
+        });
+      }
+    });
+  }, [vodData]);
+
+  const handleAddVod = () => {
+    if (!newVodUrl.trim()) {
+      alert("Please enter a Twitch VOD URL");
+      return;
+    }
+
+    sync.addVod({
+      url: newVodUrl.trim(),
+      label: newVodLabel.trim() || "Untitled VOD",
+    });
+
+    onVodAdded({
+      url: newVodUrl.trim(),
+      label: newVodLabel.trim() || "Untitled VOD",
+    });
+
+    setNewVodUrl("");
+    setNewVodLabel("");
+    setShowAddModal(false);
+  };
+
+  const handleRemoveVod = (vodId) => {
+    const vod = sync.vods.find((v) => v.id === vodId);
+    sync.removeVod(vodId);
+    onVodRemoved(vod);
+  };
+
+  const handleSetPrimary = (vodId) => {
+    sync.setPrimaryVod(vodId);
+  };
+
+  const handleTimeUpdate = (vodId, currentTime) => {
+    sync.updateVodTime(vodId, currentTime);
+    onTimeUpdate({ vodId, currentTime });
+  };
+
+  const handleDurationUpdate = (vodId, duration) => {
+    sync.updateVodDuration(vodId, duration);
+  };
+
+  const handleToggleLinkedPlayback = () => {
+    sync.setLinkedPlayback(!sync.isLinkedPlayback);
+  };
+
+  const isPrimary = (vodId) => vodId === sync.primaryVodId;
+
+  return (
+    <div className={`multi-vod-player ${className}`}>
+      {/* Header Controls */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+          gap: "12px",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <h3 style={{ margin: "0 0 8px 0", color: "var(--text)" }}>
+            VODs ({sync.vods.length})
+          </h3>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              color: "var(--muted)",
+            }}
+          >
+            {sync.areAllSynced()
+              ? "✓ All VODs synced"
+              : sync.vods.length > 1
+                ? "Sync status: " +
+                  sync.vods
+                    .filter((v) => v.id !== sync.primaryVodId)
+                    .map((v) => v.syncStatus)
+                    .join(", ")
+                : "Add another VOD to enable sync"}
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button
+            className="secondary"
+            onClick={() => setShowAddModal(true)}
+            title="Add another VOD"
+          >
+            + Add VOD
+          </button>
+
+          {sync.vods.length > 1 && (
+            <button
+              className={sync.isLinkedPlayback ? "primary" : "secondary"}
+              onClick={handleToggleLinkedPlayback}
+              title={
+                sync.isLinkedPlayback
+                  ? "Unlink playback (play independently)"
+                  : "Link playback (play synchronized)"
+              }
+            >
+              {sync.isLinkedPlayback ? "🔗 Linked" : "⛓️ Unlinked"}
+            </button>
+          )}
+
+          {sync.vods.length > 0 && (
+            <button
+              className="secondary"
+              onClick={() => sync.clearAllVods()}
+              title="Remove all VODs"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* VOD Grid */}
+      {sync.vods.length === 0 ? (
+        <div
+          style={{
+            textAlign: "center",
+            padding: "32px",
+            color: "var(--muted)",
+            borderRadius: "8px",
+            background: "rgba(0, 0, 0, 0.2)",
+          }}
+        >
+          <p>No VODs added yet</p>
+          <button
+            className="primary"
+            onClick={() => setShowAddModal(true)}
+            style={{ marginTop: "12px" }}
+          >
+            + Add Your First VOD
+          </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              sync.vods.length === 1
+                ? "1fr"
+                : sync.vods.length === 2
+                  ? "1fr 1fr"
+                  : "repeat(auto-fit, minmax(400px, 1fr))",
+            gap: "16px",
+            marginBottom: "16px",
+          }}
+        >
+          {sync.getOrderedVods().map((vod) => (
+            <div
+              key={vod.id}
+              style={{
+                padding: "12px",
+                borderRadius: "8px",
+                background: isPrimary(vod.id)
+                  ? "rgba(255, 179, 71, 0.1)"
+                  : "rgba(0, 0, 0, 0.3)",
+                border: isPrimary(vod.id)
+                  ? "2px solid #ffb347"
+                  : "1px solid #1f3640",
+              }}
+            >
+              {/* VOD Header */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "12px",
+                  gap: "8px",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h4
+                    style={{
+                      margin: "0 0 4px 0",
+                      color: "#f4f7f8",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {vod.label}
+                    {isPrimary(vod.id) && (
+                      <span
+                        style={{
+                          marginLeft: "8px",
+                          fontSize: "12px",
+                          color: "#ffb347",
+                          fontWeight: "normal",
+                        }}
+                      >
+                        (Primary)
+                      </span>
+                    )}
+                  </h4>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "11px",
+                      color: "var(--muted)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {vod.url}
+                  </p>
+                </div>
+
+                {!isPrimary(vod.id) && (
+                  <button
+                    className="tertiary"
+                    onClick={() => handleSetPrimary(vod.id)}
+                    title="Set as primary VOD"
+                    style={{ padding: "4px 8px", fontSize: "12px" }}
+                  >
+                    Primary
+                  </button>
+                )}
+
+                <button
+                  className="tertiary"
+                  onClick={() => handleRemoveVod(vod.id)}
+                  title="Remove this VOD"
+                  style={{ padding: "4px 8px", fontSize: "12px" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* VOD Status & Timers */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: "12px",
+                  marginBottom: "12px",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ color: "var(--muted)" }}>
+                  <span>
+                    {Math.floor(vod.currentTime / 60)}:
+                    {String(Math.floor(vod.currentTime % 60)).padStart(
+                      2,
+                      "0"
+                    )}
+                  </span>
+                  <span style={{ color: "#666" }}> / </span>
+                  <span>
+                    {Math.floor(vod.duration / 60)}:
+                    {String(Math.floor(vod.duration % 60)).padStart(2, "0")}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: "4px",
+                    background:
+                      vod.syncStatus === "synced"
+                        ? "rgba(46, 139, 87, 0.3)"
+                        : vod.syncStatus === "syncing"
+                          ? "rgba(255, 179, 71, 0.3)"
+                          : vod.syncStatus === "error"
+                            ? "rgba(227, 75, 108, 0.3)"
+                            : "rgba(100, 116, 139, 0.3)",
+                    color:
+                      vod.syncStatus === "synced"
+                        ? "#2e8b57"
+                        : vod.syncStatus === "syncing"
+                          ? "#ffb347"
+                          : vod.syncStatus === "error"
+                            ? "#e34b6c"
+                            : "#64748b",
+                    fontSize: "11px",
+                    fontWeight: "500",
+                  }}
+                >
+                  {vod.syncStatus === "synced" && "✓ Synced"}
+                  {vod.syncStatus === "syncing" && "⏳ Syncing..."}
+                  {vod.syncStatus === "error" && "✕ Error"}
+                  {vod.syncStatus === "unsync" && "—"}
+                </div>
+              </div>
+
+              {/* Sync Info */}
+              {!isPrimary(vod.id) && vod.syncOffset !== 0 && (
+                <div
+                  style={{
+                    padding: "8px",
+                    borderRadius: "4px",
+                    background: "rgba(100, 116, 139, 0.1)",
+                    fontSize: "11px",
+                    color: "var(--muted)",
+                    marginTop: "8px",
+                  }}
+                >
+                  Offset: {(vod.syncOffset / 1000).toFixed(2)}s
+                  {vod.detectedTimers.length > 0 && (
+                    <>
+                      <br />
+                      Last detected:{" "}
+                      {vod.detectedTimers[vod.detectedTimers.length - 1].value}{" "}
+                      (
+                      {(
+                        vod.detectedTimers[vod.detectedTimers.length - 1]
+                          .confidence * 100
+                      ).toFixed(0)}
+                      %)
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add VOD Modal */}
+      {showAddModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              background: "#13242a",
+              borderRadius: "8px",
+              padding: "24px",
+              maxWidth: "500px",
+              width: "90%",
+              border: "1px solid #1f3640",
+            }}
+          >
+            <h3 style={{ margin: "0 0 16px 0", color: "#f4f7f8" }}>
+              Add Another VOD
+            </h3>
+
+            <div style={{ marginBottom: "16px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "13px",
+                  color: "#9fb0b7",
+                  fontWeight: "600",
+                }}
+              >
+                Twitch VOD URL
+              </label>
+              <input
+                type="text"
+                placeholder="https://twitch.tv/videos/123456789"
+                value={newVodUrl}
+                onChange={(e) => setNewVodUrl(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  background: "#0c171b",
+                  border: "1px solid #1f3640",
+                  borderRadius: "8px",
+                  color: "#f4f7f8",
+                  fontFamily: "monospace",
+                  fontSize: "13px",
+                  boxSizing: "border-box",
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    handleAddVod();
+                  }
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: "8px",
+                  fontSize: "13px",
+                  color: "#9fb0b7",
+                  fontWeight: "600",
+                }}
+              >
+                Label (optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Alt Angle, Overlay, POV 2"
+                value={newVodLabel}
+                onChange={(e) => setNewVodLabel(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  background: "#0c171b",
+                  border: "1px solid #1f3640",
+                  borderRadius: "8px",
+                  color: "#f4f7f8",
+                  fontFamily: "monospace",
+                  fontSize: "13px",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                className="secondary"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancel
+              </button>
+              <button className="primary" onClick={handleAddVod}>
+                Add VOD
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
