@@ -15,8 +15,11 @@ export function MultiVodPlayer({
 }) {
   const sync = useMultiVodSync();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addMode, setAddMode] = useState("twitch"); // "twitch" or "local"
   const [newVodUrl, setNewVodUrl] = useState("");
   const [newVodLabel, setNewVodLabel] = useState("");
+  const [availableVods, setAvailableVods] = useState([]);
+  const [selectedLocalVod, setSelectedLocalVod] = useState("");
 
   // Initialize with provided VOD data
   useEffect(() => {
@@ -33,25 +36,69 @@ export function MultiVodPlayer({
     });
   }, [vodData]);
 
-  const handleAddVod = () => {
-    if (!newVodUrl.trim()) {
-      alert("Please enter a Twitch VOD URL");
-      return;
+  // Fetch available VODs from the VOD directory
+  const fetchAvailableVods = async () => {
+    try {
+      const response = await fetch("/api/vods?all=1");
+      const data = await response.json();
+      setAvailableVods(data.vods || []);
+    } catch (error) {
+      console.error("Error fetching available VODs:", error);
     }
+  };
 
-    sync.addVod({
-      url: newVodUrl.trim(),
-      label: newVodLabel.trim() || "Untitled VOD",
-    });
+  // Fetch VODs when modal opens
+  useEffect(() => {
+    if (showAddModal && addMode === "local") {
+      fetchAvailableVods();
+    }
+  }, [showAddModal, addMode]);
 
-    onVodAdded({
-      url: newVodUrl.trim(),
-      label: newVodLabel.trim() || "Untitled VOD",
-    });
+  const handleAddVod = () => {
+    if (addMode === "twitch") {
+      // Add from Twitch URL
+      if (!newVodUrl.trim()) {
+        alert("Please enter a Twitch VOD URL or select a local VOD");
+        return;
+      }
 
-    setNewVodUrl("");
-    setNewVodLabel("");
-    setShowAddModal(false);
+      sync.addVod({
+        url: newVodUrl.trim(),
+        label: newVodLabel.trim() || "Twitch VOD",
+      });
+
+      onVodAdded({
+        url: newVodUrl.trim(),
+        label: newVodLabel.trim() || "Twitch VOD",
+      });
+
+      setNewVodUrl("");
+      setNewVodLabel("");
+      setShowAddModal(false);
+    } else {
+      // Add from local VOD directory
+      if (!selectedLocalVod) {
+        alert("Please select a VOD from your library");
+        return;
+      }
+
+      const vodPath = selectedLocalVod;
+      const vodName = vodPath.split("/").pop() || "Local VOD";
+
+      sync.addVod({
+        url: vodPath,
+        label: newVodLabel.trim() || vodName,
+      });
+
+      onVodAdded({
+        url: vodPath,
+        label: newVodLabel.trim() || vodName,
+      });
+
+      setNewVodLabel("");
+      setSelectedLocalVod("");
+      setShowAddModal(false);
+    }
   };
 
   const handleRemoveVod = (vodId) => {
@@ -392,7 +439,8 @@ export function MultiVodPlayer({
               Add Another VOD
             </h3>
 
-            <div style={{ marginBottom: "16px" }}>
+            {/* Mode Toggle */}
+            <div style={{ marginBottom: "20px" }}>
               <label
                 style={{
                   display: "block",
@@ -402,32 +450,104 @@ export function MultiVodPlayer({
                   fontWeight: "600",
                 }}
               >
-                Twitch VOD URL
+                VOD Source
               </label>
-              <input
-                type="text"
-                placeholder="https://twitch.tv/videos/123456789"
-                value={newVodUrl}
-                onChange={(e) => setNewVodUrl(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  background: "#0c171b",
-                  border: "1px solid #1f3640",
-                  borderRadius: "8px",
-                  color: "#f4f7f8",
-                  fontFamily: "monospace",
-                  fontSize: "13px",
-                  boxSizing: "border-box",
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    handleAddVod();
-                  }
-                }}
-              />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button
+                  className={addMode === "twitch" ? "primary" : "secondary"}
+                  onClick={() => setAddMode("twitch")}
+                  style={{ flex: 1 }}
+                >
+                  From Twitch
+                </button>
+                <button
+                  className={addMode === "local" ? "primary" : "secondary"}
+                  onClick={() => setAddMode("local")}
+                  style={{ flex: 1 }}
+                >
+                  From Library
+                </button>
+              </div>
             </div>
 
+            {/* Twitch Mode */}
+            {addMode === "twitch" && (
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontSize: "13px",
+                    color: "#9fb0b7",
+                    fontWeight: "600",
+                  }}
+                >
+                  Twitch VOD URL
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://twitch.tv/videos/123456789"
+                  value={newVodUrl}
+                  onChange={(e) => setNewVodUrl(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    background: "#0c171b",
+                    border: "1px solid #1f3640",
+                    borderRadius: "8px",
+                    color: "#f4f7f8",
+                    fontFamily: "monospace",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                  }}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      handleAddVod();
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Local Mode */}
+            {addMode === "local" && (
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontSize: "13px",
+                    color: "#9fb0b7",
+                    fontWeight: "600",
+                  }}
+                >
+                  Select VOD from Library
+                </label>
+                <select
+                  value={selectedLocalVod}
+                  onChange={(e) => setSelectedLocalVod(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    background: "#0c171b",
+                    border: "1px solid #1f3640",
+                    borderRadius: "8px",
+                    color: "#f4f7f8",
+                    fontSize: "13px",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <option value="">-- Choose a VOD --</option>
+                  {availableVods.map((vod) => (
+                    <option key={vod.path} value={vod.path}>
+                      {vod.name || vod.path.split("/").pop()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Label (for both modes) */}
             <div style={{ marginBottom: "20px" }}>
               <label
                 style={{
