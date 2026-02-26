@@ -14,7 +14,8 @@ from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
 from datetime import datetime
 import uuid
-import shutil
+
+from app.runtime_paths import resolve_tool
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,18 @@ class TwitchVODDownloader:
         self.jobs: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
 
+    def _get_yt_dlp_exe(self) -> Optional[str]:
+        """Resolve the yt-dlp executable path via bundled tools or PATH."""
+        return resolve_tool("yt-dlp", ["yt-dlp.exe"])
+
     def check_yt_dlp(self) -> bool:
         """Check if yt-dlp is installed and accessible"""
+        exe = self._get_yt_dlp_exe()
+        if not exe:
+            return False
         try:
             subprocess.run(
-                ["yt-dlp", "--version"],
+                [exe, "--version"],
                 capture_output=True,
                 check=True,
                 timeout=5,
@@ -132,12 +140,13 @@ class TwitchVODDownloader:
             progress_callback: Optional progress callback
         """
         try:
-            # Validate yt-dlp is installed
-            if not self.check_yt_dlp():
+            # Resolve yt-dlp executable once and reuse across all calls
+            yt_dlp_exe = self._get_yt_dlp_exe()
+            if not yt_dlp_exe:
                 with self._lock:
                     self.jobs[job_id]["status"] = "error"
                     self.jobs[job_id]["error"] = (
-                        "yt-dlp not installed. Install with: pip install yt-dlp"
+                        "yt-dlp not found. Install with: pip install yt-dlp"
                     )
                 if progress_callback:
                     progress_callback(self.jobs[job_id])
@@ -146,7 +155,7 @@ class TwitchVODDownloader:
             # Get VOD metadata
             with self._lock:
                 self.jobs[job_id]["status"] = "fetching_metadata"
-            metadata = self._get_metadata(url)
+            metadata = self._get_metadata(url, yt_dlp_exe)
             if not metadata:
                 with self._lock:
                     self.jobs[job_id]["status"] = "error"
@@ -167,7 +176,7 @@ class TwitchVODDownloader:
                 self.jobs[job_id]["status"] = "downloading"
                 self.jobs[job_id]["output_file"] = str(output_path)
 
-            self._download_vod(job_id, url, output_path, progress_callback)
+            self._download_vod(job_id, url, output_path, yt_dlp_exe, progress_callback)
 
         except Exception as e:
             with self._lock:
@@ -176,12 +185,13 @@ class TwitchVODDownloader:
             if progress_callback:
                 progress_callback(self.jobs[job_id])
 
-    def _get_metadata(self, url: str) -> Optional[Dict[str, str]]:
+    def _get_metadata(self, url: str, yt_dlp_exe: str) -> Optional[Dict[str, str]]:
         """
         Extract metadata from Twitch VOD
 
         Args:
             url: Twitch VOD URL
+            yt_dlp_exe: Resolved path to yt-dlp executable
 
         Returns:
             Dict with 'streamer' and 'date' keys, or None on error
@@ -189,7 +199,7 @@ class TwitchVODDownloader:
         try:
             result = subprocess.run(
                 [
-                    "yt-dlp",
+                    yt_dlp_exe,
                     "--dump-json",
                     url,
                 ],
@@ -239,6 +249,7 @@ class TwitchVODDownloader:
         job_id: str,
         url: str,
         output_path: Path,
+        yt_dlp_exe: str,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         """
@@ -248,6 +259,7 @@ class TwitchVODDownloader:
             job_id: Job identifier
             url: Twitch VOD URL
             output_path: Where to save the file
+            yt_dlp_exe: Resolved path to yt-dlp executable
             progress_callback: Optional progress callback
         """
         try:
@@ -256,7 +268,7 @@ class TwitchVODDownloader:
             # (Twitch uses HLS so the normal bar includes "~" for estimated size,
             #  which makes ad-hoc regex matching unreliable)
             cmd = [
-                "yt-dlp",
+                yt_dlp_exe,
                 "--no-warnings",
                 "--newline",
                 "--progress-template",
