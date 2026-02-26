@@ -96,35 +96,63 @@ class ApexLegendTimerDetector(TimerDetector):
 
     def detect_timer_region(self, image_data: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
         """
-        Detect timer location in Apex Legends
-        Typically appears at bottom-left under minimap
+        Detect timer location in Apex Legends.
+        The ring number + countdown timer appears just below the minimap, top-left area.
         """
         height, width = image_data.shape[:2]
 
-        # Timer is typically in bottom-left quadrant
-        # Minimap is ~200x200 pixels in bottom-left
-        # Timer is usually below/right of minimap
-
-        # Define region: left 20%, bottom 20%
-        x1 = int(width * 0.0)
-        y1 = int(height * 0.75)
-        x2 = int(width * 0.25)
-        y2 = int(height * 1.0)
+        # Minimap occupies roughly top-left 0-15% width, 0-22% height.
+        # The ring indicator + countdown timer sits directly below it:
+        # ~0-20% width, ~22-42% height.
+        x1 = 0
+        y1 = int(height * 0.22)
+        x2 = int(width * 0.20)
+        y2 = int(height * 0.42)
 
         return (x1, y1, x2 - x1, y2 - y1)
+
+    def parse_apex_timer(self, text: str) -> Optional[str]:
+        """
+        Parse the Apex Legends ring indicator + countdown timer from OCR text.
+
+        Returns 'ring:MM:SS' (e.g. '1:00:27') when the ring number is visible so
+        that the sync comparator can reject mismatched rings (Ring 1 vs Ring 2 are
+        different moments even if the countdown reads the same).
+        Falls back to 'MM:SS' if no ring digit is detected.
+        """
+        normalized = re.sub(r'\s+', ' ', text.strip())
+
+        # Match a lone ring digit (1-9) followed by a MM:SS timer.
+        # Covers formats like "1 00:27", "1 00 : 27", etc.
+        ring_timer = re.search(
+            r'(?<!\d)([1-9])(?!\d)\s*(\d{1,2}):(\d{2})(?!\d)', normalized
+        )
+        if ring_timer:
+            ring, m, s = ring_timer.groups()
+            if int(m) < 60 and int(s) < 60:
+                return f"{ring}:{m}:{s}"
+
+        # Fallback: just the countdown with no ring
+        timer_only = re.search(r'(?<!\d)(\d{1,2}):(\d{2})(?!\d)', normalized)
+        if timer_only:
+            m, s = timer_only.groups()
+            if int(m) < 60 and int(s) < 60:
+                return f"{m}:{s}"
+
+        return None
 
     def extract_timer_from_frame(
         self, image_data: np.ndarray
     ) -> Tuple[Optional[str], float]:
         """
-        Extract Apex Legends timer from frame
-        Timer format: MM:SS
+        Extract Apex Legends ring + countdown timer from a video frame.
+        Returns 'ring:MM:SS' (e.g. '1:00:27') when the ring is visible,
+        or 'MM:SS' as a fallback.
         """
         if image_data is None or image_data.size == 0:
             return None, 0.0
 
         try:
-            # Get timer region
             region = self.detect_timer_region(image_data)
             if not region:
                 return None, 0.0
@@ -135,37 +163,31 @@ class ApexLegendTimerDetector(TimerDetector):
             if roi.size == 0:
                 return None, 0.0
 
-            # Preprocess image for better OCR
+            # Preprocess: grayscale → equalize → threshold (white HUD text)
             roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-
-            # Enhance contrast
             roi_enhanced = cv2.equalizeHist(roi_gray)
-
-            # Thresholding (timers are usually white/bright text)
             _, roi_binary = cv2.threshold(roi_enhanced, 200, 255, cv2.THRESH_BINARY)
 
-            # Run OCR
             ocr_result = self.reader.readtext(roi_binary, detail=1)
 
             if not ocr_result:
                 return None, 0.0
 
-            # Extract timer string
+            # Combine all text blocks so ring digit and timer are parsed together
+            combined_text = " ".join(d[1] for d in ocr_result)
+            avg_confidence = self._calculate_confidence(ocr_result)
+
+            timer = self.parse_apex_timer(combined_text)
+            if timer:
+                return timer, avg_confidence
+
+            # Fallback: try each detection individually with the base parser
             for detection in ocr_result:
                 text = detection[1]
                 confidence = detection[2]
-
-                # Try to parse timer
                 timer = self.parse_timer_string(text)
                 if timer:
                     return timer, confidence
-
-            # If no timer found, return best match
-            if ocr_result:
-                best_text = ocr_result[0][1]
-                timer = self.parse_timer_string(best_text)
-                avg_confidence = self._calculate_confidence(ocr_result)
-                return timer, avg_confidence
 
             return None, 0.0
 

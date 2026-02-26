@@ -153,6 +153,28 @@ export default function VodViewer() {
   const [showMultiVodPanel, setShowMultiVodPanel] = useState(false);
   const vodSync = useVodSyncIntegration(currentTime, duration);
 
+  // Active preview: which secondary VOD (if any) is shown in the main player.
+  // null = show the primary (the VOD opened on this page).
+  const [activePreviewVodId, setActivePreviewVodId] = useState(null);
+  const activePreviewVodIdRef = useRef(null);
+  const primaryLastTimeRef = useRef(0); // primary VOD's time before switching to preview
+  const pendingSeekRef = useRef(null);  // time to seek to after a src swap loads
+
+  // When the Multi-VOD panel opens and no VODs have been added yet, automatically
+  // seed the currently-viewed VOD as the primary so the user only needs to add
+  // the secondary.
+  useEffect(() => {
+    if (!showMultiVodPanel || !vodPath) return;
+    if (vodSync.vods.length > 0) return;
+    const label =
+      vodMeta?.display_title ||
+      vodMeta?.pretty_time ||
+      vodMeta?.name ||
+      vodPath.split(/[/\\]/).pop() ||
+      "Current VOD";
+    vodSync.addVod({ url: vodPath, label });
+  }, [showMultiVodPanel, vodPath, vodMeta, vodSync.addVod]);
+
   const dragStateRef = useRef({ handle: null, raf: 0, pendingTime: null });
   const durationRef = useRef(0);
   const clipStartRef = useRef(0);
@@ -166,6 +188,15 @@ export default function VodViewer() {
   const vodMediaUrl = vodPath
     ? `/media-path?path=${encodeURIComponent(vodPath)}`
     : "";
+
+  // When previewing a secondary VOD, swap the main player's src to that file.
+  // activePreviewVodId stores the VOD's URL (not its sync-state ID) so it works
+  // regardless of which sync instance assigned the ID.
+  const activeVideoUrl = (() => {
+    if (!activePreviewVodId) return vodMediaUrl;
+    if (/^https?:\/\//i.test(activePreviewVodId)) return activePreviewVodId;
+    return `/media-path?path=${encodeURIComponent(activePreviewVodId)}`;
+  })();
   const markersStorageKey = vodPath
     ? `vodviewer.manualMarkers.${encodeURIComponent(vodPath)}`
     : null;
@@ -749,8 +780,14 @@ export default function VodViewer() {
     const total = videoRef.current.duration;
     setDuration(total);
     durationRef.current = total;
-    if (!clipEnd || clipEnd < 1) {
+    // Only set clip defaults on the initial primary VOD load, not on preview swaps.
+    if (!activePreviewVodIdRef.current && (!clipEnd || clipEnd < 1)) {
       setClipEnd(Math.min(total, 30 * 60));
+    }
+    // Seek to the synced position after a src swap.
+    if (pendingSeekRef.current !== null) {
+      videoRef.current.currentTime = Math.min(Math.max(0, pendingSeekRef.current), total);
+      pendingSeekRef.current = null;
     }
     videoRef.current.play().catch(() => {});
   };
@@ -760,9 +797,34 @@ export default function VodViewer() {
     const time = videoRef.current.currentTime;
     currentTimeRef.current = time;
     setCurrentTime(time);
-    // Update primary VOD time in multi-VOD sync
-    if (vodSync.primaryVodId) {
-      vodSync.handlePrimaryTimeUpdate(time);
+    if (activePreviewVodIdRef.current) {
+      // Playing a secondary VOD — update its time in the sync system.
+      vodSync.handleSecondaryTimeUpdate(activePreviewVodIdRef.current, time);
+    } else {
+      // Playing the primary — track its time so we can restore it on return.
+      primaryLastTimeRef.current = time;
+      if (vodSync.primaryVodId) {
+        vodSync.handlePrimaryTimeUpdate(time);
+      }
+    }
+  };
+
+  // Switch the main player between VODs. vodUrl is the VOD's file/stream URL.
+  // Clicking the active VOD again returns to the primary.
+  const handleVodSelect = (vodUrl) => {
+    if (activePreviewVodIdRef.current === vodUrl) {
+      // Return to primary VOD.
+      pendingSeekRef.current = primaryLastTimeRef.current;
+      activePreviewVodIdRef.current = null;
+      setActivePreviewVodId(null);
+    } else {
+      // Switch to selected secondary VOD, seeking to the synced position.
+      primaryLastTimeRef.current = currentTimeRef.current;
+      const vod = vodSync.vods.find((v) => v.url === vodUrl);
+      const offset = vod?.syncOffset ?? 0;
+      pendingSeekRef.current = Math.max(0, currentTimeRef.current + offset / 1000);
+      activePreviewVodIdRef.current = vodUrl;
+      setActivePreviewVodId(vodUrl);
     }
   };
 
@@ -1109,13 +1171,41 @@ export default function VodViewer() {
               <video
                 ref={videoRef}
                 className="vod-video"
-                src={vodMediaUrl}
+                src={activeVideoUrl}
                 autoPlay
                 onClick={togglePlayPause}
                 onLoadedMetadata={handleLoadedMetadata}
                 onTimeUpdate={handleTimeUpdate}
                 onError={() => setError("Unable to load this VOD in the viewer.")}
               />
+              {activePreviewVodId && (
+                <div style={{
+                  position: "absolute",
+                  top: 8,
+                  left: 8,
+                  background: "rgba(12, 23, 27, 0.88)",
+                  border: "1px solid #7dd3fc",
+                  borderRadius: "6px",
+                  padding: "4px 10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  zIndex: 10,
+                  fontSize: "12px",
+                  color: "#7dd3fc",
+                }}>
+                  <span>
+                    Previewing: {vodSync.vods.find((v) => v.url === activePreviewVodId)?.label || "Secondary VOD"}
+                  </span>
+                  <button
+                    className="tertiary"
+                    onClick={() => handleVodSelect(activePreviewVodId)}
+                    style={{ fontSize: "11px", padding: "2px 6px" }}
+                  >
+                    ✕ Return to primary
+                  </button>
+                </div>
+              )}
               {loading && (
                 <div
                   style={{
@@ -1748,6 +1838,10 @@ export default function VodViewer() {
               <div>
                 <MultiVodPlayer
                   vodData={vodSync.vods}
+                  primaryVodId={vodSync.primaryVodId}
+                  isLinkedPlayback={vodSync.isLinkedPlayback}
+                  activePreviewVodId={activePreviewVodId}
+                  onVodSelect={handleVodSelect}
                   onVodAdded={(vod) => {
                     vodSync.addVod({
                       url: vod.url,
@@ -1755,10 +1849,20 @@ export default function VodViewer() {
                     });
                   }}
                   onVodRemoved={(vod) => {
+                    if (!vod?.id) return;
                     vodSync.removeVod(vod.id);
                   }}
+                  onPrimaryChange={(vodId) => {
+                    vodSync.setPrimaryVod(vodId);
+                  }}
+                  onLinkedPlaybackChange={(enabled) => {
+                    vodSync.setLinkedPlayback(enabled);
+                  }}
                   onTimeUpdate={({ vodId, currentTime }) => {
-                    vodSync.handleSecondaryTimeUpdate(vodId, currentTime);
+                    vodSync.sync.updateVodTime(vodId, currentTime);
+                  }}
+                  onDurationUpdate={({ vodId, duration }) => {
+                    vodSync.handleDurationUpdate(vodId, duration);
                   }}
                 />
               </div>

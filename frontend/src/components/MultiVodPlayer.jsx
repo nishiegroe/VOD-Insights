@@ -1,40 +1,59 @@
 /**
  * MultiVodPlayer Component
- * Renders multiple synchronized VOD players with controls
+ * Renders multiple VOD players with independent scrubbing and sync controls
  */
 
-import React, { useRef, useEffect, useState } from "react";
-import { useMultiVodSync } from "../hooks/useMultiVodSync";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 export function MultiVodPlayer({
   vodData = [],
+  primaryVodId = null,
+  isLinkedPlayback = false,
+  activePreviewVodId = null,
+  onVodSelect = () => {},
   onVodAdded = () => {},
   onVodRemoved = () => {},
+  onPrimaryChange = () => {},
+  onLinkedPlaybackChange = () => {},
   onTimeUpdate = () => {},
+  onDurationUpdate = () => {},
   className = "",
 }) {
-  const sync = useMultiVodSync();
   const [showAddModal, setShowAddModal] = useState(false);
   const [addMode, setAddMode] = useState("twitch"); // "twitch" or "local"
   const [newVodUrl, setNewVodUrl] = useState("");
   const [newVodLabel, setNewVodLabel] = useState("");
   const [availableVods, setAvailableVods] = useState([]);
   const [selectedLocalVod, setSelectedLocalVod] = useState("");
+  const videoRefs = useRef({});
 
-  // Initialize with provided VOD data
+  const orderedVods = useMemo(() => {
+    const primary = vodData.find((vod) => vod.id === primaryVodId);
+    const secondary = vodData.filter((vod) => vod.id !== primaryVodId);
+    return primary ? [primary, ...secondary] : vodData;
+  }, [vodData, primaryVodId]);
+
+  const areAllSynced = useMemo(
+    () => vodData.length > 1 && vodData.every((vod) => vod.syncStatus === "synced"),
+    [vodData]
+  );
+
   useEffect(() => {
-    if (vodData.length === 0 && sync.vods.length > 0) {
-      sync.clearAllVods();
-    }
+    const nextRefs = {};
     vodData.forEach((vod) => {
-      if (!sync.vods.find((v) => v.url === vod.url)) {
-        sync.addVod({
-          url: vod.url,
-          label: vod.label || "",
-        });
+      if (videoRefs.current[vod.id]) {
+        nextRefs[vod.id] = videoRefs.current[vod.id];
       }
     });
+    videoRefs.current = nextRefs;
   }, [vodData]);
+
+  const getVodSrc = (url) => {
+    if (/^https?:\/\//i.test(url)) {
+      return url;
+    }
+    return `/media-path?path=${encodeURIComponent(url)}`;
+  };
 
   // Fetch available VODs from the VOD directory
   const fetchAvailableVods = async () => {
@@ -62,11 +81,6 @@ export function MultiVodPlayer({
         return;
       }
 
-      sync.addVod({
-        url: newVodUrl.trim(),
-        label: newVodLabel.trim() || "Twitch VOD",
-      });
-
       onVodAdded({
         url: newVodUrl.trim(),
         label: newVodLabel.trim() || "Twitch VOD",
@@ -85,11 +99,6 @@ export function MultiVodPlayer({
       const vodPath = selectedLocalVod;
       const vodName = vodPath.split("/").pop() || "Local VOD";
 
-      sync.addVod({
-        url: vodPath,
-        label: newVodLabel.trim() || vodName,
-      });
-
       onVodAdded({
         url: vodPath,
         label: newVodLabel.trim() || vodName,
@@ -102,29 +111,35 @@ export function MultiVodPlayer({
   };
 
   const handleRemoveVod = (vodId) => {
-    const vod = sync.vods.find((v) => v.id === vodId);
-    sync.removeVod(vodId);
+    const vod = vodData.find((v) => v.id === vodId);
     onVodRemoved(vod);
   };
 
   const handleSetPrimary = (vodId) => {
-    sync.setPrimaryVod(vodId);
+    onPrimaryChange(vodId);
   };
 
   const handleTimeUpdate = (vodId, currentTime) => {
-    sync.updateVodTime(vodId, currentTime);
     onTimeUpdate({ vodId, currentTime });
   };
 
   const handleDurationUpdate = (vodId, duration) => {
-    sync.updateVodDuration(vodId, duration);
+    onDurationUpdate({ vodId, duration });
   };
 
   const handleToggleLinkedPlayback = () => {
-    sync.setLinkedPlayback(!sync.isLinkedPlayback);
+    onLinkedPlaybackChange(!isLinkedPlayback);
   };
 
-  const isPrimary = (vodId) => vodId === sync.primaryVodId;
+  const handleScrubInput = (vodId, nextTime) => {
+    const video = videoRefs.current[vodId];
+    if (video) {
+      video.currentTime = nextTime;
+    }
+    handleTimeUpdate(vodId, nextTime);
+  };
+
+  const isPrimary = (vodId) => vodId === primaryVodId;
 
   return (
     <div className={`multi-vod-player ${className}`}>
@@ -141,7 +156,7 @@ export function MultiVodPlayer({
       >
         <div>
           <h3 style={{ margin: "0 0 8px 0", color: "var(--text)" }}>
-            VODs ({sync.vods.length})
+            VODs ({vodData.length})
           </h3>
           <p
             style={{
@@ -150,12 +165,12 @@ export function MultiVodPlayer({
               color: "var(--muted)",
             }}
           >
-            {sync.areAllSynced()
+            {areAllSynced
               ? "✓ All VODs synced"
-              : sync.vods.length > 1
+              : vodData.length > 1
                 ? "Sync status: " +
-                  sync.vods
-                    .filter((v) => v.id !== sync.primaryVodId)
+                  vodData
+                    .filter((v) => v.id !== primaryVodId)
                     .map((v) => v.syncStatus)
                     .join(", ")
                 : "Add another VOD to enable sync"}
@@ -171,24 +186,26 @@ export function MultiVodPlayer({
             + Add VOD
           </button>
 
-          {sync.vods.length > 1 && (
+          {vodData.length > 1 && (
             <button
-              className={sync.isLinkedPlayback ? "primary" : "secondary"}
+              className={isLinkedPlayback ? "primary" : "secondary"}
               onClick={handleToggleLinkedPlayback}
               title={
-                sync.isLinkedPlayback
+                isLinkedPlayback
                   ? "Unlink playback (play independently)"
                   : "Link playback (play synchronized)"
               }
             >
-              {sync.isLinkedPlayback ? "🔗 Linked" : "⛓️ Unlinked"}
+              {isLinkedPlayback ? "🔗 Linked" : "⛓️ Unlinked"}
             </button>
           )}
 
-          {sync.vods.length > 0 && (
+          {vodData.length > 0 && (
             <button
               className="secondary"
-              onClick={() => sync.clearAllVods()}
+              onClick={() => {
+                vodData.forEach((vod) => onVodRemoved(vod));
+              }}
               title="Remove all VODs"
             >
               Clear All
@@ -198,7 +215,7 @@ export function MultiVodPlayer({
       </div>
 
       {/* VOD Grid */}
-      {sync.vods.length === 0 ? (
+      {vodData.length === 0 ? (
         <div
           style={{
             textAlign: "center",
@@ -222,25 +239,29 @@ export function MultiVodPlayer({
           style={{
             display: "grid",
             gridTemplateColumns:
-              sync.vods.length === 1
+              vodData.length === 1
                 ? "1fr"
-                : sync.vods.length === 2
+                : vodData.length === 2
                   ? "1fr 1fr"
                   : "repeat(auto-fit, minmax(400px, 1fr))",
             gap: "16px",
             marginBottom: "16px",
           }}
         >
-          {sync.getOrderedVods().map((vod) => (
+          {orderedVods.map((vod) => (
             <div
               key={vod.id}
               style={{
                 padding: "12px",
                 borderRadius: "8px",
-                background: isPrimary(vod.id)
+                background: activePreviewVodId === vod.url
+                  ? "rgba(125, 211, 252, 0.08)"
+                  : isPrimary(vod.id)
                   ? "rgba(255, 179, 71, 0.1)"
                   : "rgba(0, 0, 0, 0.3)",
-                border: isPrimary(vod.id)
+                border: activePreviewVodId === vod.url
+                  ? "2px solid #7dd3fc"
+                  : isPrimary(vod.id)
                   ? "2px solid #ffb347"
                   : "1px solid #1f3640",
               }}
@@ -295,6 +316,19 @@ export function MultiVodPlayer({
                   </p>
                 </div>
 
+                <button
+                  className={activePreviewVodId === vod.url ? "primary" : "tertiary"}
+                  onClick={() => onVodSelect(vod.url)}
+                  title={
+                    activePreviewVodId === vod.url
+                      ? "Currently viewing — click to return to primary"
+                      : "View this VOD in the main player"
+                  }
+                  style={{ padding: "4px 8px", fontSize: "12px" }}
+                >
+                  {activePreviewVodId === vod.url ? "Viewing" : "View"}
+                </button>
+
                 {!isPrimary(vod.id) && (
                   <button
                     className="tertiary"
@@ -314,6 +348,50 @@ export function MultiVodPlayer({
                 >
                   ✕
                 </button>
+              </div>
+
+              <div
+                style={{
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  background: "#000",
+                  marginBottom: "10px",
+                  border: "1px solid #1f3640",
+                }}
+              >
+                <video
+                  ref={(el) => {
+                    if (el) {
+                      videoRefs.current[vod.id] = el;
+                    }
+                  }}
+                  src={getVodSrc(vod.url)}
+                  controls
+                  preload="metadata"
+                  style={{ width: "100%", display: "block", maxHeight: "240px" }}
+                  onLoadedMetadata={(event) =>
+                    handleDurationUpdate(vod.id, event.currentTarget.duration || 0)
+                  }
+                  onTimeUpdate={(event) =>
+                    handleTimeUpdate(vod.id, event.currentTarget.currentTime || 0)
+                  }
+                />
+              </div>
+
+              <div style={{ marginBottom: "12px" }}>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(0, Number(vod.duration) || 0)}
+                  step={0.1}
+                  value={Math.min(
+                    Math.max(0, Number(vod.currentTime) || 0),
+                    Math.max(0, Number(vod.duration) || 0)
+                  )}
+                  onChange={(event) => handleScrubInput(vod.id, Number(event.target.value || 0))}
+                  style={{ width: "100%" }}
+                  disabled={(Number(vod.duration) || 0) <= 0}
+                />
               </div>
 
               {/* VOD Status & Timers */}

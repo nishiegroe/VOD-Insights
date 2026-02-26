@@ -203,8 +203,8 @@ def supported_games():
                     {
                         "name": "apex",
                         "display_name": "Apex Legends",
-                        "timer_location": "Bottom-left (under minimap)",
-                        "timer_format": "MM:SS",
+                        "timer_location": "Top-left (below minimap)",
+                        "timer_format": "ring:MM:SS or MM:SS",
                     },
                     {
                         "name": "valorant",
