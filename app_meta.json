@@ -1,10 +1,18 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
+    {
+      "version": "1.0.7",
+      "items": [
+        "Reworked the Settings page with section-based navigation, autosave status feedback, and a cleaner workflow layout.",
+        "Added keyword management with per-keyword pre-roll/post-roll event windows for more precise clip timing.",
+        "Updated VOD bookmark and previous/next event seeking to apply keyword-specific event windows during jumps."
+      ]
+    },
     {
       "version": "1.0.6",
       "items": [

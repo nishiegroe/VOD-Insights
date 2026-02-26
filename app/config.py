@@ -1,7 +1,7 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -64,6 +64,7 @@ class SplitConfig:
     input_source: str
     encode_counts: bool
     count_format: str
+    event_windows: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     recordings_dir: str = ""
 
 

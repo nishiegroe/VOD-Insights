@@ -1137,6 +1137,25 @@ def update_config_from_payload(config: Dict[str, Any], payload: Dict[str, Any]) 
             return value
         return str(value).lower() in {"1", "true", "on", "yes"}
 
+    def _to_event_windows(value: Any) -> Dict[str, Dict[str, float]]:
+        if not isinstance(value, dict):
+            return {}
+        result: Dict[str, Dict[str, float]] = {}
+        for raw_key, raw_window in value.items():
+            key = str(raw_key).strip()
+            if not key or not isinstance(raw_window, dict):
+                continue
+            try:
+                pre_seconds = max(0.0, float(raw_window.get("pre_seconds", 0.0)))
+                post_seconds = max(0.0, float(raw_window.get("post_seconds", 0.0)))
+            except (TypeError, ValueError):
+                continue
+            result[key] = {
+                "pre_seconds": pre_seconds,
+                "post_seconds": post_seconds,
+            }
+        return result
+
     mapping = {
         "capture_left": ("capture", "left", int),
         "capture_top": ("capture", "top", int),
@@ -1164,6 +1183,7 @@ def update_config_from_payload(config: Dict[str, Any], payload: Dict[str, Any]) 
         "bookmarks_format": ("bookmarks", "format", str),
         "split_pre": ("split", "pre_seconds", float),
         "split_post": ("split", "post_seconds", float),
+        "split_event_windows": ("split", "event_windows", _to_event_windows),
         "split_gap": ("split", "merge_gap_seconds", float),
         "wizard_vods_completed": ("ui", "vods_wizard_completed", _to_bool),
     }

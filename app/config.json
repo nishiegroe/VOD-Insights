@@ -58,6 +58,44 @@
     ],
     "pre_seconds": 20.0,
     "post_seconds": 30.0,
+    "event_windows": {
+      "killed": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "kill": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "assist": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "knocked": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "elimination": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "revived": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "death": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "victory": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      },
+      "squad wipe": {
+        "pre_seconds": 20.0,
+        "post_seconds": 30.0
+      }
+    },
     "merge_gap_seconds": 3.0,
     "input_source": "newest",
     "encode_counts": true,
