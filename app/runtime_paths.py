@@ -119,6 +119,10 @@ def get_easyocr_models_dir() -> Path:
     return get_app_data_dir() / "easyocr_models"
 
 
+def get_gpu_ocr_packages_dir() -> Path:
+    return get_app_data_dir() / "python_packages"
+
+
 def ensure_easyocr_models() -> Path:
     target_dir = ensure_dir(get_easyocr_models_dir())
     bundled_candidates = [get_app_root() / "easyocr_models"]
@@ -252,6 +256,7 @@ def _candidate_torch_dirs() -> list[Path]:
         exe_dir / "torch",
         exe_dir / "_internal" / "torch",
     ])
+    candidates.append(get_gpu_ocr_packages_dir() / "torch")
     return candidates
 
 
@@ -261,7 +266,14 @@ def prepare_torch_runtime() -> Dict[str, Any]:
         "exe_dir": str(get_exe_dir()),
         "dll_dirs": [],
         "torch_dir": None,
+        "python_packages_dir": None,
     }
+    packages_dir = get_gpu_ocr_packages_dir()
+    info["python_packages_dir"] = str(packages_dir)
+    if packages_dir.exists():
+        packages_dir_str = str(packages_dir.resolve())
+        if packages_dir_str not in sys.path:
+            sys.path.insert(0, packages_dir_str)
     torch_dir: Optional[Path] = None
     for candidate in _candidate_torch_dirs():
         if candidate.exists():
@@ -276,6 +288,19 @@ def prepare_torch_runtime() -> Dict[str, Any]:
         torch_dir / "lib",
         torch_dir / "lib" / "nvidia",
     ]
+    if packages_dir.exists():
+        try:
+            nvidia_root = packages_dir / "nvidia"
+            if nvidia_root.exists():
+                for child in nvidia_root.iterdir():
+                    if not child.is_dir():
+                        continue
+                    for name in ("bin", "lib"):
+                        candidate = child / name
+                        if candidate.exists():
+                            lib_dirs.append(candidate)
+        except Exception:
+            logger.exception("Failed to discover NVIDIA runtime directories under %s", packages_dir)
     seen: set[str] = set()
     for directory in lib_dirs:
         if not directory.exists():
