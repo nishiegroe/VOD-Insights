@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DownloadVODModal from "../components/DownloadVODModal";
 
 export default function Vods({ status }) {
   const WIZARD_STEP_START_SCAN = 1;
@@ -11,6 +12,7 @@ export default function Vods({ status }) {
   const [toast, setToast] = useState(null);
   const [showAll, setShowAll] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [uploadState, setUploadState] = useState({
     fileName: "No file selected",
     progress: 0,
@@ -580,6 +582,17 @@ export default function Vods({ status }) {
                 <button
                   type="button"
                   className="icon-button"
+                  onClick={() => setShowDownloadModal(true)}
+                  title="Download Twitch VOD"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6m3-3H9"></path>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
                   onClick={() => setShowUploadModal(true)}
                   title="Upload VOD"
                 >
@@ -795,6 +808,15 @@ export default function Vods({ status }) {
           </div>
         </div>
       )}
+
+      <DownloadVODModal
+        isOpen={showDownloadModal}
+        onClose={() => setShowDownloadModal(false)}
+        onDownloadStart={(jobId) => {
+          showToast("Download started! Check progress in the modal.", "info");
+        }}
+      />
+
       {wizardVisible ? (
         <div
           className={`onboarding-overlay ${wizardSpotlightRect ? "has-target" : ""}`}
