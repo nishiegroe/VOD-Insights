@@ -21,12 +21,6 @@ export function MultiVodPlayer({
   const [availableVods, setAvailableVods] = useState([]);
   const [selectedLocalVod, setSelectedLocalVod] = useState("");
 
-  // Video refs and playback state for secondary VODs
-  const secondaryVideoRefs = useRef(new Map()); // Map of vodId -> video element ref
-  const [playingVods, setPlayingVods] = useState(new Set()); // Set of vodIds currently playing
-  const [scrubbingVodId, setScrubbingVodId] = useState(null); // Track which video is being scrubbed
-  const [volumeVods, setVolumeVods] = useState(new Map()); // Map of vodId -> volume (0-1)
-
   // Initialize with provided VOD data
   useEffect(() => {
     if (vodData.length === 0 && sync.vods.length > 0) {
@@ -131,80 +125,6 @@ export function MultiVodPlayer({
   };
 
   const isPrimary = (vodId) => vodId === sync.primaryVodId;
-
-  // Handle secondary video time updates
-  const handleSecondaryTimeUpdate = (vodId, newTime) => {
-    if (scrubbingVodId === null) {
-      // Only update if user isn't actively scrubbing
-      sync.updateVodTime(vodId, newTime);
-      onTimeUpdate?.({ vodId, currentTime: newTime });
-    }
-  };
-
-  // Handle secondary video metadata loaded
-  const handleSecondaryLoadedMetadata = (vodId, duration) => {
-    sync.updateVodDuration(vodId, duration);
-    // Auto-play if linked playback is enabled and primary is playing
-    const primaryVod = sync.vods.find((v) => v.id === sync.primaryVodId);
-    if (primaryVod && sync.isLinkedPlayback && playingVods.has(sync.primaryVodId)) {
-      const videoEl = secondaryVideoRefs.current.get(vodId);
-      if (videoEl && videoEl.paused) {
-        videoEl.play().catch(() => {
-          // Playback error, ignore
-        });
-      }
-    }
-  };
-
-  // Toggle play/pause for secondary VOD
-  const handleTogglePlaySecondary = (vodId) => {
-    const videoEl = secondaryVideoRefs.current.get(vodId);
-    if (!videoEl) return;
-
-    const newPlaying = new Set(playingVods);
-    if (newPlaying.has(vodId)) {
-      videoEl.pause();
-      newPlaying.delete(vodId);
-    } else {
-      videoEl.play().catch(() => {
-        // Playback error, ignore
-      });
-      newPlaying.add(vodId);
-    }
-    setPlayingVods(newPlaying);
-
-    // If linked playback, also control primary
-    if (sync.isLinkedPlayback) {
-      const primaryVod = sync.vods.find((v) => v.id === sync.primaryVodId);
-      if (primaryVod) {
-        // Emit action that parent can handle
-        // Or sync the play state through VOD state
-      }
-    }
-  };
-
-  // Handle volume change for secondary VOD
-  const handleVolumeChange = (vodId, newVolume) => {
-    const videoEl = secondaryVideoRefs.current.get(vodId);
-    if (videoEl) {
-      videoEl.volume = newVolume;
-      const newVolumes = new Map(volumeVods);
-      newVolumes.set(vodId, newVolume);
-      setVolumeVods(newVolumes);
-    }
-  };
-
-  // Handle scrubbing start for secondary VOD
-  const handleSecondaryScrubbingStart = (vodId) => {
-    setScrubbingVodId(vodId);
-  };
-
-  // Handle scrubbing end for secondary VOD
-  const handleSecondaryScrubbingEnd = (vodId, newTime) => {
-    setScrubbingVodId(null);
-    sync.updateVodTime(vodId, newTime);
-    onTimeUpdate?.({ vodId, currentTime: newTime });
-  };
 
   return (
     <div className={`multi-vod-player ${className}`}>
@@ -325,99 +245,6 @@ export function MultiVodPlayer({
                   : "1px solid #1f3640",
               }}
             >
-              {/* VOD Video Player (NEW) */}
-              <div
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "16 / 9",
-                  background: "#000",
-                  borderRadius: "4px",
-                  overflow: "hidden",
-                  marginBottom: "12px",
-                }}
-              >
-                <video
-                  ref={(el) => {
-                    if (el) {
-                      secondaryVideoRefs.current.set(vod.id, el);
-                    } else {
-                      secondaryVideoRefs.current.delete(vod.id);
-                    }
-                  }}
-                  src={vod.url}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    background: "#000",
-                  }}
-                  onTimeUpdate={(e) =>
-                    handleSecondaryTimeUpdate(vod.id, e.currentTarget.currentTime)
-                  }
-                  onLoadedMetadata={(e) =>
-                    handleSecondaryLoadedMetadata(vod.id, e.currentTarget.duration)
-                  }
-                  onSeeking={() => handleSecondaryScrubbingStart(vod.id)}
-                  onSeeked={(e) =>
-                    handleSecondaryScrubbingEnd(vod.id, e.currentTarget.currentTime)
-                  }
-                />
-              </div>
-
-              {/* Playback Controls */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  marginBottom: "12px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <button
-                  className="secondary"
-                  onClick={() => handleTogglePlaySecondary(vod.id)}
-                  title={playingVods.has(vod.id) ? "Pause" : "Play"}
-                  style={{
-                    padding: "4px 12px",
-                    fontSize: "12px",
-                    minWidth: "40px",
-                  }}
-                >
-                  {playingVods.has(vod.id) ? "⏸ Pause" : "▶ Play"}
-                </button>
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    flex: 1,
-                    minWidth: "100px",
-                  }}
-                >
-                  <span style={{ fontSize: "10px", color: "var(--muted)" }}>
-                    🔊
-                  </span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    defaultValue={volumeVods.get(vod.id) ?? 1}
-                    onChange={(e) =>
-                      handleVolumeChange(vod.id, parseFloat(e.target.value))
-                    }
-                    style={{
-                      flex: 1,
-                      height: "4px",
-                      cursor: "pointer",
-                    }}
-                    title="Volume control"
-                  />
-                </div>
-              </div>
-
               {/* VOD Header */}
               <div
                 style={{
