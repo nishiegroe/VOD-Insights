@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { MultiVodPlayer } from "../components/MultiVodPlayer";
+import { VodSyncControls } from "../components/VodSyncControls";
+import { SyncTimeline } from "../components/SyncTimeline";
+import { useVodSyncIntegration } from "../hooks/useVodSyncIntegration";
 
 const ZOOM_OPTIONS = [
   { label: "±5m", halfSeconds: 5 * 60 },
@@ -144,6 +148,10 @@ export default function VodViewer() {
     if (typeof stored !== "number" || Number.isNaN(stored)) return 1;
     return Math.max(0, Math.min(1, stored));
   });
+
+  // Multi-VOD sync state
+  const [showMultiVodPanel, setShowMultiVodPanel] = useState(false);
+  const vodSync = useVodSyncIntegration(currentTime, duration);
 
   const dragStateRef = useRef({ handle: null, raf: 0, pendingTime: null });
   const durationRef = useRef(0);
@@ -752,6 +760,10 @@ export default function VodViewer() {
     const time = videoRef.current.currentTime;
     currentTimeRef.current = time;
     setCurrentTime(time);
+    // Update primary VOD time in multi-VOD sync
+    if (vodSync.primaryVodId) {
+      vodSync.handlePrimaryTimeUpdate(time);
+    }
   };
 
   useEffect(() => {
@@ -1047,6 +1059,14 @@ export default function VodViewer() {
               }
             >
               {nearbyManualMarker ? "Remove Marker" : "Add Marker"}
+            </button>
+            <button
+              type="button"
+              className={showMultiVodPanel ? "primary" : "secondary"}
+              onClick={() => setShowMultiVodPanel((prev) => !prev)}
+              title={showMultiVodPanel ? "Hide multi-VOD sync" : "Show multi-VOD sync"}
+            >
+              {showMultiVodPanel ? "Hide Multi-VOD" : "Multi-VOD"}
             </button>
             <button
               type="button"
@@ -1703,6 +1723,82 @@ export default function VodViewer() {
             </div>
           )}
         </div>
+
+        {/* Multi-VOD Sync Panel */}
+        {showMultiVodPanel && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              padding: "16px",
+              borderTop: "1px solid #1f3640",
+              background: "#13242a",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "16px",
+              }}
+            >
+              {/* Multi-VOD Player */}
+              <div>
+                <MultiVodPlayer
+                  vodData={vodSync.vods}
+                  onVodAdded={(vod) => {
+                    vodSync.addVod({
+                      url: vod.url,
+                      label: vod.label,
+                    });
+                  }}
+                  onVodRemoved={(vod) => {
+                    vodSync.removeVod(vod.id);
+                  }}
+                  onTimeUpdate={({ vodId, currentTime }) => {
+                    vodSync.handleSecondaryTimeUpdate(vodId, currentTime);
+                  }}
+                />
+              </div>
+
+              {/* Sync Controls */}
+              <div>
+                <VodSyncControls
+                  vods={vodSync.vods}
+                  primaryVodId={vodSync.primaryVodId}
+                  onSyncComplete={(result) => {
+                    vodSync.syncVodsByTimers(
+                      vodSync.primaryVodId,
+                      result.vodId,
+                      result.primaryTimer,
+                      result.secondaryTimer
+                    );
+                    vodSync.setSyncOffset(result.vodId, result.offset);
+                  }}
+                  onStatusChange={(vodId, status, error) => {
+                    vodSync.setSyncStatus(vodId, status, error);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Sync Timeline */}
+            {vodSync.vods.length > 1 && (
+              <SyncTimeline
+                vods={vodSync.vods}
+                currentTime={currentTime}
+                onTimeClick={(newTime) => {
+                  if (videoRef.current) {
+                    videoRef.current.currentTime = newTime;
+                    vodSync.handlePrimaryTimeUpdate(newTime);
+                  }
+                }}
+              />
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
