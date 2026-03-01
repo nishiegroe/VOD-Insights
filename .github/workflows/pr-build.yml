@@ -1,0 +1,141 @@
+name: PR Build
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Install root Node dependencies
+        run: npm ci
+
+      - name: Cache Python venv
+        id: venv-cache
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py311-${{ hashFiles('requirements.txt') }}
+
+      - name: Set up Python venv
+        if: steps.venv-cache.outputs.cache-hit != 'true'
+        run: |
+          python -m venv .venv
+          .venv\Scripts\pip install --upgrade pip
+          .venv\Scripts\pip install -r requirements.txt
+
+      - name: Download pinned build assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download models-v1 `
+            --pattern "easyocr_models.zip" `
+            --pattern "tesseract.zip" `
+            --repo ${{ github.repository }}
+          Expand-Archive easyocr_models.zip -DestinationPath . -Force
+          New-Item -ItemType Directory -Force -Path tools | Out-Null
+          Expand-Archive tesseract.zip -DestinationPath tools -Force
+
+      - name: Download ffmpeg
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" `
+            -OutFile "tools\ffmpeg.zip"
+          Expand-Archive "tools\ffmpeg.zip" -DestinationPath "tools\_ffmpeg_tmp" -Force
+          $inner = Get-ChildItem "tools\_ffmpeg_tmp" -Directory | Select-Object -First 1
+          Move-Item $inner.FullName "tools\ffmpeg" -Force
+          Remove-Item "tools\_ffmpeg_tmp" -Recurse -Force
+
+      - name: Copy ffmpeg.exe to tools root
+        run: |
+          $exe = Get-ChildItem "tools\ffmpeg\bin\ffmpeg.exe" -ErrorAction SilentlyContinue
+          if ($exe) { Copy-Item $exe.FullName "tools\ffmpeg.exe" -Force }
+
+      - name: Download yt-dlp
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" `
+            -OutFile "tools\yt-dlp.exe"
+
+      # Use fast (uncompressed) build for PRs — same output, much faster.
+      - name: Build installer
+        env:
+          AET_INCLUDE_EASYOCR_MODELS: '1'
+          AET_FAST_BUILD: '1'
+        run: npm run build
+
+      - name: Upload installer artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: VODInsights-Setup-PR${{ github.event.pull_request.number }}-${{ github.sha }}
+          path: dist-desktop/inno/VODInsights-Setup-*.exe
+          retention-days: 14
+
+      # Find any previous build comment from this workflow so we can update
+      # it instead of posting a new one on every push.
+      - name: Find existing build comment
+        id: find-comment
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $comments = gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" | ConvertFrom-Json
+          $existing = $comments | Where-Object { $_.body -like "*<!-- pr-build-bot -->*" } | Select-Object -Last 1
+          if ($existing) {
+            "comment-id=$($existing.id)" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Post or update PR comment
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $sha     = "${{ github.sha }}".Substring(0, 7)
+          $prNum   = "${{ github.event.pull_request.number }}"
+          $artUrl  = "${{ steps.upload.outputs.artifact-url }}"
+          $runUrl  = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          $body = @"
+          <!-- pr-build-bot -->
+          ### Build ready for review
+
+          | | |
+          |---|---|
+          | Commit | ``$sha`` |
+          | Download | [${{ github.event.pull_request.head.ref }} installer]($artUrl) |
+          | Expires | 14 days |
+          | Run | [View logs]($runUrl) |
+
+          > **Note:** GitHub requires you to be signed in to download artifacts.
+          > Extract the zip to get the \`VODInsights-Setup-*.exe\` installer.
+          "@
+
+          $commentId = "${{ steps.find-comment.outputs.comment-id }}"
+          if ($commentId) {
+            gh api "repos/${{ github.repository }}/issues/comments/$commentId" `
+              -X PATCH -f body="$body" | Out-Null
+            Write-Host "Updated existing comment $commentId"
+          } else {
+            gh api "repos/${{ github.repository }}/issues/$prNum/comments" `
+              -X POST -f body="$body" | Out-Null
+            Write-Host "Posted new comment"
+          }
