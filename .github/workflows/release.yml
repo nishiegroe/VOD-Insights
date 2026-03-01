@@ -88,9 +88,11 @@ jobs:
       - name: Build installer
         env:
           AET_INCLUDE_EASYOCR_MODELS: '1'
+          AET_INCLUDE_GPU_OCR_DEPS: '1'
         run: npm run build
-        # build_inno.ps1 calls easyocr.Reader() which finds models already in
-        # easyocr_models/ and skips downloading — giving a reproducible build.
+        # build_inno.ps1 installs CUDA-enabled torch + easyocr into the venv,
+        # finds pre-populated models in easyocr_models/, and bundles everything
+        # via PyInstaller so GPU OCR works out of the box.
 
       - name: Determine release tag
         id: tag

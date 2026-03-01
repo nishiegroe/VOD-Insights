@@ -79,6 +79,7 @@ jobs:
       - name: Build installer
         env:
           AET_INCLUDE_EASYOCR_MODELS: '1'
+          AET_INCLUDE_GPU_OCR_DEPS: '1'
           AET_FAST_BUILD: '1'
         run: npm run build
 
