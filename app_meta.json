@@ -1,10 +1,22 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
+    {
+      "version": "1.0.9",
+      "items": [
+        "Updated app branding and logo"
+      ]
+    },
+    {
+      "version": "1.0.8",
+      "items": [
+        "Added ability to download VOD's from Twitch"
+      ]
+    },
     {
       "version": "1.0.7",
       "items": [

@@ -141,14 +141,18 @@ function syncDesktopMain(meta) {
 function syncReadme(meta) {
   const filePath = path.join(root, "README.md");
   let content = fs.readFileSync(filePath, "utf8");
-  content = replaceOrThrow(content, /%APPDATA%\\[A-Za-z0-9 _-]+/, `%APPDATA%\\${meta.internalName}`, "README appdata path");
-  content = replaceOrThrow(
-    content,
-    /dist\\+[^\\`]+\\+[^\\`]+\.exe/,
-    `dist\\${meta.internalName}\\${meta.internalName}.exe`,
-    "README exe path"
-  );
-  writeText(filePath, content);
+  let updated = false;
+  if (/%APPDATA%\\[A-Za-z0-9 _-]+/.test(content)) {
+    content = content.replace(/%APPDATA%\\[A-Za-z0-9 _-]+/, `%APPDATA%\\${meta.internalName}`);
+    updated = true;
+  }
+  if (/dist\\+[^\\`]+\\+[^\\`]+\.exe/.test(content)) {
+    content = content.replace(/dist\\+[^\\`]+\\+[^\\`]+\.exe/, `dist\\${meta.internalName}\\${meta.internalName}.exe`);
+    updated = true;
+  }
+  if (updated) {
+    writeText(filePath, content);
+  }
 }
 
 function validateMeta(meta) {
