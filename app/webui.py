@@ -2115,8 +2115,8 @@ def api_overlay_upload() -> Any:
     if file is None or not file.filename:
         return jsonify({"ok": False, "error": "Missing file"}), 400
     ext = Path(file.filename).suffix.lower()
-    if ext not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}:
-        return jsonify({"ok": False, "error": "Unsupported image format. Use PNG, JPG, GIF, WebP, or SVG."}), 400
+    if ext not in {".png", ".jpg", ".jpeg", ".gif", ".webp"}:
+        return jsonify({"ok": False, "error": "Unsupported image format. Use PNG, JPG, GIF, or WebP."}), 400
     overlay_dir = get_app_data_dir() / "overlay"
     overlay_dir.mkdir(parents=True, exist_ok=True)
     dest = overlay_dir / f"overlay{ext}"
