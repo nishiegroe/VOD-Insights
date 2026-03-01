@@ -131,6 +131,9 @@ export default function VodViewer() {
   const [eventFilters, setEventFilters] = useState(() =>
     loadStored(SETTINGS_KEYS.filters, DEFAULT_FILTERS)
   );
+  const [overlayConfig, setOverlayConfig] = useState(null);
+  const [videoContentRect, setVideoContentRect] = useState(null);
+  const containerRef = useRef(null);
   const [manualMarkers, setManualMarkers] = useState([]);
   const [showZoomMenu, setShowZoomMenu] = useState(false);
   const [showEventMenu, setShowEventMenu] = useState(false);
@@ -593,6 +596,18 @@ export default function VodViewer() {
         setEventWindowMap(
           buildEventWindowMap(keywords, config.split?.event_windows || {}, fallbackPre, fallbackPost)
         );
+        const uiConfig = config.ui || {};
+        if (uiConfig.overlay_image_path && uiConfig.overlay_enabled !== false) {
+          setOverlayConfig({
+            url: "/api/overlay/image",
+            x: Number.isFinite(Number(uiConfig.overlay_x)) ? Number(uiConfig.overlay_x) : 0.85,
+            y: Number.isFinite(Number(uiConfig.overlay_y)) ? Number(uiConfig.overlay_y) : 0.88,
+            width: Number.isFinite(Number(uiConfig.overlay_width)) ? Number(uiConfig.overlay_width) : 0.15,
+            opacity: Number.isFinite(Number(uiConfig.overlay_opacity)) ? Number(uiConfig.overlay_opacity) : 0.9,
+          });
+        } else {
+          setOverlayConfig(null);
+        }
       } catch {
         setDetectionKeywords([]);
         setDefaultPreRollSeconds(0);
@@ -613,16 +628,16 @@ export default function VodViewer() {
 
     const loadVodData = async () => {
       try {
-        const response = await fetch("/api/vods?all=1");
+        const response = await fetch(`/api/vods/single?path=${encodeURIComponent(vodPath)}`);
         const data = await response.json();
-        const vod = (data.vods || []).find((entry) => entry.path === vodPath);
 
-        if (!vod) {
+        if (!data.ok || !data.vod) {
           setError("VOD not found");
           setVodMeta(null);
           return;
         }
 
+        const vod = data.vod;
         setVodMeta(vod);
         setSessions(vod.sessions || []);
         if (!selectedSession && vod.sessions && vod.sessions.length > 0) {
@@ -757,6 +772,39 @@ export default function VodViewer() {
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const computeRect = () => {
+      const vW = video.videoWidth;
+      const vH = video.videoHeight;
+      if (!vW || !vH) return;
+      const elW = video.offsetWidth;
+      const elH = video.offsetHeight;
+      const scale = Math.min(elW / vW, elH / vH);
+      const rW = vW * scale;
+      const rH = vH * scale;
+      setVideoContentRect({
+        left: video.offsetLeft + (elW - rW) / 2,
+        top: video.offsetTop + (elH - rH) / 2,
+        width: rW,
+        height: rH,
+      });
+    };
+
+    video.addEventListener("loadedmetadata", computeRect);
+    const observer = new ResizeObserver(computeRect);
+    observer.observe(container);
+    if (video.readyState >= 1 && video.videoWidth) computeRect();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", computeRect);
+      observer.disconnect();
+    };
+  }, [vodMediaUrl]);
 
   useEffect(() => {
     clipStartRef.current = clipStart;
@@ -1085,7 +1133,7 @@ export default function VodViewer() {
 
         <div className="vod-content-wrapper">
           <div className="vod-left-section">
-            <div className="video-player-container" style={{ position: "relative" }}>
+            <div ref={containerRef} className="video-player-container" style={{ position: "relative" }}>
               <video
                 ref={videoRef}
                 className="vod-video"
@@ -1096,6 +1144,34 @@ export default function VodViewer() {
                 onTimeUpdate={handleTimeUpdate}
                 onError={() => setError("Unable to load this VOD in the viewer.")}
               />
+              {overlayConfig && videoContentRect && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: videoContentRect.left,
+                    top: videoContentRect.top,
+                    width: videoContentRect.width,
+                    height: videoContentRect.height,
+                    pointerEvents: "none",
+                    overflow: "hidden",
+                  }}
+                >
+                  <img
+                    src={overlayConfig.url}
+                    alt=""
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      left: `${overlayConfig.x * 100}%`,
+                      top: `${overlayConfig.y * 100}%`,
+                      transform: "translate(-50%, -50%)",
+                      width: `${overlayConfig.width * 100}%`,
+                      height: "auto",
+                      opacity: overlayConfig.opacity,
+                    }}
+                  />
+                </div>
+              )}
               {loading && (
                 <div
                   style={{

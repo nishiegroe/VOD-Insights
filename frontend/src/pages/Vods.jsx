@@ -621,7 +621,7 @@ export default function Vods({ status }) {
                   {vod.thumbnail_url ? (
                     <img src={vod.thumbnail_url} alt="VOD event thumbnail" loading="lazy" />
                   ) : (
-                    <video controls preload="metadata" src={`/vod-media/${vod.name}`}></video>
+                    <video controls preload="none" src={`/vod-media/${vod.name}`}></video>
                   )}
                 </div>
                 <div className="vod-info">

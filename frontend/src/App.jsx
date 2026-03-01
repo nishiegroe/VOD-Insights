@@ -8,6 +8,7 @@ import ClipsViewer from "./pages/ClipsViewer.jsx";
 import Settings from "./pages/Settings.jsx";
 import CaptureArea from "./pages/CaptureArea.jsx";
 import TwitchImport from "./pages/TwitchImport.jsx";
+import OverlayTool from "./pages/OverlayTool.jsx";
 
 const navLinkClass = ({ isActive }) =>
   isActive ? "link-button active" : "link-button";
@@ -41,6 +42,7 @@ export default function App() {
   const location = useLocation();
   const isVodViewerRoute = location.pathname === "/vods/view";
   const isSettingsRoute = location.pathname === "/settings";
+  const isOverlayToolRoute = location.pathname === "/overlay-tool";
 
   const activeTwitchJobs = useMemo(() => {
     return (notificationData.twitch_jobs || []).filter(isActiveTwitchJob);
@@ -135,7 +137,7 @@ export default function App() {
   }, [notificationsOpen]);
 
   return (
-    <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""} ${isSettingsRoute ? "app-settings" : ""}`}>
+    <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""} ${isSettingsRoute ? "app-settings" : ""} ${isOverlayToolRoute ? "app-overlay-tool" : ""}`}>
       {!isVodViewerRoute ? (
         <header className="header">
           <div>
@@ -310,7 +312,7 @@ export default function App() {
           </div>
         </header>
       ) : null}
-      <main className={isVodViewerRoute ? "app-main-vod-viewer" : undefined}>
+      <main className={isVodViewerRoute ? "app-main-vod-viewer" : isOverlayToolRoute ? "app-main-overlay-tool" : undefined}>
         <Routes>
           <Route path="/" element={<Home status={status} />} />
           <Route path="/vods" element={<Vods status={status} />} />
@@ -320,6 +322,7 @@ export default function App() {
           <Route path="/settings" element={<Settings status={status} />} />
           <Route path="/twitch-import" element={<TwitchImport />} />
           <Route path="/capture-area" element={<CaptureArea status={status} />} />
+          <Route path="/overlay-tool" element={<OverlayTool />} />
         </Routes>
       </main>
     </div>
