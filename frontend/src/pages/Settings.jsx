@@ -747,7 +747,7 @@ export default function Settings({ status }) {
                     <input
                       ref={replaceFileInputRef}
                       type="file"
-                      accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
                       style={{ display: "none" }}
                       onChange={async (event) => {
                         const file = event.target.files?.[0];
