@@ -2131,10 +2131,9 @@ def api_overlay_upload() -> Any:
 def api_overlay_image() -> Any:
     config = load_config()
     image_path = config.get("ui", {}).get("overlay_image_path", "")
-    if not image_path:
-        return jsonify({"ok": False, "error": "No overlay image set"}), 404
-    file_path = Path(image_path)
-    if not file_path.exists():
+    overlay_dir = get_app_data_dir() / "overlay"
+    file_path = resolve_allowed_path(image_path, [overlay_dir])
+    if file_path is None or not file_path.exists():
         return jsonify({"ok": False, "error": "Overlay image not found"}), 404
     return send_file(file_path)
 
@@ -2143,13 +2142,23 @@ def api_overlay_image() -> Any:
 def api_overlay_remove() -> Any:
     config = load_config()
     image_path = config.get("ui", {}).get("overlay_image_path", "")
-    if image_path:
+    overlay_dir = get_app_data_dir() / "overlay"
+    file_path = resolve_allowed_path(image_path, [overlay_dir])
+    if file_path is not None:
         try:
-            Path(image_path).unlink(missing_ok=True)
+            file_path.unlink(missing_ok=True)
         except Exception:
             pass
-    config.setdefault("ui", {})["overlay_image_path"] = ""
-    save_config(config)
+        config.setdefault("ui", {})["overlay_image_path"] = ""
+        save_config(config)
+    elif not image_path:
+        # Config field was already empty — still a no-op success
+        pass
+    else:
+        # Path existed in config but was outside the overlay directory — clear
+        # the invalid config entry but do not touch the filesystem.
+        config.setdefault("ui", {})["overlay_image_path"] = ""
+        save_config(config)
     return jsonify({"ok": True})
 
 
