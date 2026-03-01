@@ -65,6 +65,49 @@ npm run release:github                  # full flow: build + tag + gh release cr
 npm run release:github -- --dry-run    # preview without publishing
 ```
 
+### CI (GitHub Actions)
+
+Two workflows live in `.github/workflows/`:
+
+| Workflow | Trigger | Output |
+|----------|---------|--------|
+| `release.yml` | Push `v*.*.*` tag or `workflow_dispatch` | Full GitHub Release (installer + `latest.json` + checksums) |
+| `pr-build.yml` | PR open / push | Installer artifact + PR comment with download link |
+
+Both workflows pull **pinned EasyOCR models and Tesseract** from a `models-v1` GitHub Release asset
+so CI produces reproducible builds that match a local build.
+
+#### One-time setup (run locally, once)
+
+```powershell
+# 1. Download models using the exact same invocation the build script uses
+.venv\Scripts\python -c "import easyocr; easyocr.Reader(['en'], gpu=False, verbose=False, model_storage_directory='easyocr_models')"
+
+# 2. Zip models and the portable Tesseract installation
+Compress-Archive -Path easyocr_models  -DestinationPath easyocr_models.zip -Force
+Compress-Archive -Path tools\tesseract -DestinationPath tesseract.zip -Force
+
+# 3. Create the pinned release and upload both assets
+gh release create models-v1 easyocr_models.zip tesseract.zip `
+  --title "Build assets (EasyOCR models + Tesseract)" `
+  --notes "Pinned assets for reproducible CI builds."
+```
+
+#### Updating pinned assets (after upgrading easyocr or Tesseract)
+
+```powershell
+# Re-download / re-copy the updated files, re-zip, then overwrite the release assets:
+Compress-Archive -Path easyocr_models  -DestinationPath easyocr_models.zip -Force
+Compress-Archive -Path tools\tesseract -DestinationPath tesseract.zip -Force
+gh release upload models-v1 easyocr_models.zip tesseract.zip --clobber
+```
+
+#### Triggering a release via CI
+
+```bash
+git tag v1.0.11 && git push origin v1.0.11   # triggers release.yml automatically
+```
+
 ## Architecture
 
 ### Python backend (`app/`)
