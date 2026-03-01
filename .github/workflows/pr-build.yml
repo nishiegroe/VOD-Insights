@@ -47,10 +47,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download models-v1 `
-            --pattern "easyocr_models.zip" `
             --pattern "tesseract.zip" `
             --repo ${{ github.repository }}
-          Expand-Archive easyocr_models.zip -DestinationPath . -Force
           New-Item -ItemType Directory -Force -Path tools | Out-Null
           Expand-Archive tesseract.zip -DestinationPath tools -Force
 
@@ -78,7 +76,6 @@ jobs:
       # Use fast (uncompressed) build for PRs — same output, much faster.
       - name: Build installer
         env:
-          AET_INCLUDE_EASYOCR_MODELS: '1'
           AET_FAST_BUILD: '1'
         run: npm run build
 

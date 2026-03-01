@@ -47,18 +47,16 @@ jobs:
           .venv\Scripts\pip install --upgrade pip
           .venv\Scripts\pip install -r requirements.txt
 
-      # Download pinned assets (easyocr_models.zip + tesseract.zip) from the
-      # models-v1 release. See README / one-time setup instructions for how to
-      # create and update these assets.
-      - name: Download pinned build assets
+      # Download pinned Tesseract from the models-v1 release.
+      # EasyOCR models + CUDA torch are downloaded at first launch by the
+      # app's dependency bootstrap — they're too large to bundle.
+      - name: Download pinned Tesseract
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download models-v1 `
-            --pattern "easyocr_models.zip" `
             --pattern "tesseract.zip" `
             --repo ${{ github.repository }}
-          Expand-Archive easyocr_models.zip -DestinationPath . -Force
           New-Item -ItemType Directory -Force -Path tools | Out-Null
           Expand-Archive tesseract.zip -DestinationPath tools -Force
 
@@ -86,13 +84,9 @@ jobs:
             -OutFile "tools\yt-dlp.exe"
 
       - name: Build installer
-        env:
-          AET_INCLUDE_EASYOCR_MODELS: '1'
         run: npm run build
-        # CUDA torch (~4 GB) is too large to bundle — it would exceed both
-        # Inno Setup's 4.2 GB single-EXE limit and GitHub's 2 GB release
-        # asset cap. GPU OCR deps are downloaded at runtime via the app's
-        # dependency bootstrap when the user opts in.
+        # CUDA torch + EasyOCR models are downloaded on first launch by the
+        # app's dependency bootstrap — too large to bundle in the installer.
 
       - name: Determine release tag
         id: tag
