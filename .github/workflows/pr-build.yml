@@ -79,7 +79,6 @@ jobs:
       - name: Build installer
         env:
           AET_INCLUDE_EASYOCR_MODELS: '1'
-          AET_INCLUDE_GPU_OCR_DEPS: '1'
           AET_FAST_BUILD: '1'
         run: npm run build
 
@@ -112,8 +111,9 @@ jobs:
         run: |
           $sha     = "${{ github.sha }}".Substring(0, 7)
           $prNum   = "${{ github.event.pull_request.number }}"
-          $artUrl  = "${{ steps.upload.outputs.artifact-url }}"
+          $artId   = "${{ steps.upload.outputs.artifact-id }}"
           $runUrl  = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          $artUrl  = "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/$artId"
 
           $body = @"
           <!-- pr-build-bot -->

@@ -88,11 +88,11 @@ jobs:
       - name: Build installer
         env:
           AET_INCLUDE_EASYOCR_MODELS: '1'
-          AET_INCLUDE_GPU_OCR_DEPS: '1'
         run: npm run build
-        # build_inno.ps1 installs CUDA-enabled torch + easyocr into the venv,
-        # finds pre-populated models in easyocr_models/, and bundles everything
-        # via PyInstaller so GPU OCR works out of the box.
+        # CUDA torch (~4 GB) is too large to bundle — it would exceed both
+        # Inno Setup's 4.2 GB single-EXE limit and GitHub's 2 GB release
+        # asset cap. GPU OCR deps are downloaded at runtime via the app's
+        # dependency bootstrap when the user opts in.
 
       - name: Determine release tag
         id: tag
