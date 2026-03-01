@@ -1,10 +1,19 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
+    {
+      "version": "1.0.10",
+      "items": [
+        "Added video overlay support — upload a logo or image that appears over the video in the VOD Viewer and Clips pages.",
+        "Added an Overlay Placement Tool to drag and resize the overlay on a reference frame for precise positioning.",
+        "Improved VOD Viewer load speed by fetching only the selected VOD instead of loading the full VOD list.",
+        "Improved performance of VOD and clip list loading with media duration caching."
+      ]
+    },
     {
       "version": "1.0.9",
       "items": [

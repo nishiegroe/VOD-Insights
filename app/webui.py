@@ -58,6 +58,9 @@ UPDATE_FEED_URL = os.environ.get("AET_UPDATE_FEED_URL", DEFAULT_UPDATE_FEED_URL)
 
 app = Flask(__name__)
 
+# Cache for ffprobe duration results: (path_str, mtime) -> Optional[float]
+_duration_cache: Dict[tuple, Optional[float]] = {}
+
 _process_lock = threading.Lock()
 _bookmark_process: Optional[subprocess.Popen] = None
 _vod_ocr_processes: Dict[str, subprocess.Popen] = {}
@@ -886,28 +889,37 @@ def get_hottest_event_time(bookmark_path: Path, duration: Optional[float]) -> Op
 
 def get_media_duration(path: Path) -> Optional[float]:
     try:
-        ffprobe_path = resolve_tool("ffprobe", ["ffprobe.exe"])
-        if not ffprobe_path:
-            return None
-        result = subprocess.run(
-            [
-                ffprobe_path,
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                str(path),
-            ],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        return float(result.stdout.strip())
-    except Exception:
+        mtime = path.stat().st_mtime
+    except OSError:
         return None
+    cache_key = (str(path), mtime)
+    if cache_key in _duration_cache:
+        return _duration_cache[cache_key]
+    duration: Optional[float] = None
+    try:
+        ffprobe_path = resolve_tool("ffprobe", ["ffprobe.exe"])
+        if ffprobe_path:
+            result = subprocess.run(
+                [
+                    ffprobe_path,
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    str(path),
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            duration = float(result.stdout.strip())
+    except Exception:
+        duration = None
+    _duration_cache[cache_key] = duration
+    return duration
 
 
 def build_session_entries(files: List[Path]) -> List[Dict[str, Any]]:
@@ -1231,6 +1243,11 @@ def update_config_from_payload(config: Dict[str, Any], payload: Dict[str, Any]) 
         "split_event_windows": ("split", "event_windows", _to_event_windows),
         "split_gap": ("split", "merge_gap_seconds", float),
         "wizard_vods_completed": ("ui", "vods_wizard_completed", _to_bool),
+        "overlay_x": ("ui", "overlay_x", float),
+        "overlay_y": ("ui", "overlay_y", float),
+        "overlay_width": ("ui", "overlay_width", float),
+        "overlay_opacity": ("ui", "overlay_opacity", float),
+        "overlay_enabled": ("ui", "overlay_enabled", _to_bool),
     }
 
     for field, (section, key, caster) in mapping.items():
@@ -2092,6 +2109,50 @@ def api_config() -> Any:
     return jsonify({"ok": True, "config": config})
 
 
+@app.route("/api/overlay/upload", methods=["POST"])
+def api_overlay_upload() -> Any:
+    file = request.files.get("overlay_image")
+    if file is None or not file.filename:
+        return jsonify({"ok": False, "error": "Missing file"}), 400
+    ext = Path(file.filename).suffix.lower()
+    if ext not in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}:
+        return jsonify({"ok": False, "error": "Unsupported image format. Use PNG, JPG, GIF, WebP, or SVG."}), 400
+    overlay_dir = get_app_data_dir() / "overlay"
+    overlay_dir.mkdir(parents=True, exist_ok=True)
+    dest = overlay_dir / f"overlay{ext}"
+    file.save(str(dest))
+    config = load_config()
+    config.setdefault("ui", {})["overlay_image_path"] = str(dest)
+    save_config(config)
+    return jsonify({"ok": True, "url": "/api/overlay/image"})
+
+
+@app.route("/api/overlay/image")
+def api_overlay_image() -> Any:
+    config = load_config()
+    image_path = config.get("ui", {}).get("overlay_image_path", "")
+    if not image_path:
+        return jsonify({"ok": False, "error": "No overlay image set"}), 404
+    file_path = Path(image_path)
+    if not file_path.exists():
+        return jsonify({"ok": False, "error": "Overlay image not found"}), 404
+    return send_file(file_path)
+
+
+@app.route("/api/overlay/remove", methods=["POST"])
+def api_overlay_remove() -> Any:
+    config = load_config()
+    image_path = config.get("ui", {}).get("overlay_image_path", "")
+    if image_path:
+        try:
+            Path(image_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+    config.setdefault("ui", {})["overlay_image_path"] = ""
+    save_config(config)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/debug/paths")
 def api_debug_paths() -> Any:
     index_path = REACT_DIST / "index.html"
@@ -2128,6 +2189,25 @@ def api_vods() -> Any:
     vods = build_vod_entries(limited_paths, bookmarks_dir, session_prefix)
     remaining_count = max(0, len(vod_paths) - len(limited_paths))
     return jsonify({"vods": vods, "remaining_count": remaining_count})
+
+
+@app.route("/api/vods/single")
+def api_vod_single() -> Any:
+    path_value = request.args.get("path", "").strip()
+    if not path_value:
+        return jsonify({"ok": False, "error": "Missing path"}), 400
+    file_path = resolve_vod_path(path_value)
+    if file_path is None or not file_path.exists():
+        return jsonify({"ok": False, "error": "VOD not found"}), 404
+    config = load_config()
+    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
+    if not bookmarks_dir.is_absolute():
+        bookmarks_dir = get_app_data_dir() / bookmarks_dir
+    session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
+    entries = build_vod_entries([file_path], bookmarks_dir, session_prefix)
+    if not entries:
+        return jsonify({"ok": False, "error": "Could not build VOD entry"}), 500
+    return jsonify({"ok": True, "vod": entries[0]})
 
 
 @app.route("/api/vods/delete", methods=["POST"])

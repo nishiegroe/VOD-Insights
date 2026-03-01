@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function ClipsViewer() {
@@ -6,12 +6,17 @@ export default function ClipsViewer() {
   const navigate = useNavigate();
   const clipPath = searchParams.get("path") || "";
 
+  const videoRef = useRef(null);
+  const containerRef = useRef(null);
+
   const [clip, setClip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const [renameSaving, setRenameSaving] = useState(false);
   const [showRename, setShowRename] = useState(false);
+  const [overlayConfig, setOverlayConfig] = useState(null);
+  const [videoContentRect, setVideoContentRect] = useState(null);
 
   const formatDuration = (seconds) => {
     if (!Number.isFinite(seconds) || seconds <= 0) return "";
@@ -51,6 +56,59 @@ export default function ClipsViewer() {
     };
     load();
   }, [clipPath]);
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((data) => {
+        const ui = data.ui || {};
+        if (ui.overlay_image_path && ui.overlay_enabled !== false) {
+          setOverlayConfig({
+            url: "/api/overlay/image",
+            x: Number.isFinite(Number(ui.overlay_x)) ? Number(ui.overlay_x) : 0.85,
+            y: Number.isFinite(Number(ui.overlay_y)) ? Number(ui.overlay_y) : 0.88,
+            width: Number.isFinite(Number(ui.overlay_width)) ? Number(ui.overlay_width) : 0.15,
+            opacity: Number.isFinite(Number(ui.overlay_opacity)) ? Number(ui.overlay_opacity) : 0.9,
+          });
+        } else {
+          setOverlayConfig(null);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const computeRect = () => {
+      const vW = video.videoWidth;
+      const vH = video.videoHeight;
+      if (!vW || !vH) return;
+      const elW = video.offsetWidth;
+      const elH = video.offsetHeight;
+      const scale = Math.min(elW / vW, elH / vH);
+      const rW = vW * scale;
+      const rH = vH * scale;
+      setVideoContentRect({
+        left: video.offsetLeft + (elW - rW) / 2,
+        top: video.offsetTop + (elH - rH) / 2,
+        width: rW,
+        height: rH,
+      });
+    };
+
+    video.addEventListener("loadedmetadata", computeRect);
+    const observer = new ResizeObserver(computeRect);
+    observer.observe(container);
+    if (video.readyState >= 1 && video.videoWidth) computeRect();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", computeRect);
+      observer.disconnect();
+    };
+  }, [clip?.path]);
 
   const handleOpenFolder = async () => {
     if (!clip?.path) return;
@@ -195,11 +253,43 @@ export default function ClipsViewer() {
           ) : null}
         </div>
         {clip ? (
-          <video
-            controls
-            preload="metadata"
-            src={`/media-path?path=${encodeURIComponent(clip.path)}`}
-          ></video>
+          <div ref={containerRef} style={{ position: "relative", display: "inline-block", width: "100%" }}>
+            <video
+              ref={videoRef}
+              controls
+              preload="metadata"
+              src={`/media-path?path=${encodeURIComponent(clip.path)}`}
+              style={{ display: "block", width: "100%" }}
+            ></video>
+            {overlayConfig && videoContentRect && (
+              <div
+                style={{
+                  position: "absolute",
+                  left: videoContentRect.left,
+                  top: videoContentRect.top,
+                  width: videoContentRect.width,
+                  height: videoContentRect.height,
+                  pointerEvents: "none",
+                  overflow: "hidden",
+                }}
+              >
+                <img
+                  src={overlayConfig.url}
+                  alt=""
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    left: `${overlayConfig.x * 100}%`,
+                    top: `${overlayConfig.y * 100}%`,
+                    transform: "translate(-50%, -50%)",
+                    width: `${overlayConfig.width * 100}%`,
+                    height: "auto",
+                    opacity: overlayConfig.opacity,
+                  }}
+                />
+              </div>
+            )}
+          </div>
         ) : null}
       </div>
     </section>
