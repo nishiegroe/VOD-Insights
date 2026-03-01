@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.10)'
+        required: true
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Install root Node dependencies
+        run: npm ci
+
+      - name: Cache Python venv
+        id: venv-cache
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py311-${{ hashFiles('requirements.txt') }}
+
+      - name: Set up Python venv
+        if: steps.venv-cache.outputs.cache-hit != 'true'
+        run: |
+          python -m venv .venv
+          .venv\Scripts\pip install --upgrade pip
+          .venv\Scripts\pip install -r requirements.txt
+
+      # Download pinned assets (easyocr_models.zip + tesseract.zip) from the
+      # models-v1 release. See README / one-time setup instructions for how to
+      # create and update these assets.
+      - name: Download pinned build assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download models-v1 `
+            --pattern "easyocr_models.zip" `
+            --pattern "tesseract.zip" `
+            --repo ${{ github.repository }}
+          Expand-Archive easyocr_models.zip -DestinationPath . -Force
+          New-Item -ItemType Directory -Force -Path tools | Out-Null
+          Expand-Archive tesseract.zip -DestinationPath tools -Force
+
+      # Download ffmpeg (essentials build) and place it at tools/ffmpeg/
+      - name: Download ffmpeg
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" `
+            -OutFile "tools\ffmpeg.zip"
+          Expand-Archive "tools\ffmpeg.zip" -DestinationPath "tools\_ffmpeg_tmp" -Force
+          $inner = Get-ChildItem "tools\_ffmpeg_tmp" -Directory | Select-Object -First 1
+          Move-Item $inner.FullName "tools\ffmpeg" -Force
+          Remove-Item "tools\_ffmpeg_tmp" -Recurse -Force
+
+      # Copy ffmpeg.exe to tools/ root so resolve_tool() finds it at both locations
+      - name: Copy ffmpeg.exe to tools root
+        run: |
+          $exe = Get-ChildItem "tools\ffmpeg\bin\ffmpeg.exe" -ErrorAction SilentlyContinue
+          if ($exe) { Copy-Item $exe.FullName "tools\ffmpeg.exe" -Force }
+
+      - name: Download yt-dlp
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" `
+            -OutFile "tools\yt-dlp.exe"
+
+      - name: Build installer
+        env:
+          AET_INCLUDE_EASYOCR_MODELS: '1'
+        run: npm run build
+        # build_inno.ps1 calls easyocr.Reader() which finds models already in
+        # easyocr_models/ and skips downloading — giving a reproducible build.
+
+      - name: Determine release tag
+        id: tag
+        shell: pwsh
+        run: |
+          $t = if ($env:GITHUB_REF_NAME -match '^v\d') { $env:GITHUB_REF_NAME } else { "${{ inputs.tag }}" }
+          echo "value=$t" >> $env:GITHUB_OUTPUT
+
+      - name: Generate release assets (latest.json + checksums)
+        run: npm run release:assets -- --tag ${{ steps.tag.outputs.value }}
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run release:github -- `
+            --skip-prep `
+            --skip-tag `
+            --tag ${{ steps.tag.outputs.value }}
