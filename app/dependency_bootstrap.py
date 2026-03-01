@@ -19,12 +19,24 @@ from app.runtime_paths import ensure_dir, get_app_data_dir, get_install_dir
 logger = logging.getLogger(__name__)
 
 
+TORCH_CUDA_INDEX_URL = "https://download.pytorch.org/whl/cu121"
+
+# EasyOCR models pinned in the models-v1 GitHub Release for reproducible builds.
+# To update: re-zip your local easyocr_models/ and run:
+#   gh release upload models-v1 easyocr_models.zip --clobber
+EASYOCR_MODELS_URL = (
+    "https://github.com/nishiegroe/VOD-Insights/releases"
+    "/download/models-v1/easyocr_models.zip"
+)
+
+
 @dataclass(frozen=True)
 class DependencySpec:
     name: str
     url: str
     kind: str  # "zip", "file", "pip" (Python package)
     required: bool
+    pip_index_url: str = ""  # for pip kind: use --index-url instead of PyPI
 
 
 # Required tools that block startup
@@ -47,21 +59,24 @@ DEPENDENCIES: tuple[DependencySpec, ...] = (
 GPU_OCR_DEPENDENCIES: tuple[DependencySpec, ...] = (
     DependencySpec(
         name="torch",
-        url="",  # Installed via pip
+        url="",
         kind="pip",
         required=False,
+        pip_index_url=TORCH_CUDA_INDEX_URL,
     ),
     DependencySpec(
         name="torchvision",
         url="",
         kind="pip",
         required=False,
+        pip_index_url=TORCH_CUDA_INDEX_URL,
     ),
     DependencySpec(
         name="torchaudio",
         url="",
         kind="pip",
         required=False,
+        pip_index_url=TORCH_CUDA_INDEX_URL,
     ),
     DependencySpec(
         name="easyocr",
@@ -259,7 +274,9 @@ class DependencyBootstrapManager:
 
         raise RuntimeError(f"Unsupported dependency install target: {spec.name}")
 
-    def _install_python_package(self, package_name: str) -> None:
+    def _install_python_package(
+        self, package_name: str, index_url: str = ""
+    ) -> None:
         """Install a Python package using pip."""
         self._set_state(
             phase="installing",
@@ -279,6 +296,8 @@ class DependencyBootstrapManager:
                 "--progress-bar=on",
                 package_name,
             ]
+            if index_url:
+                args.extend(["--index-url", index_url])
             process = subprocess.Popen(
                 args,
                 stdout=subprocess.PIPE,
@@ -316,6 +335,78 @@ class DependencyBootstrapManager:
             return True
         except ImportError:
             return False
+
+    def _download_easyocr_models(self) -> None:
+        """Download pinned EasyOCR models from the models-v1 GitHub Release."""
+        from app.runtime_paths import get_easyocr_models_dir
+
+        models_dir = get_easyocr_models_dir()
+        # If models directory already exists and has files, skip download
+        if models_dir.exists() and any(models_dir.iterdir()):
+            self._set_state(
+                phase="checking",
+                dependency="easyocr-models",
+                message="EasyOCR models already present.",
+                completed={**self._state.get("completed", {}), "easyocr-models": True},
+            )
+            return
+
+        self._set_state(
+            phase="downloading",
+            dependency="easyocr-models",
+            message="Downloading EasyOCR models...",
+            bytes_downloaded=0,
+            bytes_total=0,
+        )
+        zip_path = self._downloads_dir / "easyocr_models.zip.part"
+        try:
+            self._validate_host(EASYOCR_MODELS_URL)
+            spec = DependencySpec(
+                name="easyocr-models",
+                url=EASYOCR_MODELS_URL,
+                kind="zip",
+                required=False,
+            )
+            self._download(spec, zip_path)
+            self._set_state(
+                phase="installing",
+                dependency="easyocr-models",
+                message="Extracting EasyOCR models...",
+            )
+            ensure_dir(models_dir)
+            with zipfile.ZipFile(zip_path, "r") as archive:
+                # The zip contains an easyocr_models/ folder — extract its
+                # contents directly into the target directory.
+                prefix = "easyocr_models/"
+                for member in archive.namelist():
+                    if member.startswith(prefix) and member != prefix:
+                        relative = member[len(prefix):]
+                        target = models_dir / relative
+                        if member.endswith("/"):
+                            ensure_dir(target)
+                        else:
+                            ensure_dir(target.parent)
+                            with archive.open(member) as src, target.open("wb") as dst:
+                                shutil.copyfileobj(src, dst)
+            self._set_state(
+                phase="installing",
+                dependency="easyocr-models",
+                message="EasyOCR models ready.",
+                completed={**self._state.get("completed", {}), "easyocr-models": True},
+                bytes_downloaded=0,
+                bytes_total=0,
+            )
+        except Exception as exc:
+            logger.warning("Failed to download EasyOCR models: %s", exc)
+            self._set_state(
+                phase="installing",
+                dependency="easyocr-models",
+                message="EasyOCR models skipped (will download on first use).",
+                completed={**self._state.get("completed", {}), "easyocr-models": False},
+            )
+        finally:
+            if zip_path.exists():
+                zip_path.unlink(missing_ok=True)
 
     def _run(self) -> None:
         try:
@@ -372,7 +463,7 @@ class DependencyBootstrapManager:
                         )
                         continue
                     
-                    self._install_python_package(spec.name)
+                    self._install_python_package(spec.name, index_url=spec.pip_index_url)
                     self._set_state(
                         phase="installing",
                         dependency=spec.name,
@@ -392,6 +483,9 @@ class DependencyBootstrapManager:
                         bytes_downloaded=0,
                         bytes_total=0,
                     )
+
+            # Download pinned EasyOCR models from the models-v1 GitHub Release
+            self._download_easyocr_models()
 
             self._set_state(running=False, phase="ready", message="All dependencies are ready.", error="")
         except Exception as exc:
