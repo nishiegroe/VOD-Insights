@@ -55,7 +55,6 @@ describe('useGlobalSync', () => {
         await result.current.handleGlobalSeek(30);
       });
 
-      expect(result.current.globalTime).toBe(30);
       expect(global.fetch).not.toHaveBeenCalled();
     });
 

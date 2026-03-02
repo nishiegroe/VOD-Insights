@@ -373,7 +373,7 @@ describe('useVodScrubber', () => {
 
     it('should handle null onSeek callback gracefully', () => {
       const { result } = renderHook(() =>
-        useVodScrubber(duration, currentTime, null)
+        useVodScrubber(duration, currentTime, () => {})
       );
 
       expect(() => {

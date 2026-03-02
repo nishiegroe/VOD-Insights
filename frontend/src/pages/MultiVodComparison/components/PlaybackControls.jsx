@@ -15,7 +15,7 @@ export default function PlaybackControls({
       {/* Play/Pause button */}
       <button
         className={styles.playPauseButton}
-        onClick={() => onPlayPause(isPlaying ? "pause" : "play")}
+        onClick={() => onPlayPause?.(isPlaying ? "pause" : "play")}
         aria-label={isPlaying ? "Pause all videos" : "Play all videos"}
         aria-pressed={isPlaying}
         title={isPlaying ? "Pause (Space)" : "Play (Space)"}
@@ -30,7 +30,7 @@ export default function PlaybackControls({
           id="sync-mode"
           className={styles.syncModeSelect}
           value={currentSyncMode}
-          onChange={(e) => onSyncModeChange(e.target.value)}
+          onChange={(e) => onSyncModeChange?.(e.target.value)}
           aria-label="Select sync mode: global or independent"
         >
           <option value="global">Global (All Synced)</option>

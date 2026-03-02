@@ -30,6 +30,7 @@ export function useMultiVodState(sessionId) {
         const data = await response.json();
         setState(data);
         setError(null);
+        setLoading(false);
         retryCountRef.current = 0; // Reset retry count on success
       } catch (err) {
         console.error("Failed to load session:", err);
@@ -43,11 +44,8 @@ export function useMultiVodState(sessionId) {
           );
           setTimeout(fetchSession, delay);
         } else {
+          // Max retries exhausted - set error and stop loading
           setError(err.message);
-        }
-      } finally {
-        // Only set loading to false on final attempt or success
-        if (retryCountRef.current >= MAX_RETRIES || !error) {
           setLoading(false);
         }
       }

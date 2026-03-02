@@ -49,11 +49,7 @@ export function useGlobalSync(state, sessionId, updatePlayback) {
 
   const handleGlobalSeek = useCallback(
     async (targetTime) => {
-      if (!sessionId) {
-        console.error("Session ID not available for global seek");
-        return;
-      }
-
+      // Always update local state
       setGlobalTime(targetTime);
 
       if (playbackClockRef.current) {
@@ -62,6 +58,12 @@ export function useGlobalSync(state, sessionId, updatePlayback) {
         if (playbackClockRef.current.isPaused) {
           playbackClockRef.current.pauseTime = targetTime;
         }
+      }
+
+      // Only call API if sessionId is available
+      if (!sessionId) {
+        console.error("Session ID not available for global seek");
+        return;
       }
 
       if (syncMode === "global") {
