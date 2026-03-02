@@ -40,6 +40,7 @@ from app.dependency_bootstrap import dependency_bootstrap
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
+from app.multi_vod_api import multi_vod_bp
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -57,6 +58,7 @@ DEFAULT_UPDATE_FEED_URL = (
 UPDATE_FEED_URL = os.environ.get("AET_UPDATE_FEED_URL", DEFAULT_UPDATE_FEED_URL)
 
 app = Flask(__name__)
+app.register_blueprint(multi_vod_bp)
 
 _process_lock = threading.Lock()
 _bookmark_process: Optional[subprocess.Popen] = None
