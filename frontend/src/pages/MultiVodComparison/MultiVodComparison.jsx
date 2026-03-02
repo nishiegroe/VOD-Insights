@@ -5,6 +5,7 @@ import { useGlobalSync } from "./hooks/useGlobalSync";
 import { usePlaybackSync } from "./hooks/usePlaybackSync";
 import MultiVodViewer from "./components/MultiVodViewer";
 import EventTimeline from "./components/EventTimeline";
+import ErrorBoundary from "./components/ErrorBoundary";
 import styles from "./styles/MultiVodComparison.module.scss";
 
 export default function MultiVodComparison() {
@@ -15,9 +16,10 @@ export default function MultiVodComparison() {
   // Core state management
   const { state: multiVodState, loading, error, updateOffset, updatePlayback } = useMultiVodState(sessionId);
 
-  // Global sync logic (scrubber drag, seek)
+  // Global sync logic (scrubber drag, seek) - Pass sessionId for API calls
   const { globalTime, syncMode, setSyncMode, handleGlobalSeek, handleIndividualSeek } = useGlobalSync(
     multiVodState,
+    sessionId,
     updatePlayback
   );
 
@@ -55,25 +57,27 @@ export default function MultiVodComparison() {
   }
 
   return (
-    <div className={`${styles.container} ${styles[`layout-${layout}`]}`}>
-      {/* Main viewer area */}
-      <div className={styles.viewerSection}>
-        <MultiVodViewer
-          state={multiVodState}
-          globalTime={globalTime}
-          syncMode={syncMode}
-          onGlobalSeek={handleGlobalSeek}
-          onIndividualSeek={handleIndividualSeek}
-          onOffsetChange={updateOffset}
-          onPlaybackChange={updatePlayback}
-          onSyncModeChange={setSyncMode}
-        />
-      </div>
+    <ErrorBoundary>
+      <div className={`${styles.container} ${styles[`layout-${layout}`]}`}>
+        {/* Main viewer area */}
+        <div className={styles.viewerSection}>
+          <MultiVodViewer
+            state={multiVodState}
+            globalTime={globalTime}
+            syncMode={syncMode}
+            onGlobalSeek={handleGlobalSeek}
+            onIndividualSeek={handleIndividualSeek}
+            onOffsetChange={updateOffset}
+            onPlaybackChange={updatePlayback}
+            onSyncModeChange={setSyncMode}
+          />
+        </div>
 
-      {/* Event timeline (collapsible) */}
-      <div className={styles.eventSection}>
-        <EventTimeline vods={multiVodState.vods} globalTime={globalTime} />
+        {/* Event timeline (collapsible) */}
+        <div className={styles.eventSection}>
+          <EventTimeline vods={multiVodState.vods} globalTime={globalTime} />
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

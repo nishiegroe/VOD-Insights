@@ -1,6 +1,14 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
-export function useGlobalSync(state, updatePlayback) {
+/**
+ * Hook for managing global scrubber sync logic
+ * Handles global seeks and determines sync mode (independent vs global)
+ * 
+ * @param {Object} state - MultiVodState from backend
+ * @param {string} sessionId - Session ID from URL query params
+ * @param {Function} updatePlayback - Callback to update playback state
+ */
+export function useGlobalSync(state, sessionId, updatePlayback) {
   const [globalTime, setGlobalTime] = useState(0);
   const [syncMode, setSyncMode] = useState("global");
   const playbackClockRef = useRef(null);
@@ -41,6 +49,11 @@ export function useGlobalSync(state, updatePlayback) {
 
   const handleGlobalSeek = useCallback(
     async (targetTime) => {
+      if (!sessionId) {
+        console.error("Session ID not available for global seek");
+        return;
+      }
+
       setGlobalTime(targetTime);
 
       if (playbackClockRef.current) {
@@ -53,7 +66,7 @@ export function useGlobalSync(state, updatePlayback) {
 
       if (syncMode === "global") {
         try {
-          await fetch(`/api/sessions/multi-vod/${state.sessionId}/global-seek`, {
+          await fetch(`/api/sessions/multi-vod/${sessionId}/global-seek`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ timestamp: targetTime }),
@@ -63,17 +76,17 @@ export function useGlobalSync(state, updatePlayback) {
         }
       }
     },
-    [state, syncMode]
+    [sessionId, syncMode]
   );
 
   const handleIndividualSeek = useCallback(
     async (vodIndex, targetTime) => {
-      if (!state) return;
+      if (!state || !sessionId) return;
 
       const vod = state.vods[vodIndex];
       try {
         await fetch(
-          `/api/sessions/multi-vod/${state.sessionId}/vods/${vod.vod_id}/seek`,
+          `/api/sessions/multi-vod/${sessionId}/vods/${vod.vod_id}/seek`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -84,7 +97,7 @@ export function useGlobalSync(state, updatePlayback) {
         console.error("Error during individual seek:", err);
       }
     },
-    [state]
+    [state, sessionId]
   );
 
   return {
