@@ -10,11 +10,18 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.js'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
+      include: ['src/**/*.{js,jsx}'],
       exclude: [
         'node_modules/',
-        'vitest.setup.js',
+        'src/**/*.test.{js,jsx}',
+        'src/**/*.spec.{js,jsx}',
+        'src/main.jsx',
       ],
+      lines: 80,
+      functions: 80,
+      branches: 75,
+      statements: 80,
     },
   },
   resolve: {

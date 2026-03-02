@@ -1,23 +1,10 @@
+import { expect, afterEach, vi } from 'vitest';
+import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
 
-// Mock fetch globally
-global.fetch = vi.fn();
-
-// Mock HTMLVideoElement.prototype properties that can't be read
-Object.defineProperty(HTMLVideoElement.prototype, 'play', {
-  configurable: true,
-  value: vi.fn(() => Promise.resolve()),
-});
-
-Object.defineProperty(HTMLVideoElement.prototype, 'pause', {
-  configurable: true,
-  value: vi.fn(),
-});
-
-Object.defineProperty(HTMLVideoElement.prototype, 'load', {
-  configurable: true,
-  value: vi.fn(),
+// Cleanup after each test
+afterEach(() => {
+  cleanup();
 });
 
 // Mock window.matchMedia
@@ -34,3 +21,8 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 });
+
+// Mock fetch if not available
+if (!global.fetch) {
+  global.fetch = vi.fn();
+}
