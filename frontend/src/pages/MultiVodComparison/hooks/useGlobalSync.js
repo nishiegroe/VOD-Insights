@@ -1,15 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 
-/**
- * Hook for managing global scrubber sync logic
- * Handles global seeks and determines sync mode (independent vs global)
- */
 export function useGlobalSync(state, updatePlayback) {
   const [globalTime, setGlobalTime] = useState(0);
-  const [syncMode, setSyncMode] = useState("global"); // "global" or "independent"
+  const [syncMode, setSyncMode] = useState("global");
   const playbackClockRef = useRef(null);
 
-  // Initialize playback clock
   useEffect(() => {
     if (!state) return;
 
@@ -22,7 +17,6 @@ export function useGlobalSync(state, updatePlayback) {
     };
   }, [state]);
 
-  // Calculate global time from playback clock
   const calculateGlobalTime = useCallback(() => {
     if (!playbackClockRef.current) return 0;
 
@@ -35,23 +29,20 @@ export function useGlobalSync(state, updatePlayback) {
     return Math.max(0, clock.baseTime + elapsed);
   }, []);
 
-  // Update global time continuously during playback
   useEffect(() => {
     if (!state || state.global_playback_state !== "playing") return;
 
     const interval = setInterval(() => {
       setGlobalTime(calculateGlobalTime());
-    }, 50); // Update every 50ms for smooth playback
+    }, 50);
 
     return () => clearInterval(interval);
   }, [state, calculateGlobalTime]);
 
-  // Handle global scrubber seek
   const handleGlobalSeek = useCallback(
     async (targetTime) => {
       setGlobalTime(targetTime);
 
-      // Update playback clock
       if (playbackClockRef.current) {
         playbackClockRef.current.baseTime = targetTime;
         playbackClockRef.current.startTime = Date.now();
@@ -60,7 +51,6 @@ export function useGlobalSync(state, updatePlayback) {
         }
       }
 
-      // In global sync mode, seek all VODs
       if (syncMode === "global") {
         try {
           await fetch(`/api/sessions/multi-vod/${state.sessionId}/global-seek`, {
@@ -76,7 +66,6 @@ export function useGlobalSync(state, updatePlayback) {
     [state, syncMode]
   );
 
-  // Handle individual VOD seek (independent mode)
   const handleIndividualSeek = useCallback(
     async (vodIndex, targetTime) => {
       if (!state) return;

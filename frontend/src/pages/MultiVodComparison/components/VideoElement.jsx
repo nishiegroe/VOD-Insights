@@ -1,9 +1,5 @@
 import React, { forwardRef } from "react";
 
-/**
- * Wrapper around HTML5 video element
- * Supports muting and volume control
- */
 const VideoElement = forwardRef(({ src, className, muted = true, volume = 0.5 }, ref) => {
   return (
     <video

@@ -5,10 +5,6 @@ import PlaybackControls from "./PlaybackControls";
 import OffsetPanel from "./OffsetPanel";
 import styles from "../styles/MultiVodViewer.module.scss";
 
-/**
- * Main layout component for multi-VOD comparison
- * Manages 3-column grid, global scrubber, and controls
- */
 export default function MultiVodViewer({
   state,
   globalTime,
@@ -25,7 +21,6 @@ export default function MultiVodViewer({
 
   return (
     <div className={styles.container}>
-      {/* VOD Panels Grid */}
       <div className={styles.grid}>
         {state.vods.map((vod, index) => (
           <VodPanel
@@ -43,7 +38,6 @@ export default function MultiVodViewer({
         ))}
       </div>
 
-      {/* Global Scrubber */}
       <div className={styles.globalScrubberContainer}>
         <GlobalScrubber
           state={state}
@@ -53,7 +47,6 @@ export default function MultiVodViewer({
         />
       </div>
 
-      {/* Playback Controls */}
       <div className={styles.controlsContainer}>
         <PlaybackControls
           isPlaying={state.global_playback_state === "playing"}
@@ -63,7 +56,6 @@ export default function MultiVodViewer({
         />
       </div>
 
-      {/* Offset Controls */}
       <div className={styles.offsetContainer}>
         <OffsetPanel
           vods={state.vods}

@@ -8,6 +8,7 @@ import ClipsViewer from "./pages/ClipsViewer.jsx";
 import Settings from "./pages/Settings.jsx";
 import CaptureArea from "./pages/CaptureArea.jsx";
 import TwitchImport from "./pages/TwitchImport.jsx";
+import MultiVodComparison from "./pages/MultiVodComparison/MultiVodComparison.jsx";
 
 const navLinkClass = ({ isActive }) =>
   isActive ? "link-button active" : "link-button";
@@ -320,6 +321,7 @@ export default function App() {
           <Route path="/settings" element={<Settings status={status} />} />
           <Route path="/twitch-import" element={<TwitchImport />} />
           <Route path="/capture-area" element={<CaptureArea status={status} />} />
+          <Route path="/comparison" element={<MultiVodComparison />} />
         </Routes>
       </main>
     </div>

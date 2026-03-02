@@ -1,16 +1,11 @@
 import { useState, useCallback, useRef } from "react";
 
-/**
- * Hook for managing individual VOD scrubber interactions
- * Handles drag, keyboard navigation, and tooltip display
- */
 export function useVodScrubber(duration, currentTime, onSeek) {
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState(null);
   const [focusedEventId, setFocusedEventId] = useState(null);
   const scrubberRef = useRef(null);
 
-  // Handle scrubber drag
   const handleMouseDown = useCallback((e) => {
     setIsDragging(true);
     updateTimeFromEvent(e);
@@ -20,7 +15,6 @@ export function useVodScrubber(duration, currentTime, onSeek) {
     if (isDragging) {
       updateTimeFromEvent(e);
     }
-    // Update hover position for preview
     if (scrubberRef.current) {
       const rect = scrubberRef.current.getBoundingClientRect();
       const percentage = (e.clientX - rect.left) / rect.width;
@@ -41,14 +35,13 @@ export function useVodScrubber(duration, currentTime, onSeek) {
     onSeek(newTime);
   };
 
-  // Keyboard navigation
   const handleKeyDown = useCallback(
     (e) => {
       let newTime = currentTime;
-      let increment = 1; // 1 second default
+      let increment = 1;
 
-      if (e.shiftKey) increment = 10; // Shift = 10 seconds
-      if (e.ctrlKey || e.metaKey) increment = 30; // Ctrl/Cmd = 30 seconds
+      if (e.shiftKey) increment = 10;
+      if (e.ctrlKey || e.metaKey) increment = 30;
 
       switch (e.key) {
         case "ArrowLeft":
