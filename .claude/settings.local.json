@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cd frontend:*)",
       "Bash(npm run:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(grep -rn \"bootstrap.*start\\\\|start.*bootstrap\" app/*.py)"
     ]
   }
 }

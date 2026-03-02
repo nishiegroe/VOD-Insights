@@ -13,6 +13,7 @@ app_dir = root / "app"
 frontend_dist = root / "frontend" / "dist"
 
 config_path = app_dir / "config.json"
+meta_path = root / "app_meta.json"
 tools_dir = root / "tools"
 notices_path = root / "THIRD_PARTY_NOTICES.txt"
 licenses_dir = root / "third_party_licenses"
@@ -31,6 +32,8 @@ if frontend_dist.exists():
     datas.append((str(frontend_dist), "frontend/dist"))
 if config_path.exists():
     datas.append((str(config_path), "app"))
+if meta_path.exists():
+    datas.append((str(meta_path), "."))
 if notices_path.exists():
     datas.append((str(notices_path), "."))
 if licenses_dir.exists():
