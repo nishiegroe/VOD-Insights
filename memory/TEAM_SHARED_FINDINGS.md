@@ -1,7 +1,78 @@
-# Team Shared Findings — Phase 2-3 Bridge
+# Team Shared Findings — Phase 3-5 Architecture
 
-**Last Updated:** 2026-03-02 21:15 CST  
-**Status:** Phase 2 Complete (UI + Telemetry) → Phase 3 Architecture Finalized
+**Last Updated:** 2026-03-03 09:35 CST  
+**Status:** Phase 3-5 Architecture Complete → Ready for Implementation
+
+---
+
+## Critical Blockers & Mitigations (Refined)
+
+### High Priority
+
+| Blocker | Impact | Mitigation | Owner |
+|---------|--------|------------|-------|
+| Build environment missing (make, libvlc-dev) | Can't compile native | Document prerequisites; use CI/CD for builds | Native |
+| libvlc not installed | Can't test playback | Pre-built binaries or install script | Native |
+| Frame-accurate seeking | Sync precision below ±1 frame | Binary search approach + timestamp verification | Native |
+
+### Medium Priority
+
+| Blocker | Impact | Mitigation | Owner |
+|---------|--------|------------|-------|
+| IPC latency with 3+ videos | Seek sluggishness | Batch IPC calls in single round-trip | Both |
+| Cross-platform rendering (HWND/NSView/XCB) | Platform-specific bugs | Abstraction layer in Phase 1 | Native |
+| Audio sync during micro-pauses | Lip-sync issues | Auto-pause audio when pausing video | Native |
+
+### Low Priority
+
+| Blocker | Impact | Mitigation | Owner |
+|---------|--------|------------|-------|
+| Different FPS videos (24/30/60) | Complex sync math | Store per-video FPS in metadata | Native |
+| Codec compatibility matrix | Playback failures | Fallback to HTML5 VideoErrorUI | Frontend |
+
+---
+
+## Performance Targets (Phase 5)
+
+| Metric | Target | Critical Threshold |
+|--------|--------|-------------------|
+| Sync drift RMS | <5ms | <15ms |
+| Seek latency | <200ms | <500ms |
+| CPU (3 videos) | <40% | <60% |
+| Memory (total) | <300MB | <500MB |
+| Frame drops | <0.1% | <1% |
+
+---
+
+## Phase 4 Components (Planned)
+
+### Frontend Components
+- **MultiVideoComparison** - Main container, state manager
+- **VideoGrid** - 3-column responsive layout
+- **VideoTile** - Single video wrapper with metadata overlay
+- **SyncIndicators** - Visual drift meters (green/yellow/red)
+- **SyncControlPanel** - Manual offset adjustment (-500ms to +500ms)
+
+### Features
+- Playback rate: 0.25x - 2.0x
+- Audio track selection per video
+- Frame stepping: forward/backward
+- Synchronized scrubber
+- Per-video offset storage (localStorage)
+
+---
+
+## Phase 5 Test Strategy
+
+### Native Unit Tests
+- SyncMaster drift calculation: 50+ tests
+- Frame-accurate seek: 30+ tests
+- IPC error handling: 20+ tests
+
+### Integration Tests
+- 3 videos @ 60fps for 10 minutes
+- Seek stress: 100 rapid seeks
+- Codec matrix: H.264, H.265, VP9, AV1
 
 ---
 
@@ -383,6 +454,6 @@ Total:            149 tests ✅ 95%+ coverage
 ---
 
 **Status:** Phases 3-5 Architecture Complete & Approved  
-**Ready for:** Native Developer Phase 1 Implementation  
-**Timeline:** 18 days (Days 11-28) for full implementation  
-**Risk Level:** Medium (sync complexity, platform dependencies)
+**Ready for:** Implementation Kickoff  
+**Branch:** feature/multi-vod-complete  
+**Last Architect Update:** 2026-03-03 09:35 CST
