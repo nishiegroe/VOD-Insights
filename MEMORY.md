@@ -1,6 +1,13 @@
 # MEMORY.md - Nishie's Long-Term Memory
 
-## Memory System (NEW - 2026-03-02)
+## Memory Workflow (Token-Saving)
+
+**For any question about prior work:**
+1. `memory_search` — Find relevant snippets (cheap)
+2. `memory_get from=X lines=Y` — Pull only needed lines
+3. Summarize into 1-sentence answer
+
+**Never dump full files.**
 
 **Weekly Review Process:**
 - SESSION_TAKEAWAYS.md captures lightweight summaries after each session

@@ -8,10 +8,21 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NativeVideoPlayer } from "./NativeVideoPlayer";
 
-// Mock useNativeVideo hook
+// Use vi.hoisted to create mock before vi.mock
+const { mockUseNativeVideo } = vi.hoisted(() => ({
+  mockUseNativeVideo: vi.fn(),
+}));
+
 vi.mock("../hooks/useNativeVideo", () => {
   return {
-    useNativeVideo: vi.fn(() => [
+    useNativeVideo: mockUseNativeVideo,
+  };
+});
+
+describe("NativeVideoPlayer", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseNativeVideo.mockReturnValue([
       {
         isPlaying: false,
         isPaused: false,
@@ -31,18 +42,12 @@ vi.mock("../hooks/useNativeVideo", () => {
         seek: vi.fn(),
         setPlaybackRate: vi.fn(),
         initialize: vi.fn(),
-        cleanup: vi.fn(),
+        cleanup: vi.fn().mockResolvedValue(undefined),
         getState: vi.fn(),
         getCurrentTime: vi.fn(),
         getDuration: vi.fn(),
       },
-    ]),
-  };
-});
-
-describe("NativeVideoPlayer", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+    ]);
   });
 
   afterEach(() => {
@@ -96,8 +101,7 @@ describe("NativeVideoPlayer", () => {
 
   describe("unavailable state", () => {
     beforeEach(() => {
-      const { useNativeVideo } = require("../hooks/useNativeVideo");
-      useNativeVideo.mockReturnValue([
+      mockUseNativeVideo.mockReturnValue([
         {
           isPlaying: false,
           isPaused: false,
@@ -120,7 +124,7 @@ describe("NativeVideoPlayer", () => {
           seek: vi.fn(),
           setPlaybackRate: vi.fn(),
           initialize: vi.fn(),
-          cleanup: vi.fn(),
+          cleanup: vi.fn().mockResolvedValue(undefined),
           getState: vi.fn(),
           getCurrentTime: vi.fn(),
           getDuration: vi.fn(),
@@ -167,8 +171,7 @@ describe("NativeVideoPlayer", () => {
 
   describe("debug mode", () => {
     beforeEach(() => {
-      const { useNativeVideo } = require("../hooks/useNativeVideo");
-      useNativeVideo.mockReturnValue([
+      mockUseNativeVideo.mockReturnValue([
         {
           isPlaying: true,
           isPaused: false,
@@ -188,7 +191,7 @@ describe("NativeVideoPlayer", () => {
           seek: vi.fn(),
           setPlaybackRate: vi.fn(),
           initialize: vi.fn(),
-          cleanup: vi.fn(),
+          cleanup: vi.fn().mockResolvedValue(undefined),
           getState: vi.fn(),
           getCurrentTime: vi.fn(),
           getDuration: vi.fn(),
@@ -266,9 +269,8 @@ describe("NativeVideoPlayer", () => {
 
   describe("lifecycle", () => {
     it("should cleanup on unmount", () => {
-      const { useNativeVideo } = require("../hooks/useNativeVideo");
-      const mockCleanup = vi.fn();
-      useNativeVideo.mockReturnValue([
+      const mockCleanup = vi.fn().mockResolvedValue(undefined);
+      mockUseNativeVideo.mockReturnValue([
         {
           isPlaying: false,
           isPaused: false,
@@ -288,7 +290,7 @@ describe("NativeVideoPlayer", () => {
           seek: vi.fn(),
           setPlaybackRate: vi.fn(),
           initialize: vi.fn(),
-          cleanup: mockCleanup.mockResolvedValue(undefined),
+          cleanup: mockCleanup,
           getState: vi.fn(),
           getCurrentTime: vi.fn(),
           getDuration: vi.fn(),

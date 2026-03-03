@@ -78,9 +78,11 @@ export const NativeVideoPlayer = React.forwardRef<
     // Cleanup on unmount
     useEffect(() => {
       return () => {
-        controls.cleanup().catch((error) =>
-          console.warn("Error during cleanup:", error)
-        );
+        if (controls.cleanup) {
+          controls.cleanup().catch((error) =>
+            console.warn("Error during cleanup:", error)
+          );
+        }
       };
     }, [controls]);
 
