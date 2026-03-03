@@ -323,6 +323,7 @@ void VideoPlayerAddon::GetPerformanceMetrics(
 
 MODULE_INIT(NODE_GYP_MODULE_NAME) {
   VideoPlayerAddon::Init(exports);
+  // SyncMaster addon will be added in Phase 3.5
 }
 
 NODE_MODULE(video_player, MODULE_INIT)

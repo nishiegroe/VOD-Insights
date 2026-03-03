@@ -41,6 +41,7 @@ from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, par
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.multi_vod_api import multi_vod_bp
+from app.telemetry_api import telemetry_bp
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -59,6 +60,7 @@ UPDATE_FEED_URL = os.environ.get("AET_UPDATE_FEED_URL", DEFAULT_UPDATE_FEED_URL)
 
 app = Flask(__name__)
 app.register_blueprint(multi_vod_bp)
+app.register_blueprint(telemetry_bp)
 
 # Cache for ffprobe duration results: (path_str, mtime) -> Optional[float]
 _duration_cache: Dict[tuple, Optional[float]] = {}

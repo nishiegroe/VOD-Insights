@@ -213,7 +213,157 @@ declare class VideoPlayer {
   shutdown(): void;
 }
 
+/**
+ * Frame-accurate multi-video synchronization engine (Phase 3)
+ * 
+ * Implements master clock-based sync for N videos playing simultaneously.
+ * Target: ±1 frame sync tolerance (±16.67ms @ 60fps)
+ */
+declare class SyncMaster {
+  /**
+   * State of a single video in the sync cluster
+   */
+  interface VideoSyncState {
+    video_id: number;
+    current_frame: number;      // Current frame number
+    expected_frame: number;     // Expected frame (from master clock)
+    drift_frames: number;       // current_frame - expected_frame
+    drift_ms: number;           // drift converted to milliseconds
+    fps: number;                // Frames per second
+    status: string;             // 'playing', 'paused', etc.
+  }
+
+  /**
+   * Telemetry snapshot for all synced videos
+   */
+  interface SyncTelemetry {
+    timestamp: number;          // Milliseconds since epoch
+    states: VideoSyncState[];   // State of each video
+    max_drift_ms: number;       // Peak drift across all videos
+    rms_drift_ms: number;       // Root mean square drift
+    adjustment_count: number;   // Micro-adjustments made in this cycle
+  }
+
+  /**
+   * Create sync master with reference FPS
+   * 
+   * @param referenceFps - Reference frame rate (typically 60.0)
+   * 
+   * @example
+   * ```javascript
+   * const syncMaster = new SyncMaster(60.0);
+   * ```
+   */
+  constructor(referenceFps?: number);
+
+  /**
+   * Add a video to the sync cluster
+   * 
+   * @param videoId - Unique identifier for this video
+   * @param player - VideoPlayer instance
+   * @returns true if successful
+   * 
+   * @example
+   * ```javascript
+   * syncMaster.addVideo(1, player1);
+   * syncMaster.addVideo(2, player2);
+   * syncMaster.addVideo(3, player3);
+   * ```
+   */
+  addVideo(videoId: number, player: VideoPlayer): boolean;
+
+  /**
+   * Remove a video from sync cluster
+   * 
+   * @param videoId - ID of video to remove
+   * @returns true if video was removed
+   */
+  removeVideo(videoId: number): boolean;
+
+  /**
+   * Start synchronization (begins master clock, starts update loop)
+   * 
+   * @param callback - Function called with telemetry after each sync cycle
+   * @returns true if started successfully
+   * 
+   * @example
+   * ```javascript
+   * syncMaster.start((telemetry) => {
+   *   console.log('Max drift:', telemetry.max_drift_ms, 'ms');
+   *   console.log('RMS drift:', telemetry.rms_drift_ms, 'ms');
+   * });
+   * ```
+   */
+  start(callback: (telemetry: SyncTelemetry) => void): boolean;
+
+  /**
+   * Stop synchronization
+   */
+  stop(): void;
+
+  /**
+   * Is synchronization currently running?
+   * 
+   * @returns true if running, false otherwise
+   */
+  isRunning(): boolean;
+
+  /**
+   * Get current count of synced videos
+   * 
+   * @returns Number of videos in sync cluster
+   */
+  getVideoCount(): number;
+
+  /**
+   * Calculate current sync state without applying adjustments
+   * 
+   * @returns Current telemetry snapshot
+   */
+  measureDrift(): SyncTelemetry;
+
+  /**
+   * Manually adjust offset for a single video
+   * 
+   * Useful for user-initiated fine-tuning in UI
+   * 
+   * @param videoId - Which video to adjust
+   * @param offsetFrames - How many frames to shift (positive = ahead)
+   * 
+   * @example
+   * ```javascript
+   * // Shift video 2 back by 5 frames
+   * syncMaster.adjustVideoOffset(2, -5);
+   * ```
+   */
+  adjustVideoOffset(videoId: number, offsetFrames: number): void;
+
+  /**
+   * Set the sync tolerance (in frames)
+   * 
+   * Default is 1 frame (16.67ms @ 60fps)
+   * 
+   * @param frames - Number of frames tolerance
+   */
+  setSyncTolerance(frames: number): void;
+
+  /**
+   * Set telemetry update rate
+   * 
+   * Default is 16ms (60 FPS updates)
+   * 
+   * @param milliseconds - Update interval in milliseconds
+   */
+  setUpdateRate(milliseconds: number): void;
+
+  /**
+   * Clean up and release resources
+   */
+  shutdown(): void;
+}
+
 export = VideoPlayer;
+export { SyncMaster };
 
 /**
  * Module exports
@@ -221,12 +371,15 @@ export = VideoPlayer;
  * Usage in JavaScript:
  * ```javascript
  * const VideoPlayer = require('./build/Release/video_player');
+ * const { SyncMaster } = require('./build/Release/video_player');
  * const player = new VideoPlayer();
+ * const sync = new SyncMaster(60.0);
  * ```
  * 
  * Usage in TypeScript:
  * ```typescript
- * import VideoPlayer from './native/src/index';
+ * import VideoPlayer, { SyncMaster } from './native/src/index';
  * const player = new VideoPlayer();
+ * const sync = new SyncMaster(60.0);
  * ```
  */

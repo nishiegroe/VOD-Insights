@@ -4,6 +4,7 @@
       "target_name": "video_player",
       "sources": [
         "src/VideoPlayer.cc",
+        "src/SyncMaster.cc",
         "src/VideoPlayerAddon.cc"
       ],
       "include_dirs": [
