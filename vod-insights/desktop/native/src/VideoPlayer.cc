@@ -51,8 +51,8 @@ bool VideoPlayer::Initialize(const std::string& file_path) {
     return false;
   }
 
-  // Create media player
-  media_player_ = libvlc_media_list_player_new(vlc_instance_);
+  // Create media player (not media list player)
+  media_player_ = libvlc_media_player_new(vlc_instance_);
   if (!media_player_) {
     LogError("Initialize", "Failed to create media player");
     libvlc_media_release(media_);
@@ -65,20 +65,7 @@ bool VideoPlayer::Initialize(const std::string& file_path) {
   }
 
   // Set the media
-  libvlc_media_player_t* vlc_media_player = libvlc_media_player_new(vlc_instance_);
-  if (!vlc_media_player) {
-    LogError("Initialize", "Failed to create vlc media player");
-    libvlc_media_release(media_);
-    media_ = nullptr;
-    if (vlc_instance_) {
-      libvlc_release(vlc_instance_);
-      vlc_instance_ = nullptr;
-    }
-    return false;
-  }
-
-  libvlc_media_player_set_media(vlc_media_player, media_);
-  media_player_ = vlc_media_player;
+  libvlc_media_player_set_media(media_player_, media_);
   current_state_ = "stopped";
 
   return true;
@@ -161,11 +148,8 @@ bool VideoPlayer::Seek(int64_t time_ms) {
   // Measure seek latency
   auto seek_start = std::chrono::steady_clock::now();
 
-  // libvlc_media_player_set_time expects milliseconds
-  if (libvlc_media_player_set_time(media_player_, time_ms, true) < 0) {
-    LogError("Seek", "Failed to seek to " + std::to_string(time_ms) + "ms");
-    return false;
-  }
+  // libvlc_media_player_set_time expects milliseconds (no third parameter)
+  libvlc_media_player_set_time(media_player_, time_ms);
 
   auto seek_end = std::chrono::steady_clock::now();
   last_seek_latency_ms_ = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -329,8 +313,8 @@ bool VideoPlayer::SetWindowHandle(void* hwnd) {
   // macOS: attach to NSView
   libvlc_media_player_set_nsobject(media_player_, hwnd);
 #else
-  // Linux: attach to X11 Window ID (uint32_t cast to unsigned long)
-  libvlc_media_player_set_xwindow(media_player_, reinterpret_cast<uint32_t>(hwnd));
+  // Linux: attach to X11 Window ID (unsigned long for 64-bit)
+  libvlc_media_player_set_xwindow(media_player_, reinterpret_cast<unsigned long>(hwnd));
 #endif
 
   has_window_attached_ = true;
@@ -359,31 +343,17 @@ int VideoPlayer::GetCurrentFrame() const {
 double VideoPlayer::GetFps() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
 
-  if (!media_) {
+  if (!media_player_) {
     return 30.0;  // Default fallback
   }
 
-  // Try to get FPS from media tracks
-  libvlc_media_track_t** tracks = nullptr;
-  unsigned track_count = libvlc_media_get_tracks(media_, &tracks);
-
-  double fps = 30.0;
-
-  if (tracks && track_count > 0) {
-    for (unsigned i = 0; i < track_count; i++) {
-      if (tracks[i]->type == libvlc_track_video && tracks[i]->video) {
-        // FPS = frame_rate_num / frame_rate_den
-        if (tracks[i]->video->frame_rate_den > 0) {
-          fps = static_cast<double>(tracks[i]->video->frame_rate_num) /
-                static_cast<double>(tracks[i]->video->frame_rate_den);
-        }
-        break;
-      }
-    }
-    libvlc_media_tracks_release(tracks, track_count);
+  // Use libvlc_video_get_fps which is the modern API
+  double fps = libvlc_media_player_get_fps(media_player_);
+  if (fps > 0) {
+    return fps;
   }
 
-  return fps;
+  return 30.0;  // Default fallback
 }
 
 bool VideoPlayer::GetDimensions(int& width, int& height) const {
@@ -392,31 +362,23 @@ bool VideoPlayer::GetDimensions(int& width, int& height) const {
   width = 0;
   height = 0;
 
-  if (!media_) {
+  if (!media_player_) {
     return false;
   }
 
-  libvlc_media_track_t** tracks = nullptr;
-  unsigned track_count = libvlc_media_get_tracks(media_, &tracks);
-
-  bool found = false;
-
-  if (tracks && track_count > 0) {
-    for (unsigned i = 0; i < track_count; i++) {
-      if (tracks[i]->type == libvlc_track_video && tracks[i]->video) {
-        width = tracks[i]->video->i_width;
-        height = tracks[i]->video->i_height;
-        found = true;
-        break;
-      }
-    }
-    libvlc_media_tracks_release(tracks, track_count);
+  // Use libvlc_video_get_size which is the modern API
+  // Note: This requires the media to be playing or prepared
+  unsigned int w = 0, h = 0;
+  if (libvlc_video_get_size(media_player_, 0, &w, &h) == 0 && w > 0 && h > 0) {
+    width = static_cast<int>(w);
+    height = static_cast<int>(h);
+    return true;
   }
 
-  return found;
+  return false;
 }
 
-PerformanceMetrics VideoPlayer::GetPerformanceMetrics() const {
+VideoPlayer::PerformanceMetrics VideoPlayer::GetPerformanceMetrics() const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   return current_metrics_;
 }

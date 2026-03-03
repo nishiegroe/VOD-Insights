@@ -21,11 +21,11 @@
     "piscina": "^4.3.0"
   },
   "devDependencies": {
+    "@types/node": "^20.10.0",
     "electron": "^35.7.5",
     "electron-builder": "^26.8.1",
-    "node-gyp": "^10.1.0",
-    "nan": "^2.19.0",
-    "@types/node": "^20.10.0"
+    "nan": "^2.25.0",
+    "node-gyp": "^10.1.0"
   },
   "build": {
     "appId": "com.vod.insights",

@@ -50,7 +50,7 @@
               "-lvlc"
             ],
             "xcode_settings": {
-              "CLANG_CXX_LANGUAGE_DIALECT": "c++17",
+              "CLANG_CXX_LANGUAGE_DIALECT": "c++20",
               "CLANG_CXX_LIBRARY": "libc++",
               "OTHER_CFLAGS": [
                 "-fPIC"
@@ -78,13 +78,13 @@
             ],
             "cflags_cc": [
               "-fPIC",
-              "-std=c++17"
+              "-std=c++20"
             ]
           }
         ]
       ],
       "cflags_cc": [
-        "-std=c++17",
+        "-std=c++20",
         "-Wall",
         "-Wextra"
       ],

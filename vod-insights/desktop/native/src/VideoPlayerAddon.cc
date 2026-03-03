@@ -225,7 +225,7 @@ void VideoPlayerAddon::SetStateCallback(
 
   // Set the C++ callback that will invoke the JavaScript callback
   obj->player_->SetStateCallback(
-      [](int64_t current_time, int64_t duration, const std::string& state) {
+      [obj](int64_t current_time, int64_t duration, const std::string& state, const VideoPlayer::PerformanceMetrics& metrics) {
         // In production, we'd need proper async handling here
         // For now, this is a placeholder
       });
@@ -321,9 +321,9 @@ void VideoPlayerAddon::GetPerformanceMetrics(
   info.GetReturnValue().Set(metricsObj);
 }
 
-MODULE_INIT(NODE_GYP_MODULE_NAME) {
+void InitModule(v8::Local<v8::Object> exports) {
   VideoPlayerAddon::Init(exports);
   // SyncMaster addon will be added in Phase 3.5
 }
 
-NODE_MODULE(video_player, MODULE_INIT)
+NODE_MODULE(video_player, InitModule)
