@@ -100,6 +100,27 @@ class VideoIpcHandler {
       return this.handleIsPlaying();
     });
 
+    // Rendering and metrics (Phase 2)
+    ipcMain.handle('video:setWindowHandle', async (_, hwnd: number | null) => {
+      return this.handleSetWindowHandle(hwnd);
+    });
+
+    ipcMain.handle('video:getCurrentFrame', async () => {
+      return this.handleGetCurrentFrame();
+    });
+
+    ipcMain.handle('video:getFps', async () => {
+      return this.handleGetFps();
+    });
+
+    ipcMain.handle('video:getDimensions', async () => {
+      return this.handleGetDimensions();
+    });
+
+    ipcMain.handle('video:getPerformanceMetrics', async () => {
+      return this.handleGetPerformanceMetrics();
+    });
+
     // Telemetry control
     ipcMain.handle('video:startTelemetry', async (_, interval: number = 33) => {
       return this.startTelemetry(interval);
@@ -315,6 +336,106 @@ class VideoIpcHandler {
     } catch (error) {
       console.error('Error checking if playing:', error);
       return false;
+    }
+  }
+
+  /**
+   * Set native window handle for rendering
+   */
+  private handleSetWindowHandle(hwnd: number | null): { success: boolean; error?: string } {
+    if (!this.videoPlayer) {
+      return { success: false, error: 'VideoPlayer not initialized' };
+    }
+
+    try {
+      const success = this.videoPlayer.setWindowHandle(hwnd);
+      if (!success) {
+        const error = this.videoPlayer.getLastError();
+        return { success: false, error };
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  }
+
+  /**
+   * Get current frame number
+   */
+  private handleGetCurrentFrame(): number {
+    if (!this.videoPlayer) {
+      return 0;
+    }
+
+    try {
+      return this.videoPlayer.getCurrentFrame();
+    } catch (error) {
+      console.error('Error getting current frame:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get video FPS from metadata
+   */
+  private handleGetFps(): number {
+    if (!this.videoPlayer) {
+      return 30.0;
+    }
+
+    try {
+      return this.videoPlayer.getFps();
+    } catch (error) {
+      console.error('Error getting FPS:', error);
+      return 30.0;
+    }
+  }
+
+  /**
+   * Get video dimensions
+   */
+  private handleGetDimensions(): { width: number; height: number; success: boolean } {
+    if (!this.videoPlayer) {
+      return { width: 0, height: 0, success: false };
+    }
+
+    try {
+      return this.videoPlayer.getDimensions();
+    } catch (error) {
+      console.error('Error getting dimensions:', error);
+      return { width: 0, height: 0, success: false };
+    }
+  }
+
+  /**
+   * Get performance metrics
+   */
+  private handleGetPerformanceMetrics(): any {
+    if (!this.videoPlayer) {
+      return {
+        currentFps: 0,
+        averageFps: 0,
+        cpuPercent: 0,
+        memoryMb: 0,
+        seekLatencyMs: 0,
+        frameDrops: 0,
+        totalFramesRendered: 0
+      };
+    }
+
+    try {
+      return this.videoPlayer.getPerformanceMetrics();
+    } catch (error) {
+      console.error('Error getting performance metrics:', error);
+      return {
+        currentFps: 0,
+        averageFps: 0,
+        cpuPercent: 0,
+        memoryMb: 0,
+        seekLatencyMs: 0,
+        frameDrops: 0,
+        totalFramesRendered: 0
+      };
     }
   }
 

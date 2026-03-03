@@ -1,0 +1,208 @@
+/* ProgressBar.css */
+
+.progress-bar {
+  position: relative;
+  width: 100%;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0;
+  border-radius: 4px;
+  outline: none;
+  transition: background-color 0.2s;
+}
+
+.progress-bar:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.progress-bar:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.progress-bar.dragging {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.progress-bar[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Track */
+.progress-bar__track {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 0 8px;
+  box-sizing: border-box;
+}
+
+/* Buffered portion */
+.progress-bar__buffered {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+  pointer-events: none;
+}
+
+/* Played portion */
+.progress-bar__played {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #ff6b6b 0%, #ff8787 100%);
+  border-radius: 2px;
+  transition: width 0.05s linear;
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(255, 107, 107, 0.5);
+}
+
+/* Scrubber Thumb */
+.progress-bar__thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.progress-bar:hover .progress-bar__thumb,
+.progress-bar.dragging .progress-bar__thumb {
+  opacity: 1;
+}
+
+.progress-bar.dragging .progress-bar__thumb {
+  width: 14px;
+  height: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Timestamp Preview */
+.progress-bar__timestamp-preview {
+  position: absolute;
+  bottom: 100%;
+  margin-bottom: 8px;
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, monospace;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+  animation: fadeIn 0.1s ease-out;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transform: translateX(-50%);
+  left: 0;
+}
+
+.progress-bar__timestamp-preview::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(0, 0, 0, 0.9);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .progress-bar {
+    height: 28px;
+  }
+
+  .progress-bar__track {
+    height: 3px;
+    margin: 0 6px;
+  }
+
+  .progress-bar__thumb {
+    width: 10px;
+    height: 10px;
+  }
+
+  .progress-bar.dragging .progress-bar__thumb {
+    width: 12px;
+    height: 12px;
+  }
+
+  .progress-bar__timestamp-preview {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  .progress-bar {
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  .progress-bar:hover {
+    background: rgba(0, 0, 0, 0.7);
+  }
+
+  .progress-bar__track {
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .progress-bar__buffered {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  .progress-bar__thumb {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .progress-bar,
+  .progress-bar__played,
+  .progress-bar__buffered,
+  .progress-bar__thumb,
+  .progress-bar__timestamp-preview {
+    transition: none;
+  }
+
+  .progress-bar__timestamp-preview {
+    animation: none;
+  }
+}

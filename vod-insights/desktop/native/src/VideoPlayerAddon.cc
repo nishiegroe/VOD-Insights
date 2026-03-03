@@ -32,6 +32,11 @@ private:
   static void GetDuration(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetState(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void IsPlaying(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void SetWindowHandle(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void GetCurrentFrame(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void GetFps(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void GetDimensions(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void GetPerformanceMetrics(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void SetStateCallback(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void ProcessEvents(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetLastError(const Nan::FunctionCallbackInfo<v8::Value>& info);
@@ -65,6 +70,11 @@ void VideoPlayerAddon::Init(v8::Local<v8::Object> exports) {
   Nan::SetPrototypeMethod(tpl, "getDuration", GetDuration);
   Nan::SetPrototypeMethod(tpl, "getState", GetState);
   Nan::SetPrototypeMethod(tpl, "isPlaying", IsPlaying);
+  Nan::SetPrototypeMethod(tpl, "setWindowHandle", SetWindowHandle);
+  Nan::SetPrototypeMethod(tpl, "getCurrentFrame", GetCurrentFrame);
+  Nan::SetPrototypeMethod(tpl, "getFps", GetFps);
+  Nan::SetPrototypeMethod(tpl, "getDimensions", GetDimensions);
+  Nan::SetPrototypeMethod(tpl, "getPerformanceMetrics", GetPerformanceMetrics);
   Nan::SetPrototypeMethod(tpl, "setStateCallback", SetStateCallback);
   Nan::SetPrototypeMethod(tpl, "processEvents", ProcessEvents);
   Nan::SetPrototypeMethod(tpl, "getLastError", GetLastError);
@@ -236,6 +246,79 @@ void VideoPlayerAddon::GetLastError(
   std::string error = obj->player_->GetLastError();
   info.GetReturnValue().Set(
       Nan::New(error).ToLocalChecked());
+}
+
+void VideoPlayerAddon::SetWindowHandle(
+    const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  if (info.Length() < 1) {
+    Nan::ThrowTypeError("Wrong number of arguments");
+    return;
+  }
+
+  VideoPlayerAddon* obj = ObjectWrap::Unwrap<VideoPlayerAddon>(info.Holder());
+  void* hwnd = nullptr;
+
+  // Handle could be passed as a number (pointer address) or external
+  if (info[0]->IsNumber()) {
+    hwnd = reinterpret_cast<void*>(
+        static_cast<uintptr_t>(info[0]->NumberValue(Nan::GetCurrentContext()).FromJust()));
+  } else if (info[0]->IsExternal()) {
+    hwnd = v8::External::Cast(*info[0])->Value();
+  }
+
+  bool result = obj->player_->SetWindowHandle(hwnd);
+  info.GetReturnValue().Set(Nan::New(result));
+}
+
+void VideoPlayerAddon::GetCurrentFrame(
+    const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  VideoPlayerAddon* obj = ObjectWrap::Unwrap<VideoPlayerAddon>(info.Holder());
+  int frame = obj->player_->GetCurrentFrame();
+  info.GetReturnValue().Set(Nan::New(frame));
+}
+
+void VideoPlayerAddon::GetFps(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  VideoPlayerAddon* obj = ObjectWrap::Unwrap<VideoPlayerAddon>(info.Holder());
+  double fps = obj->player_->GetFps();
+  info.GetReturnValue().Set(Nan::New(fps));
+}
+
+void VideoPlayerAddon::GetDimensions(
+    const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  VideoPlayerAddon* obj = ObjectWrap::Unwrap<VideoPlayerAddon>(info.Holder());
+  int width = 0, height = 0;
+  bool result = obj->player_->GetDimensions(width, height);
+
+  v8::Local<v8::Object> dimensions = Nan::New<v8::Object>();
+  Nan::Set(dimensions, Nan::New("width").ToLocalChecked(), Nan::New(width));
+  Nan::Set(dimensions, Nan::New("height").ToLocalChecked(), Nan::New(height));
+  Nan::Set(dimensions, Nan::New("success").ToLocalChecked(), Nan::New(result));
+
+  info.GetReturnValue().Set(dimensions);
+}
+
+void VideoPlayerAddon::GetPerformanceMetrics(
+    const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  VideoPlayerAddon* obj = ObjectWrap::Unwrap<VideoPlayerAddon>(info.Holder());
+  auto metrics = obj->player_->GetPerformanceMetrics();
+
+  v8::Local<v8::Object> metricsObj = Nan::New<v8::Object>();
+  Nan::Set(metricsObj, Nan::New("currentFps").ToLocalChecked(),
+           Nan::New(metrics.current_fps));
+  Nan::Set(metricsObj, Nan::New("averageFps").ToLocalChecked(),
+           Nan::New(metrics.average_fps));
+  Nan::Set(metricsObj, Nan::New("cpuPercent").ToLocalChecked(),
+           Nan::New(metrics.cpu_percent));
+  Nan::Set(metricsObj, Nan::New("memoryMb").ToLocalChecked(),
+           Nan::New(metrics.memory_mb));
+  Nan::Set(metricsObj, Nan::New("seekLatencyMs").ToLocalChecked(),
+           Nan::New<v8::Number>(static_cast<double>(metrics.seek_latency_ms)));
+  Nan::Set(metricsObj, Nan::New("frameDrops").ToLocalChecked(),
+           Nan::New(metrics.frame_drops));
+  Nan::Set(metricsObj, Nan::New("totalFramesRendered").ToLocalChecked(),
+           Nan::New(metrics.total_frames_rendered));
+
+  info.GetReturnValue().Set(metricsObj);
 }
 
 MODULE_INIT(NODE_GYP_MODULE_NAME) {
