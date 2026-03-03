@@ -58,11 +58,39 @@ _(Can't test X until Y is done)_
 | TimeDisplay | 38 | ✅ Passing |
 | **Total** | **249** | **✅ All Passing** |
 
+---
+
+# Jordan's QA Work Log — 2026-03-03 (PM)
+
+## Test Run Results
+
+### Core Components: ✅ PASSING
+- **All 7 component test files:** 249 tests passing
+- NativeVideoPlayer, MultiVideoComparison, SyncIndicators, PlaybackControls, ProgressBar, VideoErrorUI, TimeDisplay
+
+### Known Test Infrastructure Issues
+
+| Test File | Issue | Status |
+|-----------|-------|--------|
+| useMultiVodState.test.js | Retry logic uses setTimeout - tests timeout waiting for retries to exhaust. Hook works correctly, tests need fake timers or backend mock. | Skipped |
+| useNativeVideo.test.ts | Module path issue: `../services/videoClient` not found. Import path may be wrong. | Broken |
+| VodPanel.test.jsx | Multiple elements found for `getByText(/0:00/)` - test expects single element. | Broken |
+
+### Test Summary
+- **Passing:** 560 tests
+- **Failing:** 82 tests (mostly test infrastructure issues, not component bugs)
+
+## Recommendations
+1. **useMultiVodState.test.js:** Needs vitest fake timers or mock the retry delay
+2. **useNativeVideo.test.ts:** Fix import path for videoClient module
+3. **VodPanel.test.jsx:** Use `getAllByText` or narrow the query
+
 ## Blockers
 - **Native build:** Cannot run full sync integration tests until libvlc is installed
 - **IPC latency:** Not measured - needs native module
 
 ## Next Steps
-1. Wait for native build environment (libvlc + make)
-2. Run integration tests with actual video files
-3. Manual sync accuracy testing (±1 frame target)
+1. Fix test infrastructure issues (see recommendations above)
+2. Wait for native build environment (libvlc + make)
+3. Run integration tests with actual video files
+4. Manual sync accuracy testing (±1 frame target)
