@@ -1,0 +1,83 @@
+/* TimeDisplay.css */
+
+.time-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, monospace;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  user-select: none;
+}
+
+.time-display__current,
+.time-display__duration {
+  min-width: 2.5em;
+  text-align: right;
+}
+
+.time-display__separator {
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 2px;
+}
+
+/* Countdown mode */
+.time-display.countdown .time-display__current {
+  color: #ff6b6b;
+}
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .time-display {
+    font-size: 12px;
+    gap: 3px;
+  }
+
+  .time-display__current,
+  .time-display__duration {
+    min-width: 2em;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: more) {
+  .time-display {
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .time-display__separator {
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* Dark mode (fallback) */
+@media (prefers-color-scheme: dark) {
+  .time-display {
+    color: rgba(255, 255, 255, 0.9);
+  }
+}
+
+/* Light mode (fallback) */
+@media (prefers-color-scheme: light) {
+  .time-display {
+    color: rgba(0, 0, 0, 0.8);
+  }
+
+  .time-display__separator {
+    color: rgba(0, 0, 0, 0.6);
+  }
+}

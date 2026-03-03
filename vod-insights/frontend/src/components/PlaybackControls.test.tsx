@@ -5,6 +5,7 @@
  * Target coverage: >85%
  */
 
+import React from "react";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -244,8 +245,8 @@ describe("PlaybackControls", () => {
       await user.click(toggle);
 
       const slider = screen.getByTestId("volume-slider") as HTMLInputElement;
-      await user.clear(slider);
-      await user.type(slider, "0.5");
+      await user.tripleClick(slider);
+      fireEvent.change(slider, { target: { value: "0.5" } });
 
       expect(mockOnVolumeChange).toHaveBeenCalled();
     });
