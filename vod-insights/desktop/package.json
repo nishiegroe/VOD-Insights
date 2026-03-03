@@ -1,0 +1,70 @@
+{
+  "name": "vod-insights-desktop",
+  "version": "1.0.10",
+  "private": true,
+  "main": "main.js",
+  "gypfile": true,
+  "scripts": {
+    "predev": "npm --prefix .. run sync:meta && npm run build:native",
+    "prebuild": "npm --prefix .. run sync:meta && npm run build:native",
+    "prebuild:portable": "npm --prefix .. run sync:meta && npm run build:native",
+    "prebuild:dir": "npm --prefix .. run sync:meta && npm run build:native",
+    "dev": "node dev.js",
+    "build": "electron-builder --win",
+    "build:portable": "electron-builder --win --config.win.target=portable",
+    "build:dir": "electron-builder --dir --win",
+    "build:native": "node-gyp configure build --directory=native",
+    "build:native:clean": "node-gyp clean --directory=native",
+    "build:native:rebuild": "npm run build:native:clean && npm run build:native"
+  },
+  "dependencies": {
+    "piscina": "^4.3.0"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.8.1",
+    "node-gyp": "^10.1.0",
+    "nan": "^2.19.0",
+    "@types/node": "^20.10.0"
+  },
+  "build": {
+    "appId": "com.vod.insights",
+    "productName": "VOD Insights",
+    "files": [
+      "main.js",
+      "preload.js",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/VODInsights",
+        "to": "backend"
+      },
+      {
+        "from": "../THIRD_PARTY_NOTICES.txt",
+        "to": "THIRD_PARTY_NOTICES.txt"
+      },
+      {
+        "from": "../third_party_licenses",
+        "to": "third_party_licenses"
+      },
+      {
+        "from": "../tools",
+        "to": "tools"
+      }
+    ],
+    "compression": "store",
+    "directories": {
+      "output": "../dist-desktop"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "assets/logo.png"
+    },
+    "nsis": {
+      "include": "installer.nsh",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

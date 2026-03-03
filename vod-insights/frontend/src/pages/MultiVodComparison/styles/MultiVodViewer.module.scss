@@ -1,0 +1,80 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+
+  @media (max-width: 1264px) {
+    grid-template-columns: repeat(2, 1fr);
+    
+    // VOD 3 takes full width below
+    & > :nth-child(3) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    
+    & > :nth-child(3) {
+      grid-column: 1;
+    }
+  }
+}
+
+.globalScrubberContainer {
+  flex: 0 0 auto;
+  min-height: 100px;
+  padding: 8px;
+  background: var(--card);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.controlsContainer {
+  flex: 0 0 auto;
+  padding: 8px;
+  background: var(--card);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.offsetContainer {
+  flex: 0 0 auto;
+  padding: 12px;
+  background: var(--card);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #ff6b6b;
+}
+
+@media (max-width: 768px) {
+  .container {
+    gap: 12px;
+  }
+
+  .grid {
+    gap: 8px;
+  }
+
+  .globalScrubberContainer,
+  .controlsContainer,
+  .offsetContainer {
+    padding: 8px;
+  }
+}

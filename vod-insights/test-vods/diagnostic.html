@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Lag Diagnostic</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #1e1e1e;
+            color: #00ff00;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        video {
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            border: 1px solid #00ff00;
+            margin: 20px 0;
+            background: #000;
+        }
+        .stats {
+            background: #000;
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin: 20px 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 12px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        .label { font-weight: bold; }
+        .value { color: #ffff00; }
+        button {
+            padding: 10px 20px;
+            background: #00ff00;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover { background: #00dd00; }
+        .warning { color: #ff4444; font-weight: bold; }
+        .success { color: #44ff44; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Video Lag Diagnostic Tool</h1>
+        <p>Open DevTools (F12) → Performance tab. Click "Record" before playing, then play the video for 10 seconds.</p>
+        
+        <div>
+            <button onclick="startPlayback()">▶ Play Video</button>
+            <button onclick="pausePlayback()">⏸ Pause</button>
+            <button onclick="stopPlayback()">⏹ Stop</button>
+            <button onclick="resetStats()">↻ Reset Stats</button>
+        </div>
+
+        <video id="videoPlayer" controls>
+            <source src="test-video.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+
+        <div class="stats" id="stats">
+            <div class="stat-row">
+                <span class="label">Current Time</span>
+                <span class="value" id="stat-time">0.00s</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Duration</span>
+                <span class="value" id="stat-duration">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Frames Dropped</span>
+                <span class="value" id="stat-dropped">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Buffered Ranges</span>
+                <span class="value" id="stat-buffered">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Network Requests</span>
+                <span class="value" id="stat-requests">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Avg Bandwidth</span>
+                <span class="value" id="stat-bandwidth">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Video Ready State</span>
+                <span class="value" id="stat-readystate">Not started</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Network State</span>
+                <span class="value" id="stat-networkstate">Not started</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Playback Rate</span>
+                <span class="value" id="stat-playbackrate">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Is Paused</span>
+                <span class="value" id="stat-paused">-</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Audio Tracks</span>
+                <span class="value" id="stat-audiotracks">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="label">Video Tracks</span>
+                <span class="value" id="stat-videotracks">0</span>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px;">
+            <h3>📊 Performance Metrics</h3>
+            <button onclick="capturePerformance()">📈 Capture Performance Data (Console)</button>
+            <button onclick="checkNetworkTiming()">🌐 Check Network Timing (Console)</button>
+            <button onclick="checkSystemLoad()">💻 Check System Load (Console)</button>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background: #000; border: 1px solid #666;">
+            <h3>⚠️ Diagnostic Instructions</h3>
+            <ol>
+                <li>Open DevTools: Press F12</li>
+                <li>Go to <strong>Performance</strong> tab</li>
+                <li>Click Record (red circle)</li>
+                <li>Click <strong>▶ Play Video</strong> below</li>
+                <li>Wait 10 seconds (video will record performance data)</li>
+                <li>Stop the recording in DevTools</li>
+                <li>Analyze: Look for Main thread tasks, JS execution, rendering</li>
+                <li>Go to <strong>Network</strong> tab</li>
+                <li>Reload page and play video again</li>
+                <li>Check: chunk sizes, timings, bandwidth</li>
+                <li>Go to <strong>Console</strong> and click buttons above for detailed metrics</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoPlayer');
+        let frameCount = 0;
+        let droppedFrames = 0;
+        let lastTime = 0;
+        let networkRequests = 0;
+        let startTime = null;
+        let bytesLoaded = 0;
+
+        // Update stats display
+        function updateStats() {
+            document.getElementById('stat-time').textContent = video.currentTime.toFixed(2) + 's';
+            document.getElementById('stat-duration').textContent = isNaN(video.duration) ? '-' : video.duration.toFixed(2) + 's';
+            document.getElementById('stat-dropped').textContent = droppedFrames;
+            document.getElementById('stat-buffered').textContent = video.buffered.length;
+            document.getElementById('stat-requests').textContent = networkRequests;
+            
+            const readyStates = ['HAVE_NOTHING', 'HAVE_METADATA', 'HAVE_CURRENT_DATA', 'HAVE_FUTURE_DATA', 'HAVE_ENOUGH_DATA'];
+            document.getElementById('stat-readystate').textContent = readyStates[video.readyState] || 'Unknown';
+            
+            const networkStates = ['NETWORK_EMPTY', 'NETWORK_IDLE', 'NETWORK_LOADING', 'NETWORK_NO_SOURCE'];
+            document.getElementById('stat-networkstate').textContent = networkStates[video.networkState] || 'Unknown';
+            
+            document.getElementById('stat-playbackrate').textContent = video.playbackRate.toFixed(2) + 'x';
+            document.getElementById('stat-paused').textContent = video.paused ? 'Yes' : 'No';
+            document.getElementById('stat-audiotracks').textContent = video.audioTracks?.length || 0;
+            document.getElementById('stat-videotracks').textContent = video.videoTracks?.length || 0;
+            
+            // Calculate bandwidth
+            if (startTime && bytesLoaded > 0) {
+                const elapsedSec = (Date.now() - startTime) / 1000;
+                const bandwidth = (bytesLoaded / elapsedSec / 1024 / 1024).toFixed(2);
+                document.getElementById('stat-bandwidth').textContent = bandwidth + ' MB/s';
+            }
+        }
+
+        function startPlayback() {
+            startTime = Date.now();
+            video.play().catch(e => console.error('Playback error:', e));
+        }
+
+        function pausePlayback() {
+            video.pause();
+        }
+
+        function stopPlayback() {
+            video.pause();
+            video.currentTime = 0;
+        }
+
+        function resetStats() {
+            frameCount = 0;
+            droppedFrames = 0;
+            networkRequests = 0;
+            bytesLoaded = 0;
+            startTime = null;
+            lastTime = 0;
+            updateStats();
+        }
+
+        // Listen for key events
+        video.addEventListener('play', () => {
+            console.log('▶ Video started playing');
+            startTime = Date.now();
+        });
+
+        video.addEventListener('pause', () => {
+            console.log('⏸ Video paused');
+        });
+
+        video.addEventListener('timeupdate', () => {
+            frameCount++;
+            // Detect dropped frames (large time jumps without buffering issues)
+            if (lastTime > 0 && video.currentTime - lastTime > 0.05) {
+                if (video.buffered.length > 0 && video.currentTime < video.buffered.end(video.buffered.length - 1)) {
+                    droppedFrames++;
+                }
+            }
+            lastTime = video.currentTime;
+            updateStats();
+        });
+
+        video.addEventListener('progress', () => {
+            // Count buffered data
+            if (video.buffered.length > 0) {
+                bytesLoaded = Math.round(video.buffered.end(video.buffered.length - 1) / video.duration * video.currentTime * 1000000); // rough estimate
+            }
+        });
+
+        video.addEventListener('loadstart', () => {
+            console.log('📥 Load started');
+            networkRequests++;
+        });
+
+        video.addEventListener('error', (e) => {
+            console.error('❌ Video error:', video.error);
+        });
+
+        video.addEventListener('waiting', () => {
+            console.warn('⏳ Video waiting (buffering)');
+            droppedFrames++;
+        });
+
+        // Initialize
+        updateStats();
+
+        // Continuous stats update
+        setInterval(updateStats, 100);
+
+        // Performance analysis functions
+        function capturePerformance() {
+            console.log('=== PERFORMANCE DATA ===');
+            console.log('Video Element Properties:');
+            console.table({
+                currentTime: video.currentTime,
+                duration: video.duration,
+                paused: video.paused,
+                playbackRate: video.playbackRate,
+                volume: video.volume,
+                readyState: video.readyState,
+                networkState: video.networkState,
+                videoWidth: video.videoWidth,
+                videoHeight: video.videoHeight,
+                frameCount,
+                droppedFrames,
+                audioTracks: video.audioTracks.length,
+                videoTracks: video.videoTracks.length
+            });
+            
+            // Resource timing
+            if (window.performance && window.performance.getEntriesByType) {
+                const resources = window.performance.getEntriesByType('resource');
+                const videoResources = resources.filter(r => r.name.includes('video'));
+                console.log('Video Resource Timings:', videoResources);
+            }
+        }
+
+        function checkNetworkTiming() {
+            console.log('=== NETWORK TIMING ===');
+            if (window.performance && window.performance.getEntriesByType) {
+                const resources = window.performance.getEntriesByType('resource');
+                const videoResources = resources.filter(r => r.name.includes('video'));
+                
+                videoResources.forEach((resource, idx) => {
+                    console.log(`Request ${idx + 1}:`);
+                    console.table({
+                        name: resource.name,
+                        duration: resource.duration.toFixed(2) + 'ms',
+                        transferSize: (resource.transferSize / 1024).toFixed(2) + ' KB',
+                        decodedBodySize: (resource.decodedBodySize / 1024).toFixed(2) + ' KB',
+                        startTime: resource.startTime.toFixed(2) + 'ms',
+                        domainLookupTime: resource.domainLookupDuration.toFixed(2) + 'ms',
+                        connectTime: (resource.connectEnd - resource.connectStart).toFixed(2) + 'ms',
+                        requestTime: (resource.responseStart - resource.requestStart).toFixed(2) + 'ms',
+                        responseTime: (resource.responseEnd - resource.responseStart).toFixed(2) + 'ms'
+                    });
+                });
+            }
+        }
+
+        function checkSystemLoad() {
+            console.log('=== SYSTEM LOAD (Browser-side) ===');
+            if (window.performance && window.performance.memory) {
+                const mem = window.performance.memory;
+                console.table({
+                    jsHeapUsed: (mem.usedJSHeapSize / 1024 / 1024).toFixed(2) + ' MB',
+                    jsHeapLimit: (mem.jsHeapSizeLimit / 1024 / 1024).toFixed(2) + ' MB',
+                    totalJsHeap: (mem.totalJSHeapSize / 1024 / 1024).toFixed(2) + ' MB'
+                });
+            }
+            console.log('Frame data:');
+            console.table({
+                frameCount,
+                droppedFrames,
+                expectedFrames: Math.round(video.currentTime * 30),
+                fps: (frameCount / (video.currentTime || 1)).toFixed(2)
+            });
+        }
+    </script>
+</body>
+</html>

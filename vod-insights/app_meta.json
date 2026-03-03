@@ -1,0 +1,70 @@
+{
+  "internalName": "VODInsights",
+  "displayName": "VOD Insights",
+  "version": "1.0.10",
+  "appId": "com.vod.insights",
+  "publisher": "VODInsights",
+  "patchNotes": [
+    {
+      "version": "1.0.10",
+      "items": [
+        "Added video overlay support — upload a logo or image that appears over the video in the VOD Viewer and Clips pages.",
+        "Added an Overlay Placement Tool to drag and resize the overlay on a reference frame for precise positioning.",
+        "Improved VOD Viewer load speed by fetching only the selected VOD instead of loading the full VOD list.",
+        "Improved performance of VOD and clip list loading with media duration caching."
+      ]
+    },
+    {
+      "version": "1.0.9",
+      "items": [
+        "Updated app branding and logo"
+      ]
+    },
+    {
+      "version": "1.0.8",
+      "items": [
+        "Added ability to download VOD's from Twitch"
+      ]
+    },
+    {
+      "version": "1.0.7",
+      "items": [
+        "Reworked the Settings page with section-based navigation, autosave status feedback, and a cleaner workflow layout.",
+        "Added keyword management with per-keyword pre-roll/post-roll event windows for more precise clip timing.",
+        "Updated VOD bookmark and previous/next event seeking to apply keyword-specific event windows during jumps."
+      ]
+    },
+    {
+      "version": "1.0.6",
+      "items": [
+        "Added a first-time VOD setup guide to help new users scan and create clips faster.",
+        "Improved clip splitting reliability with safer FFmpeg encoding and clip validation.",
+        "Refined VOD navigation and setup flow for a smoother first launch experience."
+      ]
+    },
+    {
+      "version": "1.0.5",
+      "items": [
+        "Fixed Installer"
+      ]
+    },
+    {
+      "version": "1.0.4",
+      "items": [
+        "VOD Viewer marker button now switches to Remove Marker when playback is within 10 seconds of a custom marker.",
+        "Clicking that button in range removes the nearest custom marker; otherwise it adds a new marker as before."
+      ]
+    },
+    {
+      "version": "1.0.2",
+      "items": [
+        "Improved in-app update experience with clearer status and smoother update checks.",
+        "Update notifications and patch note visibility are now more consistent across sessions."
+      ]
+    },
+    {
+      "version": "1.0.1",
+      "summary": "Welcome to the official release!!!"
+    }
+  ]
+}
