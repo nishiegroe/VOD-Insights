@@ -1,26 +1,49 @@
 # Jordan's Memory — QA Engineer
 
-## Phase 2 Focus
-Testing native video playback, React UI, API endpoints, edge cases
+## Today's Test Run (2026-03-03)
 
-## Test Plan
-_(What's being tested, test cases)_
+### Test Results
+- **Test Files:** 15 passed, 12 failed
+- **Tests:** 567 passing, 102 failing
+- **Frontend components:** 249 tests passing (from previous session)
 
-## Bugs Found
-_(Track issues discovered during testing)_
+### Known Test Infrastructure Issues (Not Component Bugs)
 
-## Test Coverage
-_(Overall coverage %, gaps)_
+| Test File | Issue | Fix Needed |
+|-----------|-------|------------|
+| useMultiVodState.test.js | Retry logic uses setTimeout - tests timeout waiting for retries to exhaust. Hook works correctly, tests need fake timers or backend mock. | Add vitest fake timers or mock retry delay |
+| useNativeVideo.test.ts | Module path issue: `../services/videoClient` not found. Import path may be wrong. | Fix import path for videoClient module |
+| VodPanel.test.jsx | Multiple elements found for `getByText(/0:00/)` - test expects single element. | Use `getAllByText` or narrow the query |
 
-## Acceptance Criteria
-_(Which acceptance criteria are passing)_
+### Bugs Fixed (Previous Session)
+- NativeVideoPlayer.tsx: Added null check for `controls.cleanup` to prevent crash on unmount
 
-## Blockers
-_(Can't test X until Y is done)_
+### Current Status
+- Core components passing (PlaybackControls, ProgressBar, TimeDisplay, VideoErrorUI, NativeVideoPlayer, MultiVideoComparison, SyncIndicators)
+- Native build blocked (missing libvlc + make toolchain)
+- Integration tests pending native module
 
 ---
 
-**QA work log — quality gates here!**
+## Test Coverage
+
+| Component | Tests | Status |
+|-----------|-------|--------|
+| NativeVideoPlayer | 15 | ✅ Passing |
+| MultiVideoComparison | 33 | ✅ Passing |
+| SyncIndicators | 52 | ✅ Passing |
+| PlaybackControls | 32 | ✅ Passing |
+| ProgressBar | 41 | ✅ Passing |
+| VideoErrorUI | 38 | ✅ Passing |
+| TimeDisplay | 38 | ✅ Passing |
+| **Total Core** | **249** | **✅ All Passing** |
+
+---
+
+## Blockers
+
+- **Native build:** Cannot run full sync integration tests until libvlc is installed
+- **IPC latency:** Not measured - needs native module
 
 ---
 
