@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../api/client";
 
 const isActive = (job) => ["queued", "downloading", "scanning"].includes(job.status);
 
@@ -12,7 +13,7 @@ export default function TwitchImport() {
 
   const loadJobs = async () => {
     try {
-      const response = await fetch("/api/twitch-imports?limit=20");
+      const response = await apiFetch("/api/twitch-imports?limit=20");
       if (!response.ok) {
         return;
       }
@@ -41,7 +42,7 @@ export default function TwitchImport() {
     setError("");
     setSubmitting(true);
     try {
-      const response = await fetch("/api/twitch-import", {
+      const response = await apiFetch("/api/twitch-import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url })
