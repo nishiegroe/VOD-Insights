@@ -394,6 +394,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted backend log utilities (log path resolution, log tailing, OS-specific log opening) from `app/webui.py` into `app/backend_logs.py`.
 - 2026-03-05: Extracted shared no-cache response header behavior from SPA/static handlers in `app/webui.py` into `app/http_cache.py`.
 - 2026-03-05: Extracted Twitch VOD download route internals (input validation, job start/progress/tool-check payload building) from `app/webui.py` into `app/vod_download_api.py`.
+- 2026-03-05: Extracted clip day/list/lookup response shaping (date grouping, pagination parsing, per-path lookup payloads) from `app/webui.py` into `app/clip_queries.py` and rewired clip query route handlers to thin wrappers.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

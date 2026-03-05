@@ -92,6 +92,11 @@ from app.vod_download_api import (
     start_download_response as vod_download_start_payload,
     tools_check_response as vod_download_tools_payload,
 )
+from app.clip_queries import (
+    clip_days_payload,
+    clip_lookup_payload,
+    clips_by_day_payload,
+)
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -428,24 +433,7 @@ def stop_bookmark_process() -> None:
 
 def clip_days_response() -> Any:
     config = load_config()
-    files = iter_clip_files(config)
-    day_counts: Dict[str, int] = {}
-    for path in files:
-        details = parse_clip_details(path.name)
-        timestamp = details.get("timestamp")
-        if isinstance(timestamp, datetime):
-            key = timestamp.strftime("%Y-%m-%d")
-        else:
-            key = "unknown"
-        day_counts[key] = day_counts.get(key, 0) + 1
-
-    def sort_key(item: tuple[str, int]) -> tuple[int, str]:
-        key, _ = item
-        return (1, "") if key == "unknown" else (0, key)
-
-    ordered = sorted(day_counts.items(), key=sort_key, reverse=True)
-    payload = [{"day": key, "count": count} for key, count in ordered]
-    return jsonify({"days": payload})
+    return jsonify({"days": clip_days_payload(config)})
 
 
 def clips_by_day_response() -> Any:
@@ -453,70 +441,15 @@ def clips_by_day_response() -> Any:
     day_value = request.args.get("date", "unknown")
     limit_arg = request.args.get("limit")
     offset_arg = request.args.get("offset")
-
-    try:
-        limit = int(limit_arg) if limit_arg is not None and limit_arg != "" else None
-    except ValueError:
-        limit = None
-    if isinstance(limit, int) and limit < 0:
-        limit = 0
-
-    try:
-        offset = int(offset_arg) if offset_arg else 0
-    except ValueError:
-        offset = 0
-    offset = max(0, offset)
-
-    files = iter_clip_files(config)
-    averages = calculate_averages(files)
-    session_start = get_session_start(files)
-    titles = load_clip_titles()
-
-    filtered: List[Path] = []
-    for path in files:
-        details = parse_clip_details(path.name)
-        timestamp = details.get("timestamp")
-        if day_value == "unknown":
-            if not isinstance(timestamp, datetime):
-                filtered.append(path)
-        elif isinstance(timestamp, datetime) and timestamp.strftime("%Y-%m-%d") == day_value:
-            filtered.append(path)
-
-    total = len(filtered)
-    page_paths = filtered[offset:] if limit is None else filtered[offset : offset + limit]
-
-    entries = [
-        build_clip_entry(path, titles, averages, session_start)
-        for path in page_paths
-    ]
-    serialized = [serialize_clip(entry) for entry in entries]
-    returned = len(serialized)
-    return jsonify(
-        {
-            "clips": serialized,
-            "total": total,
-            "offset": offset,
-            "limit": limit,
-            "returned": returned,
-            "has_more": offset + returned < total,
-        }
-    )
+    payload = clips_by_day_payload(config, day_value, limit_arg, offset_arg)
+    return jsonify(payload)
 
 
 def clip_lookup_response() -> Any:
     config = load_config()
     path_value = request.args.get("path", "")
-    file_path = resolve_clip_path(path_value, config)
-    if file_path is None or not file_path.exists():
-        return jsonify({"ok": False, "error": "Clip not found"}), 404
-
-    files = iter_clip_files(config)
-    averages = calculate_averages(files)
-    session_start = get_session_start(files)
-    titles = load_clip_titles()
-    entry = build_clip_entry(file_path, titles, averages, session_start)
-    serialized = serialize_clip(entry)
-    return jsonify({"ok": True, "clip": serialized, "day": serialized.get("day_key")})
+    payload, status_code = clip_lookup_payload(config, path_value)
+    return jsonify(payload), status_code
 
 
 def media_by_path_response() -> Any:
