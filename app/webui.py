@@ -15,7 +15,6 @@ import threading
 import time
 import uuid
 from urllib.parse import quote
-from urllib.request import urlopen
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -40,6 +39,11 @@ from app.dependency_bootstrap import dependency_bootstrap
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
+from app.update_metadata import (
+    fetch_latest_update_metadata as fetch_update_metadata,
+    get_current_app_version,
+    load_patch_notes,
+)
 from app.routes import register_blueprints
 from app.routes.capture_area import CaptureAreaRouteDeps
 from app.routes.clips import ClipsRouteDeps
@@ -98,7 +102,10 @@ def create_app() -> Flask:
                 "patch_notes": load_patch_notes(),
             },
             get_current_app_version=get_current_app_version,
-            fetch_latest_update_metadata=fetch_latest_update_metadata,
+            fetch_latest_update_metadata=lambda: fetch_update_metadata(
+                UPDATE_FEED_URL,
+                UPDATE_REQUEST_TIMEOUT_SECONDS,
+            ),
             update_feed_url=UPDATE_FEED_URL,
             debug_paths_response=debug_paths_response,
         ),
@@ -198,45 +205,6 @@ _selected_session: Optional[Path] = None
 
 # Initialize VOD downloader (will be set after config is loaded)
 _vod_downloader: Optional[TwitchVODDownloader] = None
-
-
-def load_patch_notes() -> List[Any]:
-    meta_path = get_project_root() / "app_meta.json"
-    if not meta_path.exists():
-        return []
-    try:
-        payload = json.loads(meta_path.read_text(encoding="utf-8"))
-    except Exception:
-        return []
-    notes = payload.get("patchNotes") or payload.get("patch_notes") or []
-    return notes if isinstance(notes, list) else []
-
-
-def get_current_app_version() -> str:
-    meta_path = get_project_root() / "app_meta.json"
-    if not meta_path.exists():
-        return ""
-    try:
-        payload = json.loads(meta_path.read_text(encoding="utf-8"))
-    except Exception:
-        return ""
-    value = payload.get("version")
-    return str(value).strip() if isinstance(value, str) else ""
-
-
-def fetch_latest_update_metadata() -> Dict[str, Any]:
-    with urlopen(UPDATE_FEED_URL, timeout=UPDATE_REQUEST_TIMEOUT_SECONDS) as response:
-        status = getattr(response, "status", 200)
-        if status < 200 or status >= 300:
-            raise RuntimeError(f"Update feed request failed with status {status}.")
-        raw = response.read().decode("utf-8")
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("Invalid update metadata received.") from exc
-    if not isinstance(payload, dict):
-        raise RuntimeError("Invalid update metadata received.")
-    return payload
 
 
 def cleanup_on_exit() -> None:
