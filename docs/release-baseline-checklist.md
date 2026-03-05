@@ -26,3 +26,10 @@ Capture current build/release behavior before migration changes so regressions a
 - Operator:
 - Outcome: Pass / Fail
 - Notes:
+
+## Latest Run Record
+- Date: 2026-03-04
+- Command 1: `npm run sync:meta`
+- Command 2: `npm run release:prep -- --dry-run`
+- Outcome: Pass (dry-run short-circuits; no build executed)
+- Notes: release prep dry-run behavior is now explicit and safe for baseline validation.
