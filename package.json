@@ -3,6 +3,7 @@
   "version": "1.0.10",
   "private": true,
   "scripts": {
+    "check:build-security": "node ./scripts/check_build_security.cjs",
     "sync:meta": "node ./scripts/sync_app_meta.cjs",
     "dev": "npm run sync:meta && powershell -ExecutionPolicy Bypass -File ./scripts/ensure_venv.ps1 && npm --prefix frontend run build && npm --prefix desktop run dev",
     "build": "npm run sync:meta && powershell -ExecutionPolicy Bypass -File ./scripts/build_inno.ps1",

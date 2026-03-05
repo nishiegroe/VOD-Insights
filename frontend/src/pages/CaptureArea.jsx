@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { fetchCaptureConfig, saveCaptureArea } from "../api/captureArea";
 
 const MIN_SIZE_PX = 20;
 
@@ -31,8 +32,7 @@ export default function CaptureArea() {
 
   useEffect(() => {
     const load = async () => {
-      const response = await fetch("/api/config");
-      const payload = await response.json();
+      const payload = await fetchCaptureConfig();
       const capture = payload.capture || {};
       const nextDefaults = {
         left: capture.left || 0,
@@ -313,11 +313,7 @@ export default function CaptureArea() {
       target_width: Number(targetWidth) || 0,
       target_height: Number(targetHeight) || 0,
     };
-    const response = await fetch("/capture-area/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const response = await saveCaptureArea(payload);
     if (!response.ok) {
       setSaveStatus("Save failed. Check the values and try again.");
       return;

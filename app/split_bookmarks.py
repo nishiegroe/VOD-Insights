@@ -14,6 +14,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from app.config import load_config
 from app.runtime_paths import get_app_data_dir, get_config_path, resolve_log_path, resolve_tool, reset_log_file
+from app.clips.split_export import export_clip_windows
 
 
 @dataclass
@@ -259,39 +260,18 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
     if vod_start is None:
         vod_start = datetime.fromtimestamp(input_file.stat().st_mtime)
 
-    failed_clips = []
-    for index, window in enumerate(windows, start=1):
-        duration = max(0.1, window.end - window.start)
-        offset_seconds = int(round(window.start))
-        clip_time = vod_start + timedelta(seconds=window.start)
-        timestamp = clip_time.strftime("%Y%m%d_%H%M%S")
-        output_name = f"clip_{timestamp}_{index:02d}_t{offset_seconds}s"
-        if config.split.encode_counts:
-            window_events = [e for e in events if window.start <= e.time <= window.end]
-            counts = count_events(window_events)
-            output_name = f"{output_name}_{config.split.count_format.format(**counts)}"
-        output_file = output_dir / f"{output_name}{input_file.suffix}"
-        logging.info("Exporting %s (%.2fs to %.2fs)", output_file, window.start, window.end)
-        try:
-            run_ffmpeg(input_file, output_file, window.start, duration)
-            if not validate_clip(output_file):
-                logging.error("Clip validation failed: %s (corrupt or invalid metadata)", output_file)
-                failed_clips.append(output_file.name)
-                # Remove corrupt file
-                try:
-                    output_file.unlink()
-                except OSError:
-                    pass
-            else:
-                logging.info("Clip created successfully: %s", output_file.name)
-        except (subprocess.CalledProcessError, RuntimeError) as exc:
-            logging.error("Clip encoding failed for %s: %s", output_file.name, exc)
-            failed_clips.append(output_file.name)
-            # Remove file if it exists but failed
-            try:
-                output_file.unlink()
-            except OSError:
-                pass
+    failed_clips = export_clip_windows(
+        input_file=input_file,
+        windows=windows,
+        events=events,
+        output_dir=output_dir,
+        vod_start=vod_start,
+        encode_counts=config.split.encode_counts,
+        count_format=config.split.count_format,
+        run_ffmpeg_fn=run_ffmpeg,
+        validate_clip_fn=validate_clip,
+        count_events_fn=count_events,
+    )
 
     if failed_clips:
         logging.warning("Split completed with %d failures out of %d clips: %s", len(failed_clips), len(windows), ", ".join(failed_clips))

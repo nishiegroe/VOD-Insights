@@ -9,6 +9,7 @@
     "prebuild:portable": "npm --prefix .. run sync:meta",
     "prebuild:dir": "npm --prefix .. run sync:meta",
     "dev": "node dev.js",
+    "test": "node --test tests/*.test.js",
     "build": "electron-builder --win",
     "build:portable": "electron-builder --win --config.win.target=portable",
     "build:dir": "electron-builder --dir --win"
@@ -22,6 +23,8 @@
     "productName": "VOD Insights",
     "files": [
       "main.js",
+      "backendSupervisor.js",
+      "updateUrlPolicy.js",
       "preload.js",
       "assets/**"
     ],

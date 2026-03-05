@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { chooseReplayDir, fetchClipDays as fetchClipDaysApi, fetchClipsByDay } from "../api/clips";
+import { formatDuration } from "../utils/formatDuration";
 
 const INITIAL_CLIPS_PER_DAY = 6;
 
@@ -38,9 +40,7 @@ export default function Clips() {
     }
     setLoading(true);
     try {
-      const clipsRes = await fetch("/api/clips/days");
-      const payload = await clipsRes.json();
-      const days = payload.days || [];
+      const days = await fetchClipDaysApi();
       setClipDays(days);
       setDayClips({});
       setDayTotals({});
@@ -92,15 +92,7 @@ export default function Clips() {
   ) => {
     setDayLoading((prev) => ({ ...prev, [dayKey]: true }));
     try {
-      const params = new URLSearchParams({
-        date: dayKey,
-        offset: String(offset),
-      });
-      if (Number.isFinite(limit)) {
-        params.set("limit", String(limit));
-      }
-      const res = await fetch(`/api/clips/by-day?${params.toString()}`);
-      const payload = await res.json();
+      const payload = await fetchClipsByDay(dayKey, { offset, limit });
       const clips = payload.clips || [];
       const total = Number.isFinite(payload.total) ? payload.total : clips.length;
 
@@ -140,19 +132,6 @@ export default function Clips() {
     if (!dayClips[dayKey]) {
       await fetchDayClips(dayKey, { offset: 0, limit: INITIAL_CLIPS_PER_DAY, append: false });
     }
-  };
-
-  const formatDuration = (seconds) => {
-    if (!Number.isFinite(seconds) || seconds <= 0) return "";
-    const total = Math.round(seconds);
-    const hrs = Math.floor(total / 3600);
-    const mins = Math.floor((total % 3600) / 60);
-    const secs = total % 60;
-    const parts = [];
-    if (hrs > 0) parts.push(`${hrs} hr`);
-    if (mins > 0 || hrs > 0) parts.push(`${mins} min`);
-    parts.push(`${secs} sec`);
-    return parts.join(" ");
   };
 
   const totalCount = useMemo(
@@ -200,8 +179,7 @@ export default function Clips() {
             type="button"
             className="primary clips-choose-button"
             onClick={async () => {
-              const response = await fetch("/api/choose-replay-dir", { method: "POST" });
-              const payload = await response.json();
+              const payload = await chooseReplayDir();
               if (payload.directory) {
                 setRecordingDir(payload.directory);
                 await fetchClipDays(payload.directory);

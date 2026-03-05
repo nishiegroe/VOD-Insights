@@ -1,7 +1,7 @@
 """
 Test script for Twitch VOD Download API endpoints
 
-Run with: python tests/test_vod_api.py
+Run with: python -m pytest tests/backend/api/test_vod_api.py
 
 This tests the API without actually downloading VODs (which would be slow).
 """
@@ -15,6 +15,7 @@ import sys
 # Add app directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+import app.webui as webui_module
 from app.webui import app, _vod_downloader, TwitchVODDownloader
 
 
@@ -24,9 +25,8 @@ def test_api_endpoints():
     # Create test client
     with app.test_client() as client:
         # Initialize the downloader for tests
-        import app.webui
         with tempfile.TemporaryDirectory() as tmpdir:
-            app.webui._vod_downloader = TwitchVODDownloader(Path(tmpdir))
+            webui_module._vod_downloader = TwitchVODDownloader(Path(tmpdir))
 
             print("\n" + "="*60)
             print("Testing Twitch VOD Download API")
@@ -92,7 +92,13 @@ def test_api_endpoints():
                 data = response.get_json()
                 print(f"Response: {json.dumps(data, indent=2)}")
                 assert response.status_code == 200
-                assert data["status"] in ["initializing", "downloading", "error"]
+                assert data["status"] in [
+                    "initializing",
+                    "fetching_metadata",
+                    "downloading",
+                    "completed",
+                    "error",
+                ]
 
             # Test 6: Invalid job ID
             print("\n[TEST 6] GET /api/vod/progress/invalid-job-id")
