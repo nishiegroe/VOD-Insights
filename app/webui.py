@@ -12,7 +12,6 @@ import subprocess
 import sys
 import threading
 import time
-import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -88,6 +87,11 @@ from app.clip_library import (
 )
 from app.backend_logs import get_backend_log_path, open_backend_log, tail_lines
 from app.http_cache import set_no_cache_headers
+from app.vod_download_api import (
+    progress_response as vod_download_progress_payload,
+    start_download_response as vod_download_start_payload,
+    tools_check_response as vod_download_tools_payload,
+)
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -1286,103 +1290,24 @@ def react_logo() -> Any:
 # ==================== Twitch VOD Download Routes ====================
 
 def vod_download_start_response() -> Any:
-    """
-    Start a Twitch VOD download job
-
-    Request JSON:
-    {
-        "url": "https://twitch.tv/videos/123456789"
-    }
-
-    Response:
-    {
-        "job_id": "uuid-string",
-        "status": "downloading"
-    }
-    """
-    if not _vod_downloader:
-        return jsonify({"error": "VOD downloader not initialized"}), 500
-
     try:
-        data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "No JSON data provided"}), 400
-
-        url = data.get("url", "").strip()
-        if not url:
-            return jsonify({"error": "URL is required"}), 400
-
-        # Validate URL
-        if not _vod_downloader.validate_url(url):
-            return jsonify({
-                "error": "Invalid Twitch VOD URL",
-                "example": "https://twitch.tv/videos/123456789"
-            }), 400
-
-        # Check if yt-dlp is installed
-        if not _vod_downloader.check_yt_dlp():
-            return jsonify({
-                "error": "yt-dlp not installed",
-                "install": "pip install yt-dlp"
-            }), 400
-
-        # Start the download
-        job_id = str(uuid.uuid4())
-        _vod_downloader.start_download(url, job_id)
-
-        return jsonify({
-            "job_id": job_id,
-            "status": "initializing",
-            "message": "Download started. Check progress with /api/vod/progress/<job_id>"
-        }), 202
-
+        payload, status_code = vod_download_start_payload(
+            _vod_downloader,
+            request.get_json(silent=True),
+        )
+        return jsonify(payload), status_code
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 def vod_download_progress_response(job_id: str) -> Any:
-    """
-    Get the progress of a VOD download job
-
-    Response:
-    {
-        "status": "downloading|completed|error",
-        "percentage": 0-100,
-        "speed": "1.5 MB/s",
-        "eta": "00:15:30",
-        "error": null or error message,
-        "output_file": null or path to downloaded file
-    }
-    """
-    if not _vod_downloader:
-        return jsonify({"error": "VOD downloader not initialized"}), 500
-
-    progress = _vod_downloader.get_progress(job_id)
-    if not progress:
-        return jsonify({"error": "Job not found"}), 404
-
-    return jsonify(progress), 200
+    payload, status_code = vod_download_progress_payload(_vod_downloader, job_id)
+    return jsonify(payload), status_code
 
 
 def vod_check_tools_response() -> Any:
-    """
-    Check if required tools are installed
-
-    Response:
-    {
-        "yt_dlp_installed": true/false,
-        "message": "All tools ready" or error message
-    }
-    """
-    if not _vod_downloader:
-        return jsonify({"error": "VOD downloader not initialized"}), 500
-
-    yt_dlp_ok = _vod_downloader.check_yt_dlp()
-
-    return jsonify({
-        "yt_dlp_installed": yt_dlp_ok,
-        "message": "All tools ready" if yt_dlp_ok else "yt-dlp not installed: pip install yt-dlp"
-    }), 200
+    payload, status_code = vod_download_tools_payload(_vod_downloader)
+    return jsonify(payload), status_code
 
 
 # =====================================================================
