@@ -70,6 +70,10 @@ def create_app() -> Flask:
             load_config=load_config,
             save_config=save_config,
             update_config_from_payload=update_config_from_payload,
+            get_bootstrap_status=dependency_bootstrap.get_status,
+            start_bootstrap=lambda install_gpu_ocr: dependency_bootstrap.start(
+                install_gpu_ocr=install_gpu_ocr
+            ),
         ),
     )
     return app
@@ -1760,18 +1764,6 @@ def control_stop() -> str:
 def api_control_stop() -> Any:
     stop_bookmark_process()
     return jsonify({"ok": True})
-
-
-@app.route("/api/bootstrap/status")
-def api_bootstrap_status() -> Any:
-    return jsonify(dependency_bootstrap.get_status())
-
-
-@app.route("/api/bootstrap/start", methods=["POST"])
-def api_bootstrap_start() -> Any:
-    payload = request.get_json() or {}
-    install_gpu_ocr = bool(payload.get("install_gpu_ocr", False))
-    return jsonify(dependency_bootstrap.start(install_gpu_ocr=install_gpu_ocr))
 
 
 _STATUS_MAP = {
