@@ -12,7 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  python-coverage-gate:
+  backend-python-tests-and-coverage:
+    name: Backend Python Tests & Coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,7 +54,8 @@ jobs:
         run: |
           python -m pytest tests/backend/services/test_detector.py tests/backend/services/test_capture_frame_source.py -q
 
-  node-guardrails:
+  frontend-desktop-quality-checks-and-coverage:
+    name: Frontend/Desktop Tests, Security Checks & Coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
