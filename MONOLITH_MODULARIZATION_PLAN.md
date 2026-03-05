@@ -181,7 +181,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Route inventory with grouped extraction plan and parity rules.
 - Validation: Route counts and critical contract table captured.
 - Risk: Medium (missed endpoint could cause drift).
-- Status: In progress
+- Status: Done
 - Owner: Backend-WebUI-Agent
 - Updated: 2026-03-04
 
@@ -192,7 +192,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: App factory + one migrated low-risk route group.
 - Validation: `python tests/test_vod_api.py` and `/api/status` + `/api/config` parity.
 - Risk: Medium (contract drift).
-- Status: In progress
+- Status: Done
 - Owner: Backend-WebUI-Agent
 - Updated: 2026-03-04
 
@@ -210,11 +210,11 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 ### OCR-MOD-001
 - Track: OCR/Detection
 - Objective: Add `FrameSource` seam with default adapter preserving `dxcam -> mss` behavior.
-- Inputs/Files: `app/capture.py`, `app/main.py`, `app/vod_ocr.py`, `tests/test_capture_abstraction.py`
+- Inputs/Files: `app/capture.py`, `app/main.py`, `app/vod_ocr.py`, `tests/test_capture_frame_source.py`
 - Deliverable: Injectable frame source abstraction + fake source for tests.
 - Validation: Preview smoke + fallback parity checks.
 - Risk: Medium (timing assumptions).
-- Status: Not started
+- Status: Done
 - Owner: OCR-Detection-Agent
 - Updated: 2026-03-04
 
@@ -236,7 +236,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Centralized API call wrapper used in first pages.
 - Validation: Home + Settings parity smoke, same endpoints/payloads.
 - Risk: Medium (request option mismatch).
-- Status: Not started
+- Status: In progress
 - Owner: Frontend-Desktop-Agent
 - Updated: 2026-03-04
 
@@ -258,7 +258,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Filled baseline report from dry-run release flow.
 - Validation: `npm run sync:meta` and `npm run release:prep -- --dry-run`.
 - Risk: Low (metadata churn).
-- Status: Not started
+- Status: In progress
 - Owner: Build-Release-Security-Agent
 - Updated: 2026-03-04
 
@@ -278,20 +278,21 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 ### Current Snapshot
 - Overall phase: 0 (Baseline/contracts)
 - Overall status: Execution started
-- Active track(s): Orchestration, Backend/API
+- Active track(s): Orchestration, Frontend/Desktop, Build/Security
 
 ### Track Status
 | Track | Owner | Current State | Next Milestone |
 |---|---|---|---|
 | Orchestration | Orchestrator-Triage-Agent | In progress | Baseline inventory approved |
-| Backend/API | Backend-WebUI-Agent | Planned | App factory + blueprint scaffold |
-| OCR/Detection | OCR-Detection-Agent | Planned | Interface seams + deterministic tests |
-| Frontend/Desktop | Frontend-Desktop-Agent | Planned | API client extraction for Home/Settings |
-| Build/Security | Build-Release-Security-Agent | Planned | Bootstrap verification contract |
+| Backend/API | Backend-WebUI-Agent | In progress | Next low-risk blueprint extraction |
+| OCR/Detection | OCR-Detection-Agent | In progress | Detector parity seam |
+| Frontend/Desktop | Frontend-Desktop-Agent | In progress | Settings/App migration to apiClient |
+| Build/Security | Build-Release-Security-Agent | In progress | Complete release baseline record |
 
 ## Change Log
 - 2026-03-04: Initial master migration plan created from delegated domain planning outputs.
 - 2026-03-04: Kickoff execution started with first 10 tickets and baseline docs under `docs/migration/`.
+- 2026-03-04: Completed MOD-BE-001, MOD-BE-002, and OCR-MOD-001; started MIG-FD-001 and BRS-KICK-001.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
