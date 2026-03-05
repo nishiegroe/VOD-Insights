@@ -5,6 +5,7 @@ import VodClipControls from "../components/VodClipControls";
 import VodOverviewTimeline from "../components/VodOverviewTimeline";
 import VodPlaybackControlsPanel from "../components/VodPlaybackControlsPanel";
 import VodScrubTimeline from "../components/VodScrubTimeline";
+import VodVideoPlayer from "../components/VodVideoPlayer";
 import {
   createClipRange,
   deleteVod as deleteVodRequest,
@@ -1168,63 +1169,18 @@ export default function VodViewer() {
 
         <div className="vod-content-wrapper">
           <div className="vod-left-section">
-            <div ref={containerRef} className="video-player-container" style={{ position: "relative" }}>
-              <video
-                ref={videoRef}
-                className="vod-video"
-                src={vodMediaUrl}
-                autoPlay
-                onClick={togglePlayPause}
-                onLoadedMetadata={handleLoadedMetadata}
-                onTimeUpdate={handleTimeUpdate}
-                onError={() => setError("Unable to load this VOD in the viewer.")}
-              />
-              {overlayConfig && videoContentRect && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: videoContentRect.left,
-                    top: videoContentRect.top,
-                    width: videoContentRect.width,
-                    height: videoContentRect.height,
-                    pointerEvents: "none",
-                    overflow: "hidden",
-                  }}
-                >
-                  <img
-                    src={overlayConfig.url}
-                    alt=""
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      left: `${overlayConfig.x * 100}%`,
-                      top: `${overlayConfig.y * 100}%`,
-                      transform: "translate(-50%, -50%)",
-                      width: `${overlayConfig.width * 100}%`,
-                      height: "auto",
-                      opacity: overlayConfig.opacity,
-                    }}
-                  />
-                </div>
-              )}
-              {loading && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "rgba(8, 15, 18, 0.55)",
-                    color: "var(--text)",
-                    fontSize: "14px",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  Loading bookmarks...
-                </div>
-              )}
-            </div>
+            <VodVideoPlayer
+              containerRef={containerRef}
+              videoRef={videoRef}
+              vodMediaUrl={vodMediaUrl}
+              togglePlayPause={togglePlayPause}
+              handleLoadedMetadata={handleLoadedMetadata}
+              handleTimeUpdate={handleTimeUpdate}
+              onVideoError={() => setError("Unable to load this VOD in the viewer.")}
+              overlayConfig={overlayConfig}
+              videoContentRect={videoContentRect}
+              loading={loading}
+            />
 
             <VodPlaybackControlsPanel
               showZoomMenu={showZoomMenu}

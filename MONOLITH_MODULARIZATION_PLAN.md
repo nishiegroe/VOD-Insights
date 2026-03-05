@@ -345,6 +345,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted `VodViewer` overview heatmap/timeline UI into `frontend/src/components/VodOverviewTimeline.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use it.
 - 2026-03-05: Extracted `VodViewer` scrub timeline/range UI into `frontend/src/components/VodScrubTimeline.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use component-level pointer handlers.
 - 2026-03-05: Extracted `VodViewer` playback/zoom/events/volume controls into `frontend/src/components/VodPlaybackControlsPanel.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use explicit callback props.
+- 2026-03-05: Extracted `VodViewer` video/overlay/loading container into `frontend/src/components/VodVideoPlayer.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to compose it.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
