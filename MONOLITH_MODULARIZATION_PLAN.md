@@ -225,7 +225,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Deterministic detector interface and fixture tests.
 - Validation: Legacy-vs-new output parity on baseline fixtures.
 - Risk: Medium (cooldown edge regressions).
-- Status: Not started
+- Status: Done
 - Owner: OCR-Detection-Agent
 - Updated: 2026-03-04
 
@@ -258,7 +258,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Filled baseline report from dry-run release flow.
 - Validation: `npm run sync:meta` and `npm run release:prep -- --dry-run`.
 - Risk: Low (metadata churn).
-- Status: In progress
+- Status: Done
 - Owner: Build-Release-Security-Agent
 - Updated: 2026-03-04
 
@@ -285,15 +285,16 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 |---|---|---|---|
 | Orchestration | Orchestrator-Triage-Agent | In progress | Baseline inventory approved |
 | Backend/API | Backend-WebUI-Agent | In progress | Next low-risk blueprint extraction |
-| OCR/Detection | OCR-Detection-Agent | In progress | Detector parity seam |
-| Frontend/Desktop | Frontend-Desktop-Agent | In progress | Settings/App migration to apiClient |
-| Build/Security | Build-Release-Security-Agent | In progress | Complete release baseline record |
+| OCR/Detection | OCR-Detection-Agent | In progress | Main/bookmark adoption of deterministic detector seam |
+| Frontend/Desktop | Frontend-Desktop-Agent | In progress | Begin desktop backend supervisor extraction |
+| Build/Security | Build-Release-Security-Agent | In progress | Wire preflight checks into CI |
 
 ## Change Log
 - 2026-03-04: Initial master migration plan created from delegated domain planning outputs.
 - 2026-03-04: Kickoff execution started with first 10 tickets and baseline docs under `docs/migration/`.
 - 2026-03-04: Completed MOD-BE-001, MOD-BE-002, and OCR-MOD-001; started MIG-FD-001 and BRS-KICK-001.
 - 2026-03-04: Completed MIG-FD-001 and started MOD-BE-003 with path policy matrix baseline.
+- 2026-03-04: Completed OCR-MOD-002 detector seam and BRS-KICK-001 dry-run baseline closure.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
