@@ -45,11 +45,11 @@ jobs:
         id: backend_tests
         run: |
           python -m pytest tests/backend -q \
-            --cov=app.clip_range \
+            --cov=app.clips.range \
             --cov=app.session_data \
-            --cov=app.dependency_bootstrap_ops \
-            --cov=app.vod_download_utils \
-            --cov=app.split_export \
+            --cov=app.bootstrap.dependency_bootstrap_ops \
+            --cov=app.vod.download_utils \
+            --cov=app.clips.split_export \
             --cov=app.webui_app_shell \
             --cov-report=xml \
             --cov-report=term \
