@@ -379,6 +379,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted VOD scan bookmark/marker helpers (bookmarks directory context resolution, scan marker path generation, VOD session file globbing, scan-state parsing) from `app/webui.py` into `app/vod_scan_files.py` and rewired VOD scan/list handlers.
 - 2026-03-05: Extracted in-memory VOD download job mapping (`TwitchVODDownloader` jobs → `twitch_jobs` payload shape) from `app/webui.py` into `app/vod_download_jobs.py`.
 - 2026-03-05: Extracted GPU OCR internals (CUDA status/diagnostics payload construction and dependency installation flow) from `app/webui.py` into `app/gpu_ocr.py`, leaving route handlers as thin response wrappers.
+- 2026-03-05: Extracted Twitch import download+scan workflow from `app/webui.py` into `app/twitch_import_runner.py` (yt-dlp progress parsing, job state persistence, scan handoff).
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
