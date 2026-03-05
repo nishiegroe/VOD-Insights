@@ -371,6 +371,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Simplified `desktop/main.js` lifecycle wiring by passing splash/window manager methods directly into `registerAppLifecycle` and removing redundant local wrappers.
 - 2026-03-05: Extracted optional session-recorder card UI from `frontend/src/pages/Settings.jsx` into `frontend/src/components/SettingsSessionRecorderCard.jsx`.
 - 2026-03-05: Extracted update metadata/version/patch-note helpers from `app/webui.py` into `app/update_metadata.py` and rewired system route dependencies to use the new module.
+- 2026-03-05: Extracted Settings recording-controls toggles UI from `frontend/src/pages/Settings.jsx` into `frontend/src/components/SettingsRecordingControlsPanel.jsx` and refactored session-recorder composition to use it.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
