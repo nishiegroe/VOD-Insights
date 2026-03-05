@@ -1,4 +1,6 @@
 import React from "react";
+import SettingsPanel from "../components/SettingsPanel";
+import SettingsSectionNav from "../components/SettingsSectionNav";
 import useSettingsPage from "../hooks/useSettingsPage";
 
 export default function Settings({ status }) {
@@ -87,27 +89,19 @@ export default function Settings({ status }) {
         {saveState === "error" && saveError ? <p className="hint settings-save-error">{saveError}</p> : null}
 
         <div className="settings-layout">
-          <nav className="settings-nav" aria-label="Settings sections">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                className={`settings-nav-link ${activeSection === section.id ? "active" : ""}`}
-                onClick={() => jumpToSection(section.id)}
-              >
-                {section.label}
-              </button>
-            ))}
-          </nav>
+          <SettingsSectionNav
+            sections={sections}
+            activeSection={activeSection}
+            jumpToSection={jumpToSection}
+          />
 
           <div className="settings-content">
-            <section
-              className="settings-panel"
-              ref={bindSectionRef("capture")}
-              data-section-id="capture"
+            <SettingsPanel
+              sectionId="capture"
+              bindSectionRef={bindSectionRef}
+              title="Capture"
+              subtitle="Tune the on-screen region used for OCR."
             >
-              <h3>Capture</h3>
-              <p className="hint">Tune the on-screen region used for OCR.</p>
               <div className="input-row">
                 <button
                   type="button"
@@ -194,15 +188,14 @@ export default function Settings({ status }) {
                   </label>
                 </div>
               </details>
-            </section>
+            </SettingsPanel>
 
-            <section
-              className="settings-panel"
-              ref={bindSectionRef("detection")}
-              data-section-id="detection"
+            <SettingsPanel
+              sectionId="detection"
+              bindSectionRef={bindSectionRef}
+              title="Detection"
+              subtitle="Define which killfeed terms create clip bookmarks."
             >
-              <h3>Detection</h3>
-              <p className="hint">Define which killfeed terms create clip bookmarks.</p>
               <div className="settings-keyword-add">
                 <input
                   type="text"
@@ -320,15 +313,14 @@ export default function Settings({ status }) {
                   </label>
                 </div>
               </details>
-            </section>
+            </SettingsPanel>
 
-            <section
-              className="settings-panel"
-              ref={bindSectionRef("clips")}
-              data-section-id="clips"
+            <SettingsPanel
+              sectionId="clips"
+              bindSectionRef={bindSectionRef}
+              title="Clips"
+              subtitle="Configure recordings path and clip output location."
             >
-              <h3>Clips</h3>
-              <p className="hint">Configure recordings path and clip output location.</p>
               <label>Recordings Directory</label>
               <div className="input-row">
                 <input
@@ -345,14 +337,13 @@ export default function Settings({ status }) {
               <p className="hint">
                 Clips will be saved to: {form.replay_dir ? `${form.replay_dir}/clips` : "(set recordings directory first)"}
               </p>
-            </section>
+            </SettingsPanel>
 
-            <section
-              className="settings-panel"
-              ref={bindSectionRef("ocr")}
-              data-section-id="ocr"
+            <SettingsPanel
+              sectionId="ocr"
+              bindSectionRef={bindSectionRef}
+              title="OCR & Performance"
             >
-              <h3>OCR &amp; Performance</h3>
               <label>
                 OCR Engine
                 <select
@@ -385,17 +376,14 @@ export default function Settings({ status }) {
                   </label>
                 </div>
               </details>
-            </section>
+            </SettingsPanel>
 
-            <section
-              className="settings-panel"
-              ref={bindSectionRef("overlay")}
-              data-section-id="overlay"
+            <SettingsPanel
+              sectionId="overlay"
+              bindSectionRef={bindSectionRef}
+              title="Overlay"
+              subtitle="Add a logo or image that appears over the video on the VOD Viewer and Clips pages. The image is not burned into video files."
             >
-              <h3>Overlay</h3>
-              <p className="hint">
-                Add a logo or image that appears over the video on the VOD Viewer and Clips pages. The image is not burned into video files.
-              </p>
 
               {form.overlay_image_path ? (
                 <div style={{ display: "flex", alignItems: "center", gap: "14px", padding: "12px 14px", background: "var(--surface-raised, var(--surface))", border: "1px solid var(--border)", borderRadius: "8px", marginBottom: "16px" }}>
@@ -491,13 +479,9 @@ export default function Settings({ status }) {
                   </div>
                 </>
               ) : null}
-            </section>
+            </SettingsPanel>
 
-            <section
-              className="settings-panel"
-              ref={bindSectionRef("updates")}
-              data-section-id="updates"
-            >
+            <SettingsPanel sectionId="updates" bindSectionRef={bindSectionRef}>
               <div className="settings-update-header">
                 <h3>Updates</h3>
                 <span className={`settings-update-state ${updateAvailable ? "available" : "current"}`}>
@@ -527,7 +511,7 @@ export default function Settings({ status }) {
               ) : null}
               {latestError ? <p className="hint settings-inline-status">{latestError}</p> : null}
               {updateMessage ? <p className="hint settings-inline-status">{updateMessage}</p> : null}
-            </section>
+            </SettingsPanel>
           </div>
         </div>
 
