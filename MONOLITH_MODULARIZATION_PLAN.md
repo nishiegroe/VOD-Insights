@@ -203,7 +203,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Reused path-policy helper and endpoint-to-root matrix.
 - Validation: Traversal negative checks + file endpoint smoke.
 - Risk: High (security-sensitive behavior).
-- Status: Not started
+- Status: In progress
 - Owner: Build-Release-Security-Agent (review: Backend-WebUI-Agent)
 - Updated: 2026-03-04
 
@@ -236,7 +236,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Centralized API call wrapper used in first pages.
 - Validation: Home + Settings parity smoke, same endpoints/payloads.
 - Risk: Medium (request option mismatch).
-- Status: In progress
+- Status: Done
 - Owner: Frontend-Desktop-Agent
 - Updated: 2026-03-04
 
@@ -278,7 +278,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 ### Current Snapshot
 - Overall phase: 0 (Baseline/contracts)
 - Overall status: Execution started
-- Active track(s): Orchestration, Frontend/Desktop, Build/Security
+- Active track(s): Orchestration, Backend/API, Build/Security
 
 ### Track Status
 | Track | Owner | Current State | Next Milestone |
@@ -293,6 +293,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Initial master migration plan created from delegated domain planning outputs.
 - 2026-03-04: Kickoff execution started with first 10 tickets and baseline docs under `docs/migration/`.
 - 2026-03-04: Completed MOD-BE-001, MOD-BE-002, and OCR-MOD-001; started MIG-FD-001 and BRS-KICK-001.
+- 2026-03-04: Completed MIG-FD-001 and started MOD-BE-003 with path policy matrix baseline.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
