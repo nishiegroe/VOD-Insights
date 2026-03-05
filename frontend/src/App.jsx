@@ -9,6 +9,7 @@ import Settings from "./pages/Settings.jsx";
 import CaptureArea from "./pages/CaptureArea.jsx";
 import TwitchImport from "./pages/TwitchImport.jsx";
 import OverlayTool from "./pages/OverlayTool.jsx";
+import { apiFetch } from "./api/client";
 
 const navLinkClass = ({ isActive }) =>
   isActive ? "link-button active" : "link-button";
@@ -87,7 +88,7 @@ export default function App() {
     activeTwitchJobs.filter((job) => !isDismissed(`twitch:${job.id}`)).length;
 
   const loadNotifications = async () => {
-    const response = await fetch("/api/notifications");
+    const response = await apiFetch("/api/notifications");
     if (!response.ok) {
       return;
     }
@@ -98,7 +99,7 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     const load = async () => {
-      const response = await fetch("/api/status");
+      const response = await apiFetch("/api/status");
       const payload = await response.json();
       if (isMounted) {
         setStatus(payload);
