@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiJson, apiPost } from "../api/client";
+import SectionHeader from "../components/SectionHeader";
 
 export default function Home({ status }) {
   const navigate = useNavigate();
@@ -131,17 +132,19 @@ export default function Home({ status }) {
         </section>
       ) : (
         <section className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ margin: 0 }}>Recent VODs</h2>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => navigate('/vods')}
-              style={{ padding: '0.5rem 1rem' }}
-            >
-              View All
-            </button>
-          </div>
+          <SectionHeader
+            title="Recent VODs"
+            action={(
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => navigate('/vods')}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                View All
+              </button>
+            )}
+          />
           {vods.length ? (
             <div className="clip-group-grid">
               {vods.map((vod) => (
@@ -187,17 +190,19 @@ export default function Home({ status }) {
 
       {recordingDir && (
         <section className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ margin: 0 }}>Recent Clips</h2>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => navigate('/clips')}
-              style={{ padding: '0.5rem 1rem' }}
-            >
-              View All
-            </button>
-          </div>
+          <SectionHeader
+            title="Recent Clips"
+            action={(
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => navigate('/clips')}
+                style={{ padding: '0.5rem 1rem' }}
+              >
+                View All
+              </button>
+            )}
+          />
         {clips.length ? (
           <div className="clip-group-grid">
             {clips.map((clip) => (

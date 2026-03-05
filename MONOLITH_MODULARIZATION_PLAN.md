@@ -327,6 +327,8 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Updated `app/vod_download.py` UTC timestamp generation to timezone-aware UTC (`datetime.now(timezone.utc)`).
 - 2026-03-05: Started React de-monolithing by extracting VOD page API orchestration into `frontend/src/api/vods.js` and refactoring `frontend/src/pages/Vods.jsx` to consume it.
 - 2026-03-05: Extracted Settings page API/service calls into `frontend/src/api/settings.js` and refactored `frontend/src/pages/Settings.jsx` to consume shared settings service functions.
+- 2026-03-05: Extracted shared app chrome into `frontend/src/components/AppHeader.jsx` and refactored `frontend/src/App.jsx` to consume it.
+- 2026-03-05: Added reusable `frontend/src/components/SectionHeader.jsx` and adopted it for repeated title/action rows on `frontend/src/pages/Home.jsx`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
