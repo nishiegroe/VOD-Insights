@@ -83,8 +83,8 @@ from app.gpu_ocr import (
 from app.twitch_import_runner import run_twitch_import
 from app.vod_paths import resolve_vod_media_filename, resolve_vod_path as resolve_vod_path_in_dirs
 from app.config_update import update_config_from_payload
+from app.vod_thumbnails import ensure_vod_thumbnail
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
-from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
     fetch_latest_update_metadata as fetch_update_metadata,
@@ -920,28 +920,6 @@ def resolve_vod_path(vod_path: str) -> Optional[Path]:
     return resolve_vod_path_in_dirs(vod_path, allowed_dirs)
 
 
-def extract_vod_thumbnail(vod_path: Path, seconds: float, output_path: Path) -> None:
-    ffmpeg_path = resolve_tool("ffmpeg", ["ffmpeg.exe"])
-    if not ffmpeg_path:
-        raise RuntimeError("FFmpeg not found. Install it or bundle tools/ffmpeg.exe.")
-    cmd = [
-        ffmpeg_path,
-        "-y",
-        "-ss",
-        f"{seconds:.3f}",
-        "-i",
-        str(vod_path),
-        "-frames:v",
-        "1",
-        "-vf",
-        "scale=320:-1",
-        "-q:v",
-        "3",
-        str(output_path),
-    ]
-    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-
 def vod_thumbnail_response() -> Any:
     vod_path = request.args.get("path", "")
     time_str = request.args.get("t", "")
@@ -954,15 +932,8 @@ def vod_thumbnail_response() -> Any:
     if file_path is None or not file_path.exists():
         abort(404)
 
-    thumbs_dir = get_app_data_dir() / "thumbnails"
-    thumbs_dir.mkdir(parents=True, exist_ok=True)
-    safe_stem = sanitize_stem(file_path.stem) or "vod"
-    thumb_name = f"{safe_stem}_t{int(round(seconds))}.jpg"
-    thumb_path = thumbs_dir / thumb_name
-
     try:
-        if not thumb_path.exists():
-            extract_vod_thumbnail(file_path, seconds, thumb_path)
+        thumb_path = ensure_vod_thumbnail(file_path, seconds)
     except Exception as exc:
         print(f"Error generating thumbnail: {exc}")
         abort(404)
