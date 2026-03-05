@@ -352,6 +352,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted desktop window state/lifecycle logic (`loadWindowState`, `saveWindowState`, `createWindow`) from `desktop/main.js` into `desktop/windowManager.js` and delegated main process window creation through the new module.
 - 2026-03-05: Extracted splash UI + dependency bootstrap progress orchestration from `desktop/main.js` into `desktop/splashScreen.js`, keeping startup behavior unchanged.
 - 2026-03-05: Updated `scripts/sync_app_meta.cjs` to sync splash title metadata in either `desktop/main.js` or `desktop/splashScreen.js`, preserving build-time metadata sync after desktop modularization.
+- 2026-03-05: Extracted desktop semver/version comparison helpers from `desktop/main.js` into `desktop/versionUtils.js` and updated update-check flow to consume the shared utility.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
