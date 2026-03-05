@@ -49,6 +49,7 @@ from app.routes.session import SessionRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.routes.twitch_import import TwitchImportRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
+from app.routes.vods import VodsRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
 
@@ -125,6 +126,12 @@ def create_app() -> Flask:
             clip_range_response=clip_range_response,
             clip_name_response=clip_name_response,
             clips_response=clips_response,
+        ),
+        vods_deps=VodsRouteDeps(
+            vods_response=vods_response,
+            vod_single_response=vod_single_response,
+            delete_vod_response=delete_vod_response,
+            vods_stream_response=vods_stream_response,
         ),
     )
     return app
@@ -2126,8 +2133,7 @@ def debug_paths_response() -> Any:
     })
 
 
-@app.route("/api/vods")
-def api_vods() -> Any:
+def vods_response() -> Any:
     config = load_config()
     bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
     # If path is relative, resolve it to app data directory
@@ -2150,8 +2156,7 @@ def api_vods() -> Any:
     return jsonify({"vods": vods, "remaining_count": remaining_count})
 
 
-@app.route("/api/vods/single")
-def api_vod_single() -> Any:
+def vod_single_response() -> Any:
     path_value = request.args.get("path", "").strip()
     if not path_value:
         return jsonify({"ok": False, "error": "Missing path"}), 400
@@ -2169,8 +2174,7 @@ def api_vod_single() -> Any:
     return jsonify({"ok": True, "vod": entries[0]})
 
 
-@app.route("/api/vods/delete", methods=["POST"])
-def api_delete_vod() -> Any:
+def delete_vod_response() -> Any:
     payload = request.get_json(silent=True) or {}
     vod_path = str(payload.get("path", "")).strip()
     if not vod_path:
@@ -2205,8 +2209,7 @@ def api_delete_vod() -> Any:
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
-@app.route("/api/vods/stream")
-def api_vods_stream() -> Response:
+def vods_stream_response() -> Response:
     def event_stream() -> Any:
         while True:
             config = load_config()

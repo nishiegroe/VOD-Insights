@@ -10,6 +10,7 @@ from app.routes.session import SessionRouteDeps, create_session_blueprint
 from app.routes.system import SystemRouteDeps, create_system_blueprint
 from app.routes.twitch_import import TwitchImportRouteDeps, create_twitch_import_blueprint
 from app.routes.vod_download import VodDownloadRouteDeps, create_vod_download_blueprint
+from app.routes.vods import VodsRouteDeps, create_vods_blueprint
 
 
 def register_blueprints(
@@ -23,6 +24,7 @@ def register_blueprints(
     logs_deps: LogsRouteDeps,
     session_deps: SessionRouteDeps,
     clips_deps: ClipsRouteDeps,
+    vods_deps: VodsRouteDeps,
 ) -> Flask:
     if "system" not in app.blueprints:
         app.register_blueprint(create_system_blueprint(system_deps))
@@ -40,4 +42,6 @@ def register_blueprints(
         app.register_blueprint(create_session_blueprint(session_deps))
     if "clips" not in app.blueprints:
         app.register_blueprint(create_clips_blueprint(clips_deps))
+    if "vods" not in app.blueprints:
+        app.register_blueprint(create_vods_blueprint(vods_deps))
     return app
