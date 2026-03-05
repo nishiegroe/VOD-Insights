@@ -44,6 +44,7 @@ from app.routes import register_blueprints
 from app.routes.gpu import GpuRouteDeps
 from app.routes.logs import LogsRouteDeps
 from app.routes.overlay import OverlayRouteDeps
+from app.routes.session import SessionRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.routes.twitch_import import TwitchImportRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
@@ -112,6 +113,9 @@ def create_app() -> Flask:
         logs_deps=LogsRouteDeps(
             logs_response=logs_response,
             open_backend_log_response=open_backend_log_response,
+        ),
+        session_deps=SessionRouteDeps(
+            session_data_response=session_data_response,
         ),
     )
     return app
@@ -2269,8 +2273,7 @@ def twitch_import_status_response(job_id: str) -> Any:
     return jsonify({"ok": True, "job": job})
 
 
-@app.route("/api/session-data")
-def api_session_data() -> Any:
+def session_data_response() -> Any:
     session_path = request.args.get("path", "")
     if not session_path:
         return jsonify({"ok": False, "error": "Missing session path"}), 400
