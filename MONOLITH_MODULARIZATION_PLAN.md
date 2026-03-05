@@ -383,6 +383,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted VOD path resolution/allowlist helpers from `app/webui.py` into `app/vod_paths.py` and rewired VOD media + path resolution call sites.
 - 2026-03-05: Extracted settings payload-to-config mapping logic from `app/webui.py` into `app/config_update.py` and rewired system config update flow.
 - 2026-03-05: Extracted VOD thumbnail generation/path caching helpers from `app/webui.py` into `app/vod_thumbnails.py` and rewired thumbnail response handling.
+- 2026-03-05: Extracted replay-directory selection/persistence logic shared by `choose_replay_dir` routes from `app/webui.py` into `app/replay_directory.py`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

@@ -84,6 +84,7 @@ from app.twitch_import_runner import run_twitch_import
 from app.vod_paths import resolve_vod_media_filename, resolve_vod_path as resolve_vod_path_in_dirs
 from app.config_update import update_config_from_payload
 from app.vod_thumbnails import ensure_vod_thumbnail
+from app.replay_directory import choose_and_save_replay_dir
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -993,33 +994,13 @@ def update_config_response() -> str:
 
 def choose_replay_dir_response() -> str:
     config = load_config()
-    replay_dir = config.get("replay", {}).get("directory")
-    recordings_dir = config.get("split", {}).get("recordings_dir")
-    initial_dir = None
-    if replay_dir and Path(replay_dir).exists():
-        initial_dir = replay_dir
-    elif recordings_dir and Path(recordings_dir).exists():
-        initial_dir = recordings_dir
-    selected = choose_directory(initial_dir)
-    if selected:
-        config.setdefault("replay", {})["directory"] = selected
-        save_config(config)
+    choose_and_save_replay_dir(config, choose_directory, save_config)
     return redirect("/")
 
 
 def api_choose_replay_dir_response() -> Any:
     config = load_config()
-    replay_dir = config.get("replay", {}).get("directory")
-    recordings_dir = config.get("split", {}).get("recordings_dir")
-    initial_dir = None
-    if replay_dir and Path(replay_dir).exists():
-        initial_dir = replay_dir
-    elif recordings_dir and Path(recordings_dir).exists():
-        initial_dir = recordings_dir
-    selected = choose_directory(initial_dir)
-    if selected:
-        config.setdefault("replay", {})["directory"] = selected
-        save_config(config)
+    selected = choose_and_save_replay_dir(config, choose_directory, save_config)
     return jsonify({"ok": True, "directory": selected or ""})
 
 
