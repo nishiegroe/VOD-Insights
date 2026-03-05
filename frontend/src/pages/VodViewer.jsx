@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  createClipRange,
+  deleteVod as deleteVodRequest,
+  fetchSessionData,
+  fetchViewerConfig,
+  fetchVodSingle,
+} from "../api/vodViewer";
+import {
   ZOOM_OPTIONS,
   DEFAULT_FILTERS,
   MANUAL_FILTER_KEY,
@@ -441,11 +448,7 @@ export default function VodViewer() {
     const confirmed = window.confirm(`Delete ${label}? This will remove the file from disk.`);
     if (!confirmed) return;
     try {
-      const response = await fetch("/api/vods/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: vodPath }),
-      });
+      const response = await deleteVodRequest(vodPath);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.ok === false) {
         throw new Error(payload.error || "Failed to delete VOD");
@@ -513,8 +516,7 @@ export default function VodViewer() {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const response = await fetch("/api/config");
-        const config = await response.json();
+        const config = await fetchViewerConfig();
         const keywords = config.detection?.keywords || [];
         const fallbackPre = Number(config.split?.pre_seconds || 0);
         const fallbackPost = Number(config.split?.post_seconds || 0);
@@ -556,8 +558,7 @@ export default function VodViewer() {
 
     const loadVodData = async () => {
       try {
-        const response = await fetch(`/api/vods/single?path=${encodeURIComponent(vodPath)}`);
-        const data = await response.json();
+        const data = await fetchVodSingle(vodPath);
 
         if (!data.ok || !data.vod) {
           setError("VOD not found");
@@ -588,10 +589,7 @@ export default function VodViewer() {
     const loadBookmarks = async () => {
       setLoading(true);
       try {
-        const response = await fetch(
-          `/api/session-data?path=${encodeURIComponent(selectedSession)}`
-        );
-        const data = await response.json();
+        const data = await fetchSessionData(selectedSession);
 
         if (data.ok) {
           setBookmarks(data.bookmarks || []);
@@ -1625,11 +1623,7 @@ export default function VodViewer() {
                       setClipStatus("working");
                       setClipResult(null);
                       try {
-                        const resp = await fetch("/api/clip-range", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ vod_path: vodPath, start: clipStart, end: clipEnd }),
-                        });
+                        const resp = await createClipRange(vodPath, clipStart, clipEnd);
                         const text = await resp.text();
                         let data = null;
                         try {
