@@ -87,6 +87,7 @@ from app.clip_library import (
     serialize_clip,
 )
 from app.backend_logs import get_backend_log_path, open_backend_log, tail_lines
+from app.http_cache import set_no_cache_headers
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -1275,10 +1276,11 @@ def react_logo() -> Any:
     if not logo_file.exists() or not logo_file.is_file():
         abort(404)
     response = send_from_directory(REACT_DIST, "logo.png", conditional=False, etag=False, max_age=0)
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
+    return set_no_cache_headers(
+        response,
+        cache_control="no-store, no-cache, must-revalidate, max-age=0",
+        include_pragma=True,
+    )
 
 
 # ==================== Twitch VOD Download Routes ====================
@@ -1391,13 +1393,9 @@ def react_app(path: str = "") -> Any:
     target = REACT_DIST / path
     if path and target.exists() and target.is_file():
         response = send_from_directory(REACT_DIST, path)
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Expires'] = '0'
-        return response
+        return set_no_cache_headers(response)
     response = send_from_directory(REACT_DIST, "index.html")
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Expires'] = '0'
-    return response
+    return set_no_cache_headers(response)
 
 
 create_app()
