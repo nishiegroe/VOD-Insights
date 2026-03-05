@@ -87,6 +87,7 @@ def create_app() -> Flask:
             get_current_app_version=get_current_app_version,
             fetch_latest_update_metadata=fetch_latest_update_metadata,
             update_feed_url=UPDATE_FEED_URL,
+            debug_paths_response=debug_paths_response,
         ),
         gpu_deps=GpuRouteDeps(
             ocr_gpu_status_response=ocr_gpu_status_response,
@@ -2102,8 +2103,7 @@ def overlay_remove_response() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/api/debug/paths")
-def api_debug_paths() -> Any:
+def debug_paths_response() -> Any:
     index_path = REACT_DIST / "index.html"
     assets_path = REACT_DIST / "assets"
     return jsonify({

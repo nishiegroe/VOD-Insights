@@ -18,6 +18,7 @@ class SystemRouteDeps:
 	get_current_app_version: Callable[[], str]
 	fetch_latest_update_metadata: Callable[[], Dict[str, Any]]
 	update_feed_url: str
+	debug_paths_response: Callable[[], Any]
 
 
 def create_system_blueprint(deps: SystemRouteDeps) -> Blueprint:
@@ -82,5 +83,9 @@ def create_system_blueprint(deps: SystemRouteDeps) -> Blueprint:
 				"feed_url": deps.update_feed_url,
 			}
 		)
+
+	@system_bp.route("/api/debug/paths")
+	def api_debug_paths() -> Any:
+		return deps.debug_paths_response()
 
 	return system_bp
