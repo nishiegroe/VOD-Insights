@@ -1,5 +1,6 @@
 import React from "react";
 import SettingsCapturePanel from "../components/SettingsCapturePanel";
+import SettingsClipsPanel from "../components/SettingsClipsPanel";
 import SettingsDetectionPanel from "../components/SettingsDetectionPanel";
 import SettingsOcrPanel from "../components/SettingsOcrPanel";
 import SettingsPanel from "../components/SettingsPanel";
@@ -120,29 +121,13 @@ export default function Settings({ status }) {
               updateField={updateField}
             />
 
-            <SettingsPanel
-              sectionId="clips"
+            <SettingsClipsPanel
               bindSectionRef={bindSectionRef}
-              title="Clips"
-              subtitle="Configure recordings path and clip output location."
-            >
-              <label>Recordings Directory</label>
-              <div className="input-row">
-                <input
-                  type="text"
-                  value={form.replay_dir}
-                  onChange={(event) => updateField("replay_dir", event.target.value)}
-                />
-                {canBrowseReplayDir ? (
-                  <button type="button" className="secondary" onClick={browseReplayDir}>
-                    Browse
-                  </button>
-                ) : null}
-              </div>
-              <p className="hint">
-                Clips will be saved to: {form.replay_dir ? `${form.replay_dir}/clips` : "(set recordings directory first)"}
-              </p>
-            </SettingsPanel>
+              form={form}
+              updateField={updateField}
+              canBrowseReplayDir={canBrowseReplayDir}
+              browseReplayDir={browseReplayDir}
+            />
 
             <SettingsOcrPanel
               bindSectionRef={bindSectionRef}

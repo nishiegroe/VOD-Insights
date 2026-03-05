@@ -10,6 +10,7 @@ const { createAssetResolvers } = require("./assetPaths");
 const { createBackendApiClient } = require("./backendApiClient");
 const { createBackendRuntime } = require("./backendRuntime");
 const { createSplashScreenTools } = require("./splashScreen");
+const { createUpdaterConfig } = require("./updaterConfig");
 const { createUpdaterManager } = require("./updaterManager");
 const { validateInstallerDownloadUrl } = require("./updateUrlPolicy");
 const { compareVersions } = require("./versionUtils");
@@ -24,14 +25,7 @@ const updaterDownloadDir = path.join(userDataDir, "updates");
 
 const HOST = "127.0.0.1";
 const PORT = parseInt(process.env.APEX_WEBUI_PORT || "5170", 10);
-const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const UPDATE_REQUEST_TIMEOUT_MS = 30000;
-const UPDATE_MAX_REDIRECTS = 5;
-
-const UPDATE_REPO_OWNER = process.env.AET_UPDATE_REPO_OWNER || "nishiegroe";
-const UPDATE_REPO_NAME = process.env.AET_UPDATE_REPO_NAME || "VOD-Insights";
-const DEFAULT_UPDATE_FEED_URL = `https://github.com/${UPDATE_REPO_OWNER}/${UPDATE_REPO_NAME}/releases/latest/download/latest.json`;
-const UPDATE_FEED_URL = process.env.AET_UPDATE_FEED_URL || DEFAULT_UPDATE_FEED_URL;
+const updaterConfig = createUpdaterConfig({ processObj: process });
 
 app.disableHardwareAcceleration();
 
@@ -84,7 +78,7 @@ const windowManager = createWindowManager({
 const backendApiClient = createBackendApiClient({
   host: HOST,
   port: PORT,
-  timeoutMs: UPDATE_REQUEST_TIMEOUT_MS,
+  timeoutMs: updaterConfig.updateRequestTimeoutMs,
 });
 
 const updaterManager = createUpdaterManager({
@@ -100,10 +94,10 @@ const updaterManager = createUpdaterManager({
   compareVersions,
   updaterStatePath,
   updaterDownloadDir,
-  updateFeedUrl: UPDATE_FEED_URL,
-  updateCheckIntervalMs: UPDATE_CHECK_INTERVAL_MS,
-  updateRequestTimeoutMs: UPDATE_REQUEST_TIMEOUT_MS,
-  updateMaxRedirects: UPDATE_MAX_REDIRECTS,
+  updateFeedUrl: updaterConfig.updateFeedUrl,
+  updateCheckIntervalMs: updaterConfig.updateCheckIntervalMs,
+  updateRequestTimeoutMs: updaterConfig.updateRequestTimeoutMs,
+  updateMaxRedirects: updaterConfig.updateMaxRedirects,
 });
 
 const splashScreenTools = createSplashScreenTools({
