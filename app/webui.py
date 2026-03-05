@@ -1370,14 +1370,8 @@ def capture_area_save() -> Any:
 def media_file(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
-    file_path = (clips_dir / filename).resolve()
-    try:
-        if not file_path.is_relative_to(clips_dir):
-            abort(404)
-    except AttributeError:
-        if str(file_path).lower().startswith(str(clips_dir).lower()) is False:
-            abort(404)
-    if not file_path.exists():
+    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    if file_path is None:
         abort(404)
     return send_file(file_path)
 
@@ -1473,14 +1467,8 @@ def vod_thumbnail() -> Any:
 def download_file(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
-    file_path = (clips_dir / filename).resolve()
-    try:
-        if not file_path.is_relative_to(clips_dir):
-            abort(404)
-    except AttributeError:
-        if str(file_path).lower().startswith(str(clips_dir).lower()) is False:
-            abort(404)
-    if not file_path.exists():
+    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    if file_path is None:
         abort(404)
     display_name = get_clip_title(file_path)
     download_name = build_download_name(display_name, file_path)
@@ -1494,14 +1482,8 @@ def download_file(filename: str) -> Any:
 def open_folder(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
-    file_path = (clips_dir / filename).resolve()
-    try:
-        if not file_path.is_relative_to(clips_dir):
-            abort(404)
-    except AttributeError:
-        if str(file_path).lower().startswith(str(clips_dir).lower()) is False:
-            abort(404)
-    if not file_path.exists():
+    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    if file_path is None:
         abort(404)
     subprocess.run(
         [
@@ -1518,14 +1500,8 @@ def open_folder(filename: str) -> Any:
 def delete_file(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
-    file_path = (clips_dir / filename).resolve()
-    try:
-        if not file_path.is_relative_to(clips_dir):
-            abort(404)
-    except AttributeError:
-        if str(file_path).lower().startswith(str(clips_dir).lower()) is False:
-            abort(404)
-    if not file_path.exists():
+    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    if file_path is None:
         abort(404)
     file_path.unlink(missing_ok=True)
     set_clip_title(file_path, "")
@@ -2133,8 +2109,8 @@ def api_overlay_image() -> Any:
     config = load_config()
     image_path = config.get("ui", {}).get("overlay_image_path", "")
     overlay_dir = get_app_data_dir() / "overlay"
-    file_path = resolve_allowed_path(image_path, [overlay_dir])
-    if file_path is None or not file_path.exists():
+    file_path = resolve_existing_allowed_path(image_path, [overlay_dir])
+    if file_path is None:
         return jsonify({"ok": False, "error": "Overlay image not found"}), 404
     return send_file(file_path)
 
@@ -2489,8 +2465,8 @@ def api_clip_name() -> Any:
         return jsonify({"ok": False, "error": "Missing clip path"}), 400
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
-    file_path = resolve_allowed_path(path_value, allowed_dirs)
-    if file_path is None or not file_path.exists():
+    file_path = resolve_existing_allowed_path(path_value, allowed_dirs)
+    if file_path is None:
         return jsonify({"ok": False, "error": "Clip not found"}), 404
 
     name_value = str(payload.get("name", ""))

@@ -297,6 +297,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Completed OCR-MOD-002 detector seam and BRS-KICK-001 dry-run baseline closure.
 - 2026-03-04: Advanced MOD-BE-003 with centralized existing-path helper on first endpoint subset.
 - 2026-03-04: Started MIG-FD-002 by extracting desktop backend lifecycle into `desktop/backendSupervisor.js`.
+- 2026-03-04: Expanded MOD-BE-003 helper usage across legacy clip/media and overlay path endpoints.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
