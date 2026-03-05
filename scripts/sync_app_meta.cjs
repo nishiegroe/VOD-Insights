@@ -121,6 +121,7 @@ function syncRuntimePaths(meta) {
 
 function syncDesktopMain(meta) {
   const filePath = path.join(root, "desktop", "main.js");
+  const splashFilePath = path.join(root, "desktop", "splashScreen.js");
   let content = fs.readFileSync(filePath, "utf8");
   const backendExePattern = /"backend", "[^"]+\.exe"/;
   let backendPathUpdated = false;
@@ -149,12 +150,30 @@ function syncDesktopMain(meta) {
     `dialog.showErrorBox(\n      "${meta.displayName}",`,
     "dialog title"
   );
-  content = replaceOrThrow(
-    content,
-    /<div class="app-name">[\s\S]*?<\/div>/,
-    '<div class="app-name">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : ""}<span>' + meta.displayName + '</span></div>',
-    "splash title"
-  );
+
+  const splashTitlePattern = /<div class="app-name">[\s\S]*?<\/div>/;
+  const splashTitleReplacement =
+    '<div class="app-name">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : ""}<span>' +
+    meta.displayName +
+    '</span></div>';
+
+  let splashUpdated = false;
+  if (splashTitlePattern.test(content)) {
+    content = content.replace(splashTitlePattern, splashTitleReplacement);
+    splashUpdated = true;
+  } else if (fs.existsSync(splashFilePath)) {
+    let splashContent = fs.readFileSync(splashFilePath, "utf8");
+    if (splashTitlePattern.test(splashContent)) {
+      splashContent = splashContent.replace(splashTitlePattern, splashTitleReplacement);
+      writeText(splashFilePath, splashContent);
+      splashUpdated = true;
+    }
+  }
+
+  if (!splashUpdated) {
+    throw new Error("Could not find splash title");
+  }
+
   writeText(filePath, content);
 }
 
