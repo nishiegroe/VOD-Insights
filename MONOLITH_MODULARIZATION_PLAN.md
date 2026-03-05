@@ -301,6 +301,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Added initial migration CI workflow for targeted Python tests and build-security/frontend guardrails.
 - 2026-03-04: Extracted path policy helpers into reusable backend module `app/path_policy.py`.
 - 2026-03-04: Expanded system blueprint extraction to include bootstrap status/start routes.
+- 2026-03-04: Expanded system blueprint extraction to include notifications and update metadata routes.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

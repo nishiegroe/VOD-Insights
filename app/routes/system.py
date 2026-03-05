@@ -14,6 +14,10 @@ class SystemRouteDeps:
 	update_config_from_payload: Callable[[Dict[str, Any], Dict[str, Any]], None]
 	get_bootstrap_status: Callable[[], Dict[str, Any]]
 	start_bootstrap: Callable[[bool], Dict[str, Any]]
+	get_notifications: Callable[[], Dict[str, Any]]
+	get_current_app_version: Callable[[], str]
+	fetch_latest_update_metadata: Callable[[], Dict[str, Any]]
+	update_feed_url: str
 
 
 def create_system_blueprint(deps: SystemRouteDeps) -> Blueprint:
@@ -46,5 +50,37 @@ def create_system_blueprint(deps: SystemRouteDeps) -> Blueprint:
 		payload = request.get_json() or {}
 		install_gpu_ocr = bool(payload.get("install_gpu_ocr", False))
 		return jsonify(deps.start_bootstrap(install_gpu_ocr))
+
+	@system_bp.route("/api/notifications")
+	def api_notifications() -> Any:
+		return jsonify(deps.get_notifications())
+
+	@system_bp.route("/api/update/latest")
+	def api_update_latest() -> Any:
+		current_version = deps.get_current_app_version()
+		try:
+			metadata = deps.fetch_latest_update_metadata()
+		except Exception as exc:
+			return (
+				jsonify(
+					{
+						"ok": False,
+						"latest_version": "",
+						"current_version": current_version,
+						"error": str(exc),
+					}
+				),
+				502,
+			)
+
+		latest_version = str(metadata.get("version", "")).strip()
+		return jsonify(
+			{
+				"ok": True,
+				"latest_version": latest_version,
+				"current_version": current_version,
+				"feed_url": deps.update_feed_url,
+			}
+		)
 
 	return system_bp

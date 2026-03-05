@@ -74,6 +74,14 @@ def create_app() -> Flask:
             start_bootstrap=lambda install_gpu_ocr: dependency_bootstrap.start(
                 install_gpu_ocr=install_gpu_ocr
             ),
+            get_notifications=lambda: {
+                "bootstrap": dependency_bootstrap.get_status(),
+                "twitch_jobs": list_twitch_jobs(limit=10) + _vod_downloader_as_twitch_jobs(),
+                "patch_notes": load_patch_notes(),
+            },
+            get_current_app_version=get_current_app_version,
+            fetch_latest_update_metadata=fetch_latest_update_metadata,
+            update_feed_url=UPDATE_FEED_URL,
         ),
     )
     return app
@@ -1791,46 +1799,6 @@ def _vod_downloader_as_twitch_jobs() -> List[Dict[str, Any]]:
             "speed": job.get("speed"),
         })
     return result
-
-
-@app.route("/api/notifications")
-def api_notifications() -> Any:
-    return jsonify(
-        {
-            "bootstrap": dependency_bootstrap.get_status(),
-            "twitch_jobs": list_twitch_jobs(limit=10) + _vod_downloader_as_twitch_jobs(),
-            "patch_notes": load_patch_notes(),
-        }
-    )
-
-
-@app.route("/api/update/latest")
-def api_update_latest() -> Any:
-    current_version = get_current_app_version()
-    try:
-        metadata = fetch_latest_update_metadata()
-    except Exception as exc:
-        return (
-            jsonify(
-                {
-                    "ok": False,
-                    "latest_version": "",
-                    "current_version": current_version,
-                    "error": str(exc),
-                }
-            ),
-            502,
-        )
-
-    latest_version = str(metadata.get("version", "")).strip()
-    return jsonify(
-        {
-            "ok": True,
-            "latest_version": latest_version,
-            "current_version": current_version,
-            "feed_url": UPDATE_FEED_URL,
-        }
-    )
 
 
 @app.route("/api/ocr-gpu-status")
