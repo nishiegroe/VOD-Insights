@@ -84,6 +84,7 @@ from app.vod_scan_runner import launch_vod_scan_process, terminate_process
 from app.media_duration import get_media_duration
 from app.vod_entries import build_vod_entries
 from app.vod_upload import save_uploaded_vod_file, start_vod_scan_for_path
+from app.file_explorer import reveal_file_in_explorer
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -683,14 +684,7 @@ def open_folder_by_path_response() -> Any:
     file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
     if file_path is None:
         abort(404)
-    subprocess.run(
-        [
-            "explorer",
-            "/select,",
-            str(file_path),
-        ],
-        check=False,
-    )
+    reveal_file_in_explorer(file_path)
     return jsonify({"ok": True})
 
 
@@ -820,14 +814,7 @@ def open_folder_response(filename: str) -> Any:
     file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
     if file_path is None:
         abort(404)
-    subprocess.run(
-        [
-            "explorer",
-            "/select,",
-            str(file_path),
-        ],
-        check=False,
-    )
+    reveal_file_in_explorer(file_path)
     return redirect("/clips")
 
 
