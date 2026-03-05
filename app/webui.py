@@ -48,6 +48,7 @@ from app.routes.legacy_control import LegacyControlRouteDeps
 from app.routes.logs import LogsRouteDeps
 from app.routes.media_paths import MediaPathsRouteDeps
 from app.routes.overlay import OverlayRouteDeps
+from app.routes.spa import SpaRouteDeps
 from app.routes.session import SessionRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.routes.twitch_import import TwitchImportRouteDeps
@@ -178,6 +179,10 @@ def create_app() -> Flask:
         ),
         vod_thumbnail_deps=VodThumbnailRouteDeps(
             vod_thumbnail_response=vod_thumbnail_response,
+        ),
+        spa_deps=SpaRouteDeps(
+            react_logo_response=react_logo,
+            react_app_response=react_app,
         ),
     )
     return app
@@ -2502,7 +2507,6 @@ def open_backend_log_response() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/logo.png")
 def react_logo() -> Any:
     logo_file = REACT_DIST / "logo.png"
     if not logo_file.exists() or not logo_file.is_file():
@@ -2618,9 +2622,6 @@ def vod_check_tools_response() -> Any:
 
 # =====================================================================
 
-# React catch-all route - MUST be last so it doesn't intercept API routes
-@app.route("/")
-@app.route("/<path:path>")
 def react_app(path: str = "") -> Any:
     if not REACT_DIST.exists():
         return "React build not found. Run `npm run build` in frontend.", 404

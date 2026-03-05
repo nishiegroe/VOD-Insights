@@ -9,6 +9,7 @@ from app.routes.legacy_control import LegacyControlRouteDeps, create_legacy_cont
 from app.routes.logs import LogsRouteDeps, create_logs_blueprint
 from app.routes.media_paths import MediaPathsRouteDeps, create_media_paths_blueprint
 from app.routes.overlay import OverlayRouteDeps, create_overlay_blueprint
+from app.routes.spa import SpaRouteDeps, create_spa_blueprint
 from app.routes.session import SessionRouteDeps, create_session_blueprint
 from app.routes.system import SystemRouteDeps, create_system_blueprint
 from app.routes.twitch_import import TwitchImportRouteDeps, create_twitch_import_blueprint
@@ -37,6 +38,7 @@ def register_blueprints(
     vod_scan_deps: VodScanRouteDeps,
     vod_actions_deps: VodActionsRouteDeps,
     vod_thumbnail_deps: VodThumbnailRouteDeps,
+    spa_deps: SpaRouteDeps,
 ) -> Flask:
     if "capture_area" not in app.blueprints:
         app.register_blueprint(create_capture_area_blueprint(capture_area_deps))
@@ -68,4 +70,6 @@ def register_blueprints(
         app.register_blueprint(create_vod_actions_blueprint(vod_actions_deps))
     if "vod_thumbnail" not in app.blueprints:
         app.register_blueprint(create_vod_thumbnail_blueprint(vod_thumbnail_deps))
+    if "spa" not in app.blueprints:
+        app.register_blueprint(create_spa_blueprint(spa_deps))
     return app
