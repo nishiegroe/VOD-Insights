@@ -13,7 +13,6 @@ import sys
 import threading
 import time
 import uuid
-from urllib.parse import quote
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -40,11 +39,9 @@ from app.clip_insights import (
     format_offset_seconds,
     format_session_offset,
     format_timestamp,
-    format_vod_display_title,
     get_session_start,
     is_above_average,
     parse_clip_details,
-    parse_vod_timestamp,
 )
 from app.clip_titles import (
     CLIP_NAME_PATTERN,
@@ -68,7 +65,6 @@ from app.vod_catalog import (
     list_sessions_for_vod,
 )
 from app.vod_scan_files import (
-    find_vod_scan_state,
     get_safe_vod_stem,
     get_scan_marker_paths,
     list_vod_session_files,
@@ -87,6 +83,7 @@ from app.vod_thumbnails import ensure_vod_thumbnail
 from app.replay_directory import choose_and_save_replay_dir
 from app.vod_scan_runner import launch_vod_scan_process, terminate_process
 from app.media_duration import get_media_duration
+from app.vod_entries import build_vod_entries
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -638,85 +635,6 @@ def clip_lookup_response() -> Any:
     entry = build_clip_entry(file_path, titles, averages, session_start)
     serialized = serialize_clip(entry)
     return jsonify({"ok": True, "clip": serialized, "day": serialized.get("day_key")})
-
-
-def build_vod_entries(
-    paths: List[Path],
-    bookmarks_dir: Path,
-    session_prefix: str,
-) -> List[Dict[str, Any]]:
-    result = []
-    for path in paths:
-        stat = path.stat()
-        duration = get_media_duration(path)
-        pretty_time = format_timestamp(parse_vod_timestamp(path.name))
-        display_title = format_vod_display_title(path.name)
-        scan_state = find_vod_scan_state(bookmarks_dir, session_prefix, path.stem)
-        sessions = list_sessions_for_vod(bookmarks_dir, session_prefix, path.stem)
-        thumbnail_time = None
-        if sessions:
-            session_path = Path(sessions[0].get("path", ""))
-            if session_path.exists():
-                thumbnail_time = get_hottest_event_time(session_path, duration)
-        thumbnail_url = None
-        if thumbnail_time is not None:
-            encoded_path = quote(str(path))
-            thumbnail_url = f"/vod-thumbnail?path={encoded_path}&t={thumbnail_time:.3f}"
-        result.append(
-            {
-                "name": path.name,
-                "path": str(path),
-                "mtime": stat.st_mtime,
-                "size": stat.st_size,
-                "duration": duration,
-                "pretty_time": pretty_time,
-                "display_title": display_title,
-                "scanned": scan_state["scanned"],
-                "scanning": scan_state["scanning"],
-                "paused": scan_state["paused"],
-                "scan_progress": scan_state.get("progress"),
-                "sessions": sessions,
-                "thumbnail_time": thumbnail_time,
-                "thumbnail_url": thumbnail_url,
-            }
-        )
-    return result
-
-
-def get_hottest_event_time(bookmark_path: Path, duration: Optional[float]) -> Optional[float]:
-    try:
-        events = load_bookmarks(bookmark_path)
-    except (OSError, ValueError, json.JSONDecodeError, TypeError):
-        return None
-
-    if not events:
-        return None
-
-    max_event_time = max(event.time for event in events)
-    span = max(float(duration or 0), max_event_time)
-    if span <= 0:
-        return None
-
-    bin_count = 60
-    bins = [0] * bin_count
-    for event in events:
-        idx = int((event.time / span) * bin_count)
-        idx = max(0, min(bin_count - 1, idx))
-        bins[idx] += 1
-
-    hottest = max(bins)
-    if hottest <= 0:
-        return None
-
-    hottest_bins = {index for index, count in enumerate(bins) if count == hottest}
-    hottest_events = [
-        event.time
-        for event in events
-        if int((event.time / span) * bin_count) in hottest_bins
-    ]
-    if not hottest_events:
-        return None
-    return max(hottest_events)
 
 
 def get_allowed_media_dirs(config: Dict[str, Any]) -> List[Path]:
