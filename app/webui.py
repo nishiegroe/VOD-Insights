@@ -40,6 +40,7 @@ from app.dependency_bootstrap import dependency_bootstrap
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
+from app.routes import register_blueprints
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -57,6 +58,11 @@ DEFAULT_UPDATE_FEED_URL = (
 UPDATE_FEED_URL = os.environ.get("AET_UPDATE_FEED_URL", DEFAULT_UPDATE_FEED_URL)
 
 app = Flask(__name__)
+
+
+def create_app() -> Flask:
+    register_blueprints(app)
+    return app
 
 # Cache for ffprobe duration results: (path_str, mtime) -> Optional[float]
 _duration_cache: Dict[tuple, Optional[float]] = {}
@@ -2706,7 +2712,7 @@ def main() -> None:
         watcher.start()
     
     print(f"Web UI ready at http://127.0.0.1:{port}")
-    app.run(host="127.0.0.1", port=port, debug=False)
+    create_app().run(host="127.0.0.1", port=port, debug=False)
 
 
 if __name__ == "__main__":
