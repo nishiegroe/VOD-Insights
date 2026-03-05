@@ -331,6 +331,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Added reusable `frontend/src/components/SectionHeader.jsx` and adopted it for repeated title/action rows on `frontend/src/pages/Home.jsx`.
 - 2026-03-05: Added reusable `frontend/src/components/BrandTitle.jsx` and adopted it in app/header + welcome states (`Home`, `Vods`).
 - 2026-03-05: Consolidated duplicated duration formatting into `frontend/src/utils/formatDuration.js` and adopted it across `Home`, `Vods`, `Clips`, and `ClipsViewer`.
+- 2026-03-05: Extracted VOD page orchestration/state into `frontend/src/hooks/useVodsPage.js` and simplified `frontend/src/pages/Vods.jsx` to consume the hook.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
