@@ -203,7 +203,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Reused path-policy helper and endpoint-to-root matrix.
 - Validation: Traversal negative checks + file endpoint smoke.
 - Risk: High (security-sensitive behavior).
-- Status: In progress
+- Status: Done
 - Owner: Build-Release-Security-Agent (review: Backend-WebUI-Agent)
 - Updated: 2026-03-04
 
@@ -303,6 +303,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Expanded system blueprint extraction to include bootstrap status/start routes.
 - 2026-03-04: Expanded system blueprint extraction to include notifications and update metadata routes.
 - 2026-03-04: Completed MIG-FD-002 with `desktop/backendSupervisor.js` extraction and successful desktop build.
+- 2026-03-04: Completed MOD-BE-003 with shared `app/path_policy.py` and migrated endpoint usage.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
