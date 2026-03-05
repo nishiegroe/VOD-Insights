@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  contents: read
+  pull-requests: write
+
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -15,6 +19,9 @@ jobs:
   backend-python-tests-and-coverage:
     name: Backend Python Tests & Coverage
     runs-on: ubuntu-latest
+    outputs:
+      line_pct: ${{ steps.backend_cov_summary.outputs.line_pct }}
+      coverage_found: ${{ steps.backend_cov_summary.outputs.coverage_found }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,6 +39,7 @@ jobs:
           python -m pip install pytest pytest-cov diff-cover numpy flask
 
       - name: Run backend tests with coverage gate
+        id: backend_tests
         run: |
           python -m pytest tests/backend -q \
             --cov=app.clip_range \
@@ -54,9 +62,44 @@ jobs:
         run: |
           python -m pytest tests/backend/services/test_detector.py tests/backend/services/test_capture_frame_source.py -q
 
+      - name: Collect backend coverage summary
+        id: backend_cov_summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          out_path = os.environ['GITHUB_OUTPUT']
+          if not os.path.exists('coverage.xml'):
+            with open(out_path, 'a', encoding='utf-8') as fh:
+              fh.write('coverage_found=false\n')
+              fh.write('line_pct=n/a\n')
+            raise SystemExit(0)
+
+          root = ET.parse('coverage.xml').getroot()
+          line_rate = float(root.attrib.get('line-rate', 0.0))
+          line_pct = f"{line_rate * 100:.2f}"
+          with open(out_path, 'a', encoding='utf-8') as fh:
+            fh.write('coverage_found=true\n')
+            fh.write(f'line_pct={line_pct}\n')
+          PY
+
+      - name: Upload backend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
+
   frontend-desktop-quality-checks-and-coverage:
     name: Frontend/Desktop Tests, Security Checks & Coverage
     runs-on: ubuntu-latest
+    outputs:
+      line_pct: ${{ steps.frontend_cov_summary.outputs.line_pct }}
+      coverage_found: ${{ steps.frontend_cov_summary.outputs.coverage_found }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -105,3 +148,119 @@ jobs:
 
       - name: Build frontend
         run: npm --prefix frontend run build
+
+      - name: Collect frontend coverage summary
+        id: frontend_cov_summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+
+          coverage_file = 'frontend/coverage/cobertura-coverage.xml'
+          out_path = os.environ['GITHUB_OUTPUT']
+          if not os.path.exists(coverage_file):
+            with open(out_path, 'a', encoding='utf-8') as fh:
+              fh.write('coverage_found=false\n')
+              fh.write('line_pct=n/a\n')
+            raise SystemExit(0)
+
+          root = ET.parse(coverage_file).getroot()
+          line_rate = float(root.attrib.get('line-rate', 0.0))
+          line_pct = f"{line_rate * 100:.2f}"
+          with open(out_path, 'a', encoding='utf-8') as fh:
+            fh.write('coverage_found=true\n')
+            fh.write(f'line_pct={line_pct}\n')
+          PY
+
+      - name: Upload frontend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-xml
+          path: frontend/coverage/cobertura-coverage.xml
+          if-no-files-found: ignore
+
+  coverage-pr-comment:
+    name: PR Coverage Comment
+    if: github.event_name == 'pull_request' && always()
+    runs-on: ubuntu-latest
+    needs:
+      - backend-python-tests-and-coverage
+      - frontend-desktop-quality-checks-and-coverage
+    steps:
+      - name: Build coverage comment body
+        shell: bash
+        env:
+          BACKEND_RESULT: ${{ needs.backend-python-tests-and-coverage.result }}
+          FRONTEND_RESULT: ${{ needs.frontend-desktop-quality-checks-and-coverage.result }}
+          BACKEND_PCT: ${{ needs.backend-python-tests-and-coverage.outputs.line_pct }}
+          FRONTEND_PCT: ${{ needs.frontend-desktop-quality-checks-and-coverage.outputs.line_pct }}
+          BACKEND_FOUND: ${{ needs.backend-python-tests-and-coverage.outputs.coverage_found }}
+          FRONTEND_FOUND: ${{ needs.frontend-desktop-quality-checks-and-coverage.outputs.coverage_found }}
+        run: |
+          status_icon() {
+            if [ "$1" = "success" ]; then
+              echo "✅"
+            else
+              echo "❌"
+            fi
+          }
+
+          backend_cov_display="n/a"
+          frontend_cov_display="n/a"
+
+          if [ "$BACKEND_FOUND" = "true" ] && [ -n "$BACKEND_PCT" ]; then
+            backend_cov_display="${BACKEND_PCT}%"
+          fi
+
+          if [ "$FRONTEND_FOUND" = "true" ] && [ -n "$FRONTEND_PCT" ]; then
+            frontend_cov_display="${FRONTEND_PCT}%"
+          fi
+
+          {
+            echo "<!-- pr-coverage-report -->"
+            echo "## Test Coverage Report"
+            echo
+            echo "| Scope | Job Status | Line Coverage | Threshold |"
+            echo "|---|---:|---:|---:|"
+            echo "| Backend scoped coverage | $(status_icon "$BACKEND_RESULT") $BACKEND_RESULT | $backend_cov_display | 67% |"
+            echo "| Frontend scoped coverage | $(status_icon "$FRONTEND_RESULT") $FRONTEND_RESULT | $frontend_cov_display | 67% |"
+            echo
+            echo "Coverage comment refresh policy: previous bot comment is deleted and replaced on each CI rerun."
+          } > coverage_comment.md
+
+      - name: Replace prior coverage comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- pr-coverage-report -->';
+            const body = fs.readFileSync('coverage_comment.md', 'utf8');
+            const issue_number = context.issue.number;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            for (const comment of comments) {
+              const isBot = comment.user && comment.user.type === 'Bot';
+              if (isBot && comment.body && comment.body.includes(marker)) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              body,
+            });
