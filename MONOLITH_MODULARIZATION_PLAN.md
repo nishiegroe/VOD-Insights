@@ -316,6 +316,9 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted clip API route registration into dedicated `app/routes/clips.py` blueprint.
 - 2026-03-05: Extracted VOD list/single/delete/stream route registration into dedicated `app/routes/vods.py` blueprint.
 - 2026-03-05: Extracted VOD scan control API route registration into dedicated `app/routes/vod_scan.py` blueprint.
+- 2026-03-05: Extracted `/capture-area/save` registration into dedicated `app/routes/capture_area.py` blueprint.
+- 2026-03-05: Added path-policy and API traversal regression tests (`tests/test_path_policy.py`, `tests/test_webui_path_security.py`).
+- 2026-03-05: Hardened desktop supervisor command resolution for PATH commands and ensured `backendSupervisor.js` is packaged.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

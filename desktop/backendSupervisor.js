@@ -131,7 +131,8 @@ function createBackendSupervisor({
   function startBackend() {
     const { command, args, cwd } = resolveBackendCommand();
 
-    if (!fs.existsSync(command)) {
+    const commandLooksLikePath = path.isAbsolute(command) || command.includes("\\") || command.includes("/");
+    if (commandLooksLikePath && !fs.existsSync(command)) {
       throw new Error(`Backend executable not found: ${command}`);
     }
 

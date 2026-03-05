@@ -41,6 +41,7 @@ from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, par
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.routes import register_blueprints
+from app.routes.capture_area import CaptureAreaRouteDeps
 from app.routes.clips import ClipsRouteDeps
 from app.routes.gpu import GpuRouteDeps
 from app.routes.logs import LogsRouteDeps
@@ -74,6 +75,9 @@ app = Flask(__name__)
 def create_app() -> Flask:
     register_blueprints(
         app,
+        capture_area_deps=CaptureAreaRouteDeps(
+            capture_area_save_response=capture_area_save_response,
+        ),
         system_deps=SystemRouteDeps(
             get_status=get_status,
             load_config=load_config,
@@ -1065,8 +1069,7 @@ def get_allowed_media_dirs(config: Dict[str, Any]) -> List[Path]:
     return dirs
 
 
-@app.route("/media-path")
-def media_by_path() -> Any:
+def media_by_path_response() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
     file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
@@ -1075,8 +1078,7 @@ def media_by_path() -> Any:
     return send_file(file_path)
 
 
-@app.route("/download-path")
-def download_by_path() -> Any:
+def download_by_path_response() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
     file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
@@ -1090,8 +1092,7 @@ def download_by_path() -> Any:
         return send_file(file_path, as_attachment=True, attachment_filename=download_name)
 
 
-@app.route("/open-folder-path", methods=["POST"])
-def open_folder_by_path() -> Any:
+def open_folder_by_path_response() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
     file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
@@ -1372,8 +1373,7 @@ def api_vod_ocr_upload() -> Any:
     return jsonify({"ok": True, "path": str(dest_path), "name": dest_path.name})
 
 
-@app.route("/delete-path", methods=["POST"])
-def delete_by_path() -> Any:
+def delete_by_path_response() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
     file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
@@ -1384,8 +1384,7 @@ def delete_by_path() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/capture-area/save", methods=["POST"])
-def capture_area_save() -> Any:
+def capture_area_save_response() -> Any:
     payload = request.get_json(silent=True) or {}
     try:
         left = int(payload.get("left", 0))
@@ -1413,8 +1412,7 @@ def capture_area_save() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/media/<path:filename>")
-def media_file(filename: str) -> Any:
+def media_file_response(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
     file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
@@ -1423,8 +1421,7 @@ def media_file(filename: str) -> Any:
     return send_file(file_path)
 
 
-@app.route("/vod-media/<path:filename>")
-def vod_media_file(filename: str) -> Any:
+def vod_media_file_response(filename: str) -> Any:
     config = load_config()
     allowed_dirs = [p.resolve() for p in get_vod_dirs(config) if p]
     file_path = None
@@ -1510,8 +1507,7 @@ def vod_thumbnail() -> Any:
     return send_file(thumb_path)
 
 
-@app.route("/download/<path:filename>")
-def download_file(filename: str) -> Any:
+def download_file_response(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
     file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
@@ -1525,8 +1521,7 @@ def download_file(filename: str) -> Any:
         return send_file(file_path, as_attachment=True, attachment_filename=download_name)
 
 
-@app.route("/open-folder/<path:filename>", methods=["POST"])
-def open_folder(filename: str) -> Any:
+def open_folder_response(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
     file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
@@ -1543,8 +1538,7 @@ def open_folder(filename: str) -> Any:
     return redirect("/clips")
 
 
-@app.route("/delete/<path:filename>", methods=["POST"])
-def delete_file(filename: str) -> Any:
+def delete_file_response(filename: str) -> Any:
     config = load_config()
     clips_dir = get_clips_dir(config).resolve()
     file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])

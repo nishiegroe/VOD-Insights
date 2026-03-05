@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from flask import Flask
 
+from app.routes.capture_area import CaptureAreaRouteDeps, create_capture_area_blueprint
 from app.routes.clips import ClipsRouteDeps, create_clips_blueprint
 from app.routes.gpu import GpuRouteDeps, create_gpu_blueprint
 from app.routes.logs import LogsRouteDeps, create_logs_blueprint
@@ -17,6 +18,7 @@ from app.routes.vods import VodsRouteDeps, create_vods_blueprint
 def register_blueprints(
     app: Flask,
     *,
+    capture_area_deps: CaptureAreaRouteDeps,
     system_deps: SystemRouteDeps,
     gpu_deps: GpuRouteDeps,
     overlay_deps: OverlayRouteDeps,
@@ -28,6 +30,8 @@ def register_blueprints(
     vods_deps: VodsRouteDeps,
     vod_scan_deps: VodScanRouteDeps,
 ) -> Flask:
+    if "capture_area" not in app.blueprints:
+        app.register_blueprint(create_capture_area_blueprint(capture_area_deps))
     if "system" not in app.blueprints:
         app.register_blueprint(create_system_blueprint(system_deps))
     if "gpu" not in app.blueprints:
