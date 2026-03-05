@@ -42,6 +42,7 @@ from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.routes import register_blueprints
 from app.routes.gpu import GpuRouteDeps
+from app.routes.logs import LogsRouteDeps
 from app.routes.overlay import OverlayRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.routes.twitch_import import TwitchImportRouteDeps
@@ -106,6 +107,10 @@ def create_app() -> Flask:
             twitch_imports_response=twitch_imports_response,
             twitch_import_start_response=twitch_import_start_response,
             twitch_import_status_response=twitch_import_status_response,
+        ),
+        logs_deps=LogsRouteDeps(
+            logs_response=logs_response,
+            open_backend_log_response=open_backend_log_response,
         ),
     )
     return app
@@ -2442,8 +2447,7 @@ def api_clips() -> Any:
     return jsonify({"clips": serialized})
 
 
-@app.route("/api/logs")
-def api_logs() -> Any:
+def logs_response() -> Any:
     limit_arg = request.args.get("lines")
     try:
         limit = int(limit_arg) if limit_arg else 200
@@ -2454,8 +2458,7 @@ def api_logs() -> Any:
     return jsonify({"lines": tail_lines(log_path, max_lines=limit)})
 
 
-@app.route("/api/open-backend-log", methods=["POST"])
-def api_open_backend_log() -> Any:
+def open_backend_log_response() -> Any:
     config = load_config()
     log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
     if not log_path.exists():

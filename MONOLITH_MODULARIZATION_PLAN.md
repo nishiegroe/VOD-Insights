@@ -310,6 +310,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Extracted overlay route registration into dedicated `app/routes/overlay.py` blueprint.
 - 2026-03-04: Extracted VOD download route registration into dedicated `app/routes/vod_download.py` blueprint.
 - 2026-03-04: Extracted Twitch import route registration into dedicated `app/routes/twitch_import.py` blueprint.
+- 2026-03-04: Extracted log route registration into dedicated `app/routes/logs.py` blueprint.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
