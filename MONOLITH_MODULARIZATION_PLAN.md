@@ -319,6 +319,9 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted `/capture-area/save` registration into dedicated `app/routes/capture_area.py` blueprint.
 - 2026-03-05: Added path-policy and API traversal regression tests (`tests/test_path_policy.py`, `tests/test_webui_path_security.py`).
 - 2026-03-05: Hardened desktop supervisor command resolution for PATH commands and ensured `backendSupervisor.js` is packaged.
+- 2026-03-05: Extracted legacy control/config route registration into `app/routes/legacy_control.py` blueprint.
+- 2026-03-05: Extracted `/vod-thumbnail` registration into dedicated `app/routes/vod_thumbnail.py` blueprint.
+- 2026-03-05: Added desktop updater URL-policy helper + tests (`desktop/updateUrlPolicy.js`, `desktop/tests/updateUrlPolicy.test.js`) and integrated installer/redirect validation.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

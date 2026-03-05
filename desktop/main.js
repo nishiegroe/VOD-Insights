@@ -6,6 +6,7 @@ const https = require("https");
 const net = require("net");
 const path = require("path");
 const { createBackendSupervisor } = require("./backendSupervisor");
+const { validateInstallerDownloadUrl } = require("./updateUrlPolicy");
 
 const userDataDir = app.getPath("userData");
 const backendLogPath = path.join(userDataDir, "backend.log");
@@ -373,7 +374,15 @@ async function waitForDependencyBootstrap(splash) {
 
 function downloadFile(url, destinationPath, timeoutMs = UPDATE_REQUEST_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
-    const request = https.get(url, (response) => {
+    let requestUrl;
+    try {
+      requestUrl = validateInstallerDownloadUrl(url).toString();
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
+    const request = https.get(requestUrl, (response) => {
       const { statusCode = 0, headers } = response;
       if ([301, 302, 303, 307, 308].includes(statusCode)) {
         const redirect = headers.location;
@@ -382,7 +391,8 @@ function downloadFile(url, destinationPath, timeoutMs = UPDATE_REQUEST_TIMEOUT_M
           reject(new Error("Installer download redirect missing location."));
           return;
         }
-        downloadFile(redirect, destinationPath, timeoutMs).then(resolve).catch(reject);
+        const redirectUrl = new URL(redirect, requestUrl).toString();
+        downloadFile(redirectUrl, destinationPath, timeoutMs).then(resolve).catch(reject);
         return;
       }
       if (statusCode < 200 || statusCode >= 300) {
@@ -438,12 +448,7 @@ async function downloadAndVerifyInstaller(metadata) {
     throw new Error("Update metadata is missing installer fields.");
   }
 
-  const installerUrl = String(installer.url);
-  const allowedHosts = new Set(["github.com", "objects.githubusercontent.com"]);
-  const installerHost = new URL(installerUrl).hostname.toLowerCase();
-  if (!allowedHosts.has(installerHost) && !installerHost.endsWith(".githubusercontent.com")) {
-    throw new Error("Installer URL host is not allowed.");
-  }
+  const installerUrl = validateInstallerDownloadUrl(String(installer.url)).toString();
 
   fs.mkdirSync(updaterDownloadDir, { recursive: true });
   const partialPath = path.join(updaterDownloadDir, `${installer.name}.part`);

@@ -44,6 +44,7 @@ from app.routes import register_blueprints
 from app.routes.capture_area import CaptureAreaRouteDeps
 from app.routes.clips import ClipsRouteDeps
 from app.routes.gpu import GpuRouteDeps
+from app.routes.legacy_control import LegacyControlRouteDeps
 from app.routes.logs import LogsRouteDeps
 from app.routes.overlay import OverlayRouteDeps
 from app.routes.session import SessionRouteDeps
@@ -51,6 +52,7 @@ from app.routes.system import SystemRouteDeps
 from app.routes.twitch_import import TwitchImportRouteDeps
 from app.routes.vod_scan import VodScanRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
+from app.routes.vod_thumbnail import VodThumbnailRouteDeps
 from app.routes.vods import VodsRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
@@ -121,6 +123,15 @@ def create_app() -> Flask:
             logs_response=logs_response,
             open_backend_log_response=open_backend_log_response,
         ),
+        legacy_control_deps=LegacyControlRouteDeps(
+            update_config_response=update_config_response,
+            choose_replay_dir_response=choose_replay_dir_response,
+            api_choose_replay_dir_response=api_choose_replay_dir_response,
+            control_start_response=control_start_response,
+            api_control_start_response=api_control_start_response,
+            control_stop_response=control_stop_response,
+            api_control_stop_response=api_control_stop_response,
+        ),
         session_deps=SessionRouteDeps(
             session_data_response=session_data_response,
         ),
@@ -144,6 +155,9 @@ def create_app() -> Flask:
             pause_vod_ocr_response=pause_vod_ocr_response,
             resume_vod_ocr_response=resume_vod_ocr_response,
             delete_sessions_response=delete_sessions_response,
+        ),
+        vod_thumbnail_deps=VodThumbnailRouteDeps(
+            vod_thumbnail_response=vod_thumbnail_response,
         ),
     )
     return app
@@ -1478,8 +1492,7 @@ def extract_vod_thumbnail(vod_path: Path, seconds: float, output_path: Path) -> 
     subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
-@app.route("/vod-thumbnail")
-def vod_thumbnail() -> Any:
+def vod_thumbnail_response() -> Any:
     vod_path = request.args.get("path", "")
     time_str = request.args.get("t", "")
     try:
@@ -1549,8 +1562,7 @@ def delete_file_response(filename: str) -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/config", methods=["POST"])
-def update_config() -> str:
+def update_config_response() -> str:
     config = load_config()
     payload = request.form.to_dict()
     update_config_from_payload(config, payload)
@@ -1558,8 +1570,7 @@ def update_config() -> str:
     return redirect("/")
 
 
-@app.route("/choose-replay-dir", methods=["POST"])
-def choose_replay_dir() -> str:
+def choose_replay_dir_response() -> str:
     config = load_config()
     replay_dir = config.get("replay", {}).get("directory")
     recordings_dir = config.get("split", {}).get("recordings_dir")
@@ -1575,8 +1586,7 @@ def choose_replay_dir() -> str:
     return redirect("/")
 
 
-@app.route("/api/choose-replay-dir", methods=["POST"])
-def api_choose_replay_dir() -> Any:
+def api_choose_replay_dir_response() -> Any:
     config = load_config()
     replay_dir = config.get("replay", {}).get("directory")
     recordings_dir = config.get("split", {}).get("recordings_dir")
@@ -1794,26 +1804,22 @@ def delete_sessions_response() -> Any:
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/control/start", methods=["POST"])
-def control_start() -> str:
+def control_start_response() -> str:
     start_bookmark_process()
     return redirect("/")
 
 
-@app.route("/api/control/start", methods=["POST"])
-def api_control_start() -> Any:
+def api_control_start_response() -> Any:
     start_bookmark_process()
     return jsonify({"ok": True})
 
 
-@app.route("/control/stop", methods=["POST"])
-def control_stop() -> str:
+def control_stop_response() -> str:
     stop_bookmark_process()
     return redirect("/")
 
 
-@app.route("/api/control/stop", methods=["POST"])
-def api_control_stop() -> Any:
+def api_control_stop_response() -> Any:
     stop_bookmark_process()
     return jsonify({"ok": True})
 

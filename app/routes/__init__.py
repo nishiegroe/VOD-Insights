@@ -5,6 +5,7 @@ from flask import Flask
 from app.routes.capture_area import CaptureAreaRouteDeps, create_capture_area_blueprint
 from app.routes.clips import ClipsRouteDeps, create_clips_blueprint
 from app.routes.gpu import GpuRouteDeps, create_gpu_blueprint
+from app.routes.legacy_control import LegacyControlRouteDeps, create_legacy_control_blueprint
 from app.routes.logs import LogsRouteDeps, create_logs_blueprint
 from app.routes.overlay import OverlayRouteDeps, create_overlay_blueprint
 from app.routes.session import SessionRouteDeps, create_session_blueprint
@@ -12,6 +13,7 @@ from app.routes.system import SystemRouteDeps, create_system_blueprint
 from app.routes.twitch_import import TwitchImportRouteDeps, create_twitch_import_blueprint
 from app.routes.vod_scan import VodScanRouteDeps, create_vod_scan_blueprint
 from app.routes.vod_download import VodDownloadRouteDeps, create_vod_download_blueprint
+from app.routes.vod_thumbnail import VodThumbnailRouteDeps, create_vod_thumbnail_blueprint
 from app.routes.vods import VodsRouteDeps, create_vods_blueprint
 
 
@@ -25,10 +27,12 @@ def register_blueprints(
     vod_download_deps: VodDownloadRouteDeps,
     twitch_import_deps: TwitchImportRouteDeps,
     logs_deps: LogsRouteDeps,
+    legacy_control_deps: LegacyControlRouteDeps,
     session_deps: SessionRouteDeps,
     clips_deps: ClipsRouteDeps,
     vods_deps: VodsRouteDeps,
     vod_scan_deps: VodScanRouteDeps,
+    vod_thumbnail_deps: VodThumbnailRouteDeps,
 ) -> Flask:
     if "capture_area" not in app.blueprints:
         app.register_blueprint(create_capture_area_blueprint(capture_area_deps))
@@ -44,6 +48,8 @@ def register_blueprints(
         app.register_blueprint(create_twitch_import_blueprint(twitch_import_deps))
     if "logs" not in app.blueprints:
         app.register_blueprint(create_logs_blueprint(logs_deps))
+    if "legacy_control" not in app.blueprints:
+        app.register_blueprint(create_legacy_control_blueprint(legacy_control_deps))
     if "session" not in app.blueprints:
         app.register_blueprint(create_session_blueprint(session_deps))
     if "clips" not in app.blueprints:
@@ -52,4 +58,6 @@ def register_blueprints(
         app.register_blueprint(create_vods_blueprint(vods_deps))
     if "vod_scan" not in app.blueprints:
         app.register_blueprint(create_vod_scan_blueprint(vod_scan_deps))
+    if "vod_thumbnail" not in app.blueprints:
+        app.register_blueprint(create_vod_thumbnail_blueprint(vod_thumbnail_deps))
     return app
