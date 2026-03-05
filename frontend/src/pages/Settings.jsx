@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { apiFetch, apiJson, apiPost } from "../api/client";
+import {
+  chooseReplayDir,
+  fetchConfig,
+  fetchGpuStatus,
+  fetchLatestUpdate,
+  removeOverlayImage,
+  saveConfig as saveConfigRequest,
+  startSessionControl,
+  stopSessionControl,
+  uploadOverlayImage,
+} from "../api/settings";
 
 const toCommaList = (value) => (Array.isArray(value) ? value.join(", ") : "");
 const parseKeywords = (value) =>
@@ -40,7 +50,7 @@ export default function Settings({ status }) {
   const canBrowseReplayDir = isDesktop;
 
   const loadData = async () => {
-    const config = await apiJson("/api/config");
+    const config = await fetchConfig();
     const nextForm = {
       capture_left: config.capture?.left ?? 0,
       capture_top: config.capture?.top ?? 0,
@@ -147,11 +157,7 @@ export default function Settings({ status }) {
     setSaveError("");
 
     try {
-      const response = await apiFetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-      });
+      const response = await saveConfigRequest(payload);
       if (!response.ok) {
         throw new Error("Failed to save settings");
       }
@@ -171,25 +177,25 @@ export default function Settings({ status }) {
     if (!canBrowseReplayDir) {
       return;
     }
-    const payload = await apiJson("/api/choose-replay-dir", { method: "POST" });
+    const payload = await chooseReplayDir();
     if (payload.directory && form) {
       updateField("replay_dir", payload.directory);
     }
   };
 
   const startSession = async () => {
-    await apiPost("/api/control/start");
+    await startSessionControl();
   };
 
   const stopSession = async () => {
-    await apiPost("/api/control/stop");
+    await stopSessionControl();
   };
 
   const testGpuOcr = async () => {
     setGpuTesting(true);
     setGpuStatus("");
     try {
-      const response = await apiFetch("/api/ocr-gpu-status");
+      const response = await fetchGpuStatus();
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
         setGpuStatus(payload.error || "GPU check failed");
@@ -213,7 +219,7 @@ export default function Settings({ status }) {
     setCheckingLatest(true);
     setLatestError("");
     try {
-      const response = await apiFetch("/api/update/latest");
+      const response = await fetchLatestUpdate();
       const payload = await response.json();
       if (!response.ok || !payload?.ok) {
         setLatestError(payload?.error || "Could not fetch latest version.");
@@ -754,9 +760,7 @@ export default function Settings({ status }) {
                         setOverlayUploading(true);
                         setOverlayStatus("");
                         try {
-                          const fd = new FormData();
-                          fd.append("overlay_image", file);
-                          const res = await apiFetch("/api/overlay/upload", { method: "POST", body: fd });
+                          const res = await uploadOverlayImage(file);
                           const payload = await res.json();
                           if (!res.ok || !payload.ok) throw new Error(payload.error || "Upload failed");
                           updateField("overlay_image_path", file.name);
@@ -782,7 +786,7 @@ export default function Settings({ status }) {
                       className="secondary"
                       style={{ fontSize: "13px", padding: "6px 12px" }}
                       onClick={async () => {
-                        await apiPost("/api/overlay/remove");
+                        await removeOverlayImage();
                         updateField("overlay_image_path", "");
                         setOverlayStatus("Overlay removed.");
                       }}
@@ -804,9 +808,7 @@ export default function Settings({ status }) {
                         setOverlayUploading(true);
                         setOverlayStatus("");
                         try {
-                          const fd = new FormData();
-                          fd.append("overlay_image", file);
-                          const res = await apiFetch("/api/overlay/upload", { method: "POST", body: fd });
+                          const res = await uploadOverlayImage(file);
                           const payload = await res.json();
                           if (!res.ok || !payload.ok) throw new Error(payload.error || "Upload failed");
                           updateField("overlay_image_path", file.name);

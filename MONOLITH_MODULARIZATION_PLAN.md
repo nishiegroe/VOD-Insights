@@ -325,6 +325,8 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted media/file-serving route registration into dedicated `app/routes/media_paths.py` blueprint.
 - 2026-03-05: Added migration CI guardrail to run desktop updater URL policy tests (`npm --prefix desktop test`).
 - 2026-03-05: Updated `app/vod_download.py` UTC timestamp generation to timezone-aware UTC (`datetime.now(timezone.utc)`).
+- 2026-03-05: Started React de-monolithing by extracting VOD page API orchestration into `frontend/src/api/vods.js` and refactoring `frontend/src/pages/Vods.jsx` to consume it.
+- 2026-03-05: Extracted Settings page API/service calls into `frontend/src/api/settings.js` and refactored `frontend/src/pages/Settings.jsx` to consume shared settings service functions.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

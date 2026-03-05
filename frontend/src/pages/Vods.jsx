@@ -1,6 +1,20 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DownloadVODModal from "../components/DownloadVODModal";
+import {
+  chooseReplayDir,
+  clearVodSessions,
+  createVodsStream,
+  deleteVod,
+  fetchConfig,
+  fetchVods,
+  openBackendLog,
+  setVodsWizardCompleted,
+  splitSelected,
+  startVodScan,
+  stopVodScan,
+  uploadVodFile,
+} from "../api/vods";
 
 export default function Vods({ status }) {
   const WIZARD_STEP_START_SCAN = 1;
@@ -36,11 +50,7 @@ export default function Vods({ status }) {
     setWizardCompleted(true);
     setWizardVisible(false);
     try {
-      await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wizard_vods_completed: true }),
-      });
+      await setVodsWizardCompleted(true);
     } catch (error) {
       // Ignore persistence errors.
     }
@@ -55,11 +65,9 @@ export default function Vods({ status }) {
       setToast(null);
     }, 4000);
   };
-
-
-  const openBackendLog = async () => {
+  const handleOpenBackendLog = async () => {
     try {
-      await fetch("/api/open-backend-log", { method: "POST" });
+      await openBackendLog();
     } catch (error) {
       // Ignore log open failures.
     }
@@ -67,11 +75,7 @@ export default function Vods({ status }) {
 
   const resetWizardForDev = async () => {
     try {
-      const response = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ wizard_vods_completed: false }),
-      });
+      const response = await setVodsWizardCompleted(false);
       if (!response.ok) {
         throw new Error("Failed to reset wizard state.");
       }
@@ -85,17 +89,14 @@ export default function Vods({ status }) {
   };
 
   const loadVods = async (all = showAll) => {
-    const endpoint = all ? "/api/vods?all=1" : "/api/vods";
-    const response = await fetch(endpoint);
-    const payload = await response.json();
+    const payload = await fetchVods(all);
     setVods(payload.vods || []);
     setRemaining(payload.remaining_count || 0);
     return payload;
   };
 
   const loadConfig = async () => {
-    const configRes = await fetch("/api/config");
-    const config = await configRes.json();
+    const config = await fetchConfig();
     const replayDir = config.replay?.directory || "";
     setWizardCompleted(Boolean(config.ui?.vods_wizard_completed));
     setRecordingDir(replayDir);
@@ -134,11 +135,7 @@ export default function Vods({ status }) {
       return;
     }
 
-    const params = new URLSearchParams();
-    if (showAll) {
-      params.set("all", "1");
-    }
-    const source = new EventSource(`/api/vods/stream?${params.toString()}`);
+    const source = createVodsStream(showAll);
     eventSourceRef.current = source;
 
     source.onmessage = (event) => {
@@ -177,11 +174,7 @@ export default function Vods({ status }) {
     if (!sessionPath) return;
     setSplitLoading((prev) => ({ ...prev, [vod.path]: true }));
     try {
-      const response = await fetch("/api/split-selected", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vod_path: vod.path, session_path: sessionPath }),
-      });
+      const response = await splitSelected(vod.path, sessionPath);
       if (response.ok) {
         navigate("/clips");
       }
@@ -195,11 +188,7 @@ export default function Vods({ status }) {
     const confirmed = window.confirm(`Delete ${label}? This will remove the file from disk.`);
     if (!confirmed) return;
     try {
-      const response = await fetch("/api/vods/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: vod.path }),
-      });
+      const response = await deleteVod(vod.path);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.ok === false) {
         throw new Error(payload.error || "Failed to delete VOD");
@@ -229,11 +218,7 @@ export default function Vods({ status }) {
     }
     try {
       if (vod.scanned) {
-        const clearResponse = await fetch("/api/delete-sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vod_path: vod.path }),
-        });
+        const clearResponse = await clearVodSessions(vod.path);
         if (!clearResponse.ok) {
           throw new Error("Failed to clear previous scan results.");
         }
@@ -247,11 +232,7 @@ export default function Vods({ status }) {
         )
       );
 
-      const response = await fetch("/api/vod-ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vod_path: vod.path }),
-      });
+      const response = await startVodScan(vod.path);
       if (!response.ok) {
         throw new Error("Scan request failed.");
       }
@@ -279,11 +260,7 @@ export default function Vods({ status }) {
 
   const handleStopScan = async (vod) => {
     try {
-      const response = await fetch("/api/stop-vod-ocr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vod_path: vod.path }),
-      });
+      const response = await stopVodScan(vod.path);
       if (response.ok) {
         showToast("Scan stopped.");
         // Reload VODs to sync state from server
@@ -300,8 +277,7 @@ export default function Vods({ status }) {
   };
 
   const handleConfigureDirectory = async () => {
-    const response = await fetch("/api/choose-replay-dir", { method: "POST" });
-    const payload = await response.json();
+    const payload = await chooseReplayDir();
     if (payload.directory) {
       setRecordingDir(payload.directory);
       await loadVods(false);
@@ -473,50 +449,43 @@ export default function Vods({ status }) {
       uploading: true,
     });
 
-    const formData = new FormData();
-    formData.append("vod_file", file);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/vod-ocr-upload");
-
-    xhr.upload.addEventListener("progress", (evt) => {
-      if (!evt.lengthComputable) return;
-      const percent = Math.round((evt.loaded / evt.total) * 100);
-      setUploadState((prev) => ({
-        ...prev,
-        progress: percent,
-        status: `Uploading... ${percent}%`,
-      }));
-    });
-
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 400) {
+    uploadVodFile(file, {
+      onProgress: (evt) => {
+        if (!evt.lengthComputable) return;
+        const percent = Math.round((evt.loaded / evt.total) * 100);
         setUploadState((prev) => ({
           ...prev,
-          progress: 100,
-          status: "Upload complete. Starting scan...",
+          progress: percent,
+          status: `Uploading... ${percent}%`,
+        }));
+      },
+      onLoad: (evt) => {
+        const xhr = evt.target;
+        if (xhr.status >= 200 && xhr.status < 400) {
+          setUploadState((prev) => ({
+            ...prev,
+            progress: 100,
+            status: "Upload complete. Starting scan...",
+            uploading: false,
+          }));
+          setShowUploadModal(false);
+          loadVods(showAll).catch(() => {});
+          return;
+        }
+        setUploadState((prev) => ({
+          ...prev,
+          status: "Upload failed. Please try again.",
           uploading: false,
         }));
-        setShowUploadModal(false);
-        loadVods(showAll).catch(() => {});
-        return;
-      }
-      setUploadState((prev) => ({
-        ...prev,
-        status: "Upload failed. Please try again.",
-        uploading: false,
-      }));
+      },
+      onError: () => {
+        setUploadState((prev) => ({
+          ...prev,
+          status: "Upload failed. Please try again.",
+          uploading: false,
+        }));
+      },
     });
-
-    xhr.addEventListener("error", () => {
-      setUploadState((prev) => ({
-        ...prev,
-        status: "Upload failed. Please try again.",
-        uploading: false,
-      }));
-    });
-
-    xhr.send(formData);
   };
 
   const handleDropEnter = (event) => {
@@ -574,7 +543,7 @@ export default function Vods({ status }) {
                     <button
                       type="button"
                       className="secondary button-compact"
-                      onClick={openBackendLog}
+                      onClick={handleOpenBackendLog}
                     >
                       Open App Log
                     </button>
@@ -901,7 +870,7 @@ export default function Vods({ status }) {
             className={`toast ${toast.type}`}
             onClick={async () => {
               if (toast.action === "open-backend-log") {
-                await openBackendLog();
+                await handleOpenBackendLog();
               }
               setToast(null);
             }}
