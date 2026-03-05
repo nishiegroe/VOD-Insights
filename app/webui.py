@@ -76,6 +76,7 @@ from app.vod_scan_files import (
     list_vod_session_files,
     resolve_bookmarks_context,
 )
+from app.vod_download_jobs import vod_downloader_as_twitch_jobs
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
@@ -138,7 +139,7 @@ def create_app() -> Flask:
             ),
             get_notifications=lambda: {
                 "bootstrap": dependency_bootstrap.get_status(),
-                "twitch_jobs": list_twitch_jobs(limit=10) + _vod_downloader_as_twitch_jobs(),
+                "twitch_jobs": list_twitch_jobs(limit=10) + vod_downloader_as_twitch_jobs(_vod_downloader),
                 "patch_notes": load_patch_notes(),
             },
             get_current_app_version=get_current_app_version,
@@ -1432,33 +1433,6 @@ def control_stop_response() -> str:
 def api_control_stop_response() -> Any:
     stop_bookmark_process()
     return jsonify({"ok": True})
-
-
-_STATUS_MAP = {
-    "initializing": "downloading",
-    "fetching_metadata": "downloading",
-    "downloading": "downloading",
-    "completed": "completed",
-    "error": "failed",
-}
-
-
-def _vod_downloader_as_twitch_jobs() -> List[Dict[str, Any]]:
-    """Convert in-memory TwitchVODDownloader jobs to the twitch_jobs shape."""
-    if not _vod_downloader:
-        return []
-    result = []
-    for job_id, job in _vod_downloader.list_jobs():
-        result.append({
-            "id": job_id,
-            "url": job.get("url", ""),
-            "status": _STATUS_MAP.get(job.get("status", ""), "downloading"),
-            "progress": job.get("percentage", 0),
-            "message": job.get("error") or job.get("status", ""),
-            "eta": job.get("eta"),
-            "speed": job.get("speed"),
-        })
-    return result
 
 
 def ocr_gpu_status_response() -> Any:

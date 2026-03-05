@@ -377,6 +377,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted Twitch job/URL/file-name helpers (job JSON read/write/list, Twitch URL validation, upload filename sanitization) from `app/webui.py` into `app/twitch_jobs.py` and rewired call sites.
 - 2026-03-05: Extracted VOD/session catalog helpers (VOD directory/path discovery, temp-file filtering, session file listing/display naming) from `app/webui.py` into `app/vod_catalog.py` and rewired call sites.
 - 2026-03-05: Extracted VOD scan bookmark/marker helpers (bookmarks directory context resolution, scan marker path generation, VOD session file globbing, scan-state parsing) from `app/webui.py` into `app/vod_scan_files.py` and rewired VOD scan/list handlers.
+- 2026-03-05: Extracted in-memory VOD download job mapping (`TwitchVODDownloader` jobs → `twitch_jobs` payload shape) from `app/webui.py` into `app/vod_download_jobs.py`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
