@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import VodClipControls from "../components/VodClipControls";
 import {
   createClipRange,
   deleteVod as deleteVodRequest,
@@ -495,6 +496,34 @@ export default function VodViewer() {
       return;
     }
     addManualMarker();
+  };
+
+  const handleCreateClip = async () => {
+    setClipStatus("working");
+    setClipResult(null);
+    try {
+      const resp = await createClipRange(vodPath, clipStart, clipEnd);
+      const text = await resp.text();
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {
+          ok: false,
+          error: "Clip API unavailable. Make sure the backend is running and restarted.",
+        };
+      }
+      if (data.ok) {
+        setClipStatus("done");
+        setClipResult(data.clip_path);
+      } else {
+        setClipStatus("error");
+        setClipResult(data.error || "Unknown error");
+      }
+    } catch (err) {
+      setClipStatus("error");
+      setClipResult(err.message || "Request failed");
+    }
   };
 
   useEffect(() => {
@@ -1578,91 +1607,20 @@ export default function VodViewer() {
               })()
             )}
 
-            {duration > 0 && showClipTools && (
-              <div className="clip-controls" style={{ margin: "16px 0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    Start
-                    <input
-                      type="text"
-                      value={formatTime(clipStart)}
-                      onChange={(e) => {
-                        const parts = e.target.value.split(":").map(Number);
-                        let seconds = 0;
-                        if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-                        else if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
-                        else if (parts.length === 1) seconds = parts[0];
-                        setClipStart(Math.max(scrubWindowStart, Math.min(seconds, clipEnd - 1, scrubWindowEnd)));
-                      }}
-                      style={{ width: "80px" }}
-                    />
-                  </label>
-
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    End
-                    <input
-                      type="text"
-                      value={formatTime(clipEnd)}
-                      onChange={(e) => {
-                        const parts = e.target.value.split(":").map(Number);
-                        let seconds = 0;
-                        if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-                        else if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
-                        else if (parts.length === 1) seconds = parts[0];
-                        setClipEnd(Math.min(scrubWindowEnd, Math.max(seconds, clipStart + 1, scrubWindowStart)));
-                      }}
-                      style={{ width: "80px" }}
-                    />
-                  </label>
-
-                  <button
-                    className="primary"
-                    disabled={clipEnd <= clipStart + 1 || clipStatus === "working"}
-                    title="Create clip from selected range"
-                    onClick={async () => {
-                      setClipStatus("working");
-                      setClipResult(null);
-                      try {
-                        const resp = await createClipRange(vodPath, clipStart, clipEnd);
-                        const text = await resp.text();
-                        let data = null;
-                        try {
-                          data = JSON.parse(text);
-                        } catch {
-                          data = {
-                            ok: false,
-                            error: "Clip API unavailable. Make sure the backend is running and restarted.",
-                          };
-                        }
-                        if (data.ok) {
-                          setClipStatus("done");
-                          setClipResult(data.clip_path);
-                        } else {
-                          setClipStatus("error");
-                          setClipResult(data.error || "Unknown error");
-                        }
-                      } catch (err) {
-                        setClipStatus("error");
-                        setClipResult(err.message || "Request failed");
-                      }
-                    }}
-                  >
-                    {clipStatus === "working" ? "Creating..." : "Create Clip"}
-                  </button>
-                </div>
-
-                {clipStatus === "done" && clipResult && (
-                  <div style={{ marginTop: "12px", color: "#2e8b57" }}>
-                    Clip created! <a href="/clips">View clips</a>
-                  </div>
-                )}
-                {clipStatus === "error" && (
-                  <div style={{ marginTop: "12px", color: "#e34b6c" }}>
-                    Error: {clipResult}
-                  </div>
-                )}
-              </div>
-            )}
+            <VodClipControls
+              duration={duration}
+              showClipTools={showClipTools}
+              formatTime={formatTime}
+              clipStart={clipStart}
+              clipEnd={clipEnd}
+              scrubWindowStart={scrubWindowStart}
+              scrubWindowEnd={scrubWindowEnd}
+              setClipStart={setClipStart}
+              setClipEnd={setClipEnd}
+              clipStatus={clipStatus}
+              clipResult={clipResult}
+              onCreateClip={handleCreateClip}
+            />
           </div>
 
           {!bookmarksCollapsed && (

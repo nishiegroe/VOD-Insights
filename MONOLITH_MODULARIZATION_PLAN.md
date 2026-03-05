@@ -339,6 +339,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted root app status/notifications polling and persistence logic into `frontend/src/hooks/useAppShell.js`, simplifying `frontend/src/App.jsx`.
 - 2026-03-05: Extracted `VodViewer` API calls into `frontend/src/api/vodViewer.js` and refactored `frontend/src/pages/VodViewer.jsx` to consume service functions.
 - 2026-03-05: Split app header notifications UI into `frontend/src/components/NotificationPanel.jsx`, reducing `frontend/src/components/AppHeader.jsx` complexity.
+- 2026-03-05: Split `VodViewer` clip creation UI into `frontend/src/components/VodClipControls.jsx`, reducing inline control/action complexity in `frontend/src/pages/VodViewer.jsx`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
