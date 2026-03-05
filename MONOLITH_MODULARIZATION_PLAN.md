@@ -334,6 +334,8 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted VOD page orchestration/state into `frontend/src/hooks/useVodsPage.js` and simplified `frontend/src/pages/Vods.jsx` to consume the hook.
 - 2026-03-05: Extracted Settings page orchestration/state into `frontend/src/hooks/useSettingsPage.js` and simplified `frontend/src/pages/Settings.jsx` to consume the hook.
 - 2026-03-05: Reduced `frontend/src/pages/VodViewer.jsx` complexity by extracting pure viewer constants/helpers to `frontend/src/utils/vodViewer.js`.
+- 2026-03-05: Added shared `frontend/src/components/WelcomeSetupCard.jsx` and reused it across `Home` and `Vods` empty-directory onboarding states.
+- 2026-03-05: Extracted Home page orchestration/data loading into `frontend/src/hooks/useHomePage.js` with API helpers in `frontend/src/api/home.js`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

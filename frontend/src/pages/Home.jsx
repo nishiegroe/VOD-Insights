@@ -1,66 +1,25 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { apiJson, apiPost } from "../api/client";
-import BrandTitle from "../components/BrandTitle";
+import React from "react";
+import { Link } from "react-router-dom";
 import SectionHeader from "../components/SectionHeader";
+import WelcomeSetupCard from "../components/WelcomeSetupCard";
+import useHomePage from "../hooks/useHomePage";
 import { formatDuration } from "../utils/formatDuration";
 
 export default function Home({ status }) {
-  const navigate = useNavigate();
-  const showSessionRecorder = false;
-  const [vods, setVods] = useState([]);
-  const [clips, setClips] = useState([]);
-  const [recordingDir, setRecordingDir] = useState(null);
-  const [configLoaded, setConfigLoaded] = useState(false);
+  const {
+    clips,
+    configLoaded,
+    handleConfigureDirectory,
+    handleVodClick,
+    navigate,
+    recordingDir,
+    showSessionRecorder,
+    startSession,
+    stopSession,
+    vods,
+  } = useHomePage();
 
   const obsConnected = status?.obs_connected ?? false;
-
-  useEffect(() => {
-    const load = async () => {
-      // Load config to check if recording directory is set
-      const config = await apiJson("/api/config");
-      const replayDir = config.replay?.directory || "";
-      setRecordingDir(replayDir);
-      setConfigLoaded(true);
-
-      // Only load VODs and clips if directory is configured
-      if (replayDir) {
-        const vodPayload = await apiJson("/api/vods?limit=5");
-        setVods(vodPayload.vods || []);
-
-        const clipsPayload = await apiJson("/api/clips?limit=5");
-        setClips(clipsPayload.clips || []);
-      }
-    };
-
-    load().catch(() => {});
-  }, []);
-
-  const startSession = async () => {
-    await apiPost("/api/control/start");
-  };
-
-  const stopSession = async () => {
-    await apiPost("/api/control/stop");
-  };
-
-  const handleConfigureDirectory = async () => {
-    const payload = await apiJson("/api/choose-replay-dir", { method: "POST" });
-    if (payload.directory) {
-      setRecordingDir(payload.directory);
-      navigate("/vods");
-    }
-  };
-
-  const handleVodClick = (vod) => {
-    if (vod.scanned) {
-      // Navigate to VOD preview page with the VOD path as a query param
-      navigate(`/vods/view?path=${encodeURIComponent(vod.path)}`);
-    } else {
-      // Navigate to VOD library page
-      navigate("/vods");
-    }
-  };
 
   if (!configLoaded) {
     return null; // Don't render anything until config is loaded
@@ -98,29 +57,7 @@ export default function Home({ status }) {
       </section>
 
       {!recordingDir ? (
-        <section className="card centered" style={{ padding: '3rem 2rem' }}>
-          <BrandTitle
-            as="h2"
-            text="Welcome to VOD Insights!"
-            logoClassName="brand-logo brand-logo-welcome"
-            titleClassName="brand-title brand-title-welcome"
-          />
-          <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
-            To get started, you need to configure where your Apex Legends recordings are stored.
-          </p>
-          <p style={{ marginBottom: '2rem', color: 'var(--text-secondary)' }}>
-            Point the app to your recordings directory, and it will automatically detect and list your VODs.
-            No need to manually import files!
-          </p>
-          <button
-            type="button"
-            className="primary"
-            style={{ fontSize: '1.1rem', padding: '0.75rem 2rem' }}
-            onClick={handleConfigureDirectory}
-          >
-            Choose VOD Directory
-          </button>
-        </section>
+        <WelcomeSetupCard onChooseDirectory={handleConfigureDirectory} />
       ) : (
         <section className="card">
           <SectionHeader
