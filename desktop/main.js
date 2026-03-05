@@ -5,6 +5,7 @@ const net = require("net");
 const path = require("path");
 const { createBackendSupervisor } = require("./backendSupervisor");
 const { registerAppLifecycle } = require("./appLifecycle");
+const { createAssetResolvers } = require("./assetPaths");
 const { createBackendApiClient } = require("./backendApiClient");
 const { createSplashScreenTools } = require("./splashScreen");
 const { createUpdaterManager } = require("./updaterManager");
@@ -67,20 +68,19 @@ const windowManager = createWindowManager({
 });
 
 function resolveDesktopAssetPath(filename) {
-  return path.join(__dirname, "assets", filename);
+  return assetResolvers.resolveDesktopAssetPath(filename);
 }
 
 function resolveWindowIconPath() {
-  const defaultIcon = resolveDesktopAssetPath("logo.png");
-  if (fs.existsSync(defaultIcon)) {
-    return defaultIcon;
-  }
-  const windowsIcon = resolveDesktopAssetPath("logo.ico");
-  if (process.platform === "win32" && fs.existsSync(windowsIcon)) {
-    return windowsIcon;
-  }
-  return undefined;
+  return assetResolvers.resolveWindowIconPath();
 }
+
+const assetResolvers = createAssetResolvers({
+  fs,
+  path,
+  processObj: process,
+  baseDir: __dirname,
+});
 
 
 const backendApiClient = createBackendApiClient({
