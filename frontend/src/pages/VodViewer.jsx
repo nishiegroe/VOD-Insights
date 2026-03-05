@@ -6,6 +6,7 @@ import VodOverviewTimeline from "../components/VodOverviewTimeline";
 import VodPlaybackControlsPanel from "../components/VodPlaybackControlsPanel";
 import VodScrubTimeline from "../components/VodScrubTimeline";
 import VodVideoPlayer from "../components/VodVideoPlayer";
+import VodViewerHeader from "../components/VodViewerHeader";
 import {
   createClipRange,
   deleteVod as deleteVodRequest,
@@ -1106,66 +1107,17 @@ export default function VodViewer() {
   return (
     <section className="vod-viewer-page">
       <div className="vod-viewer">
-        <div className="vod-viewer-header">
-          <div className="vod-viewer-header-left">
-            <div className="vod-viewer-app-title">
-              <img src="/logo.png" alt="" className="brand-logo brand-logo-compact" aria-hidden="true" />
-              <span>VOD Insights</span>
-            </div>
-            <button onClick={() => navigate("/vods")} className="tertiary">
-              ← Back to VODs
-            </button>
-            <div className="vod-viewer-title-compact">{viewerTitle}</div>
-          </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <button className="secondary" onClick={() => setShowClipTools((prev) => !prev)}>
-              {showClipTools ? "Hide Clip" : "Clip"}
-            </button>
-            <button
-              className="secondary"
-              onClick={toggleManualMarker}
-              title={
-                nearbyManualMarker
-                  ? "Remove the nearest manual marker (within 10 seconds)"
-                  : "Add a manual event marker at the current timestamp"
-              }
-            >
-              {nearbyManualMarker ? "Remove Marker" : "Add Marker"}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setBookmarksCollapsed((prev) => !prev)}
-              title={bookmarksCollapsed ? "Expand bookmarks" : "Collapse bookmarks"}
-            >
-              {bookmarksCollapsed ? "Show Bookmarks" : "Hide Bookmarks"}
-            </button>
-            <button
-              type="button"
-              className="icon-button danger"
-              onClick={deleteVod}
-              title="Delete VOD"
-              aria-label="Delete VOD"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M3 6h18M9 6V4h6v2m-7 4v8m4-8v8m4-8v8"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M6 6l1 14h10l1-14"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <VodViewerHeader
+          viewerTitle={viewerTitle}
+          onBack={() => navigate("/vods")}
+          showClipTools={showClipTools}
+          onToggleClipTools={() => setShowClipTools((prev) => !prev)}
+          nearbyManualMarker={nearbyManualMarker}
+          onToggleManualMarker={toggleManualMarker}
+          bookmarksCollapsed={bookmarksCollapsed}
+          onToggleBookmarksCollapsed={() => setBookmarksCollapsed((prev) => !prev)}
+          onDeleteVod={deleteVod}
+        />
 
         <div className="vod-content-wrapper">
           <div className="vod-left-section">
