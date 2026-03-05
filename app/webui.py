@@ -69,6 +69,13 @@ from app.vod_catalog import (
     list_sessions,
     list_sessions_for_vod,
 )
+from app.vod_scan_files import (
+    find_vod_scan_state,
+    get_safe_vod_stem,
+    get_scan_marker_paths,
+    list_vod_session_files,
+    resolve_bookmarks_context,
+)
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
@@ -245,17 +252,12 @@ def cleanup_on_exit() -> None:
     print("Cleaning up: pausing all active VOD scans...")
     try:
         config = load_config()
-        bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-        if not bookmarks_dir.is_absolute():
-            bookmarks_dir = get_app_data_dir() / bookmarks_dir
-        session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
+        bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
         
         with _process_lock:
             for vod_path in list(_vod_ocr_processes.keys()):
                 try:
-                    vod_path_obj = Path(vod_path)
-                    safe_stem = sanitize_stem(vod_path_obj.stem) or "vod"
-                    paused_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.paused"
+                    _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
                     # Create pause marker to trigger graceful pause
                     paused_marker.write_text(json.dumps({"paused": True}), encoding="utf-8")
                     print(f"Paused scan for: {vod_path}")
@@ -629,44 +631,6 @@ def clip_lookup_response() -> Any:
     entry = build_clip_entry(file_path, titles, averages, session_start)
     serialized = serialize_clip(entry)
     return jsonify({"ok": True, "clip": serialized, "day": serialized.get("day_key")})
-
-
-def find_vod_scan_state(
-    bookmarks_dir: Path,
-    session_prefix: str,
-    vod_stem: str,
-) -> Dict[str, Any]:
-    if not bookmarks_dir.exists():
-        return {"scanned": False, "scanning": False, "paused": False, "progress": None}
-    safe_stem = sanitize_stem(vod_stem) or "vod"
-    pattern_csv = f"{session_prefix}_{safe_stem}_*.csv"
-    pattern_jsonl = f"{session_prefix}_{safe_stem}_*.jsonl"
-    scanning_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.scanning"
-    paused_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.paused"
-    scanned = bool(list(bookmarks_dir.glob(pattern_csv)) or list(bookmarks_dir.glob(pattern_jsonl)))
-    scanning = scanning_marker.exists()
-    paused = paused_marker.exists()
-    progress: Optional[int] = None
-    if scanning:
-        try:
-            payload = json.loads(scanning_marker.read_text(encoding="utf-8"))
-            if isinstance(payload, dict):
-                if isinstance(payload.get("progress"), (int, float)):
-                    progress = int(payload["progress"])
-                # Check if the scan is paused
-                if payload.get("paused"):
-                    paused = True
-        except (json.JSONDecodeError, OSError, ValueError, TypeError):
-            progress = None
-    elif paused:
-        # If only paused marker exists, try to get progress from it
-        try:
-            payload = json.loads(paused_marker.read_text(encoding="utf-8"))
-            if isinstance(payload, dict) and isinstance(payload.get("progress"), (int, float)):
-                progress = int(payload["progress"])
-        except (json.JSONDecodeError, OSError, ValueError, TypeError):
-            progress = None
-    return {"scanned": scanned, "scanning": scanning, "paused": paused, "progress": progress}
 
 
 def build_vod_entries(
@@ -1363,14 +1327,8 @@ def stop_vod_ocr_response() -> Any:
         
         # Clean up the .scanning and .paused marker files
         config = load_config()
-        bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-        if not bookmarks_dir.is_absolute():
-            bookmarks_dir = get_app_data_dir() / bookmarks_dir
-        session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-        vod_path_obj = Path(vod_path)
-        safe_stem = sanitize_stem(vod_path_obj.stem) or "vod"
-        scanning_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.scanning"
-        paused_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.paused"
+        bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
+        scanning_marker, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
         if scanning_marker.exists():
             scanning_marker.unlink()
         if paused_marker.exists():
@@ -1390,13 +1348,8 @@ def pause_vod_ocr_response() -> Any:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
     try:
         config = load_config()
-        bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-        if not bookmarks_dir.is_absolute():
-            bookmarks_dir = get_app_data_dir() / bookmarks_dir
-        session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-        vod_path_obj = Path(vod_path)
-        safe_stem = sanitize_stem(vod_path_obj.stem) or "vod"
-        paused_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.paused"
+        bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
+        _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
         
         # Create the paused marker - the scanning process will detect it and save state
         paused_marker.write_text(json.dumps({"paused": True}), encoding="utf-8")
@@ -1416,13 +1369,8 @@ def resume_vod_ocr_response() -> Any:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
     try:
         config = load_config()
-        bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-        if not bookmarks_dir.is_absolute():
-            bookmarks_dir = get_app_data_dir() / bookmarks_dir
-        session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-        vod_path_obj = Path(vod_path)
-        safe_stem = sanitize_stem(vod_path_obj.stem) or "vod"
-        paused_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.paused"
+        bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
+        _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
         
         if not paused_marker.exists():
             return jsonify({"ok": False, "error": "No paused scan found"}), 400
@@ -1456,15 +1404,8 @@ def delete_sessions_response() -> Any:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
     try:
         config = load_config()
-        bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-        if not bookmarks_dir.is_absolute():
-            bookmarks_dir = get_app_data_dir() / bookmarks_dir
-        session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-        vod_path_obj = Path(vod_path)
-        safe_stem = sanitize_stem(vod_path_obj.stem) or "vod"
-        pattern_csv = f"{session_prefix}_{safe_stem}_*.csv"
-        pattern_jsonl = f"{session_prefix}_{safe_stem}_*.jsonl"
-        files = list(bookmarks_dir.glob(pattern_csv)) + list(bookmarks_dir.glob(pattern_jsonl))
+        bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
+        files = list_vod_session_files(bookmarks_dir, session_prefix, vod_path)
         for file in files:
             file.unlink()
         return jsonify({"ok": True})
@@ -1807,11 +1748,7 @@ def debug_paths_response() -> Any:
 
 def vods_response() -> Any:
     config = load_config()
-    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-    # If path is relative, resolve it to app data directory
-    if not bookmarks_dir.is_absolute():
-        bookmarks_dir = get_app_data_dir() / bookmarks_dir
-    session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
+    bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
     vod_paths = get_vod_paths(
         get_vod_dirs(config), config.get("split", {}).get("extensions", [])
     )
@@ -1836,10 +1773,7 @@ def vod_single_response() -> Any:
     if file_path is None or not file_path.exists():
         return jsonify({"ok": False, "error": "VOD not found"}), 404
     config = load_config()
-    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-    if not bookmarks_dir.is_absolute():
-        bookmarks_dir = get_app_data_dir() / bookmarks_dir
-    session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
+    bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
     entries = build_vod_entries([file_path], bookmarks_dir, session_prefix)
     if not entries:
         return jsonify({"ok": False, "error": "Could not build VOD entry"}), 500
@@ -1858,17 +1792,11 @@ def delete_vod_response() -> Any:
 
     try:
         config = load_config()
-        bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-        if not bookmarks_dir.is_absolute():
-          bookmarks_dir = get_app_data_dir() / bookmarks_dir
-        session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-        safe_stem = sanitize_stem(file_path.stem) or "vod"
-        pattern_csv = f"{session_prefix}_{safe_stem}_*.csv"
-        pattern_jsonl = f"{session_prefix}_{safe_stem}_*.jsonl"
-        for file in list(bookmarks_dir.glob(pattern_csv)) + list(bookmarks_dir.glob(pattern_jsonl)):
+        bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
+        safe_stem = get_safe_vod_stem(file_path.stem)
+        for file in list_vod_session_files(bookmarks_dir, session_prefix, file_path.stem):
             file.unlink(missing_ok=True)
-        scanning_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.scanning"
-        paused_marker = bookmarks_dir / f"{session_prefix}_{safe_stem}.paused"
+        scanning_marker, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, file_path.stem)
         scanning_marker.unlink(missing_ok=True)
         paused_marker.unlink(missing_ok=True)
 
@@ -1885,11 +1813,7 @@ def vods_stream_response() -> Response:
     def event_stream() -> Any:
         while True:
             config = load_config()
-            bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-            # If path is relative, resolve it to app data directory
-            if not bookmarks_dir.is_absolute():
-                bookmarks_dir = get_app_data_dir() / bookmarks_dir
-            session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
+            bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
             vod_paths = get_vod_paths(
                 get_vod_dirs(config), config.get("split", {}).get("extensions", [])
             )
