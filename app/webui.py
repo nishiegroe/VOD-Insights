@@ -1011,12 +1011,19 @@ def resolve_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[
     return None
 
 
+def resolve_existing_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[Path]:
+    file_path = resolve_allowed_path(path_value, allowed_dirs)
+    if file_path is None or not file_path.exists():
+        return None
+    return file_path
+
+
 @app.route("/media-path")
 def media_by_path() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
-    file_path = resolve_allowed_path(request.args.get("path", ""), allowed_dirs)
-    if file_path is None or not file_path.exists():
+    file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
+    if file_path is None:
         abort(404)
     return send_file(file_path)
 
@@ -1025,8 +1032,8 @@ def media_by_path() -> Any:
 def download_by_path() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
-    file_path = resolve_allowed_path(request.args.get("path", ""), allowed_dirs)
-    if file_path is None or not file_path.exists():
+    file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
+    if file_path is None:
         abort(404)
     display_name = get_clip_title(file_path)
     download_name = build_download_name(display_name, file_path)
@@ -1040,8 +1047,8 @@ def download_by_path() -> Any:
 def open_folder_by_path() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
-    file_path = resolve_allowed_path(request.args.get("path", ""), allowed_dirs)
-    if file_path is None or not file_path.exists():
+    file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
+    if file_path is None:
         abort(404)
     subprocess.run(
         [
@@ -1322,8 +1329,8 @@ def api_vod_ocr_upload() -> Any:
 def delete_by_path() -> Any:
     config = load_config()
     allowed_dirs = get_allowed_media_dirs(config)
-    file_path = resolve_allowed_path(request.args.get("path", ""), allowed_dirs)
-    if file_path is None or not file_path.exists():
+    file_path = resolve_existing_allowed_path(request.args.get("path", ""), allowed_dirs)
+    if file_path is None:
         abort(404)
     file_path.unlink(missing_ok=True)
     set_clip_title(file_path, "")
