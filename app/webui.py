@@ -85,6 +85,7 @@ from app.media_duration import get_media_duration
 from app.vod_entries import build_vod_entries
 from app.vod_upload import save_uploaded_vod_file, start_vod_scan_for_path
 from app.file_explorer import reveal_file_in_explorer
+from app.media_access import get_allowed_media_dirs
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -636,23 +637,6 @@ def clip_lookup_response() -> Any:
     entry = build_clip_entry(file_path, titles, averages, session_start)
     serialized = serialize_clip(entry)
     return jsonify({"ok": True, "clip": serialized, "day": serialized.get("day_key")})
-
-
-def get_allowed_media_dirs(config: Dict[str, Any]) -> List[Path]:
-    """Get directories that are allowed for media file serving."""
-    replay_cfg = config.get("replay", {})
-    dirs = []
-    
-    # Only use replay directory (VOD directory)
-    vods_dir = replay_cfg.get("directory", "")
-    if vods_dir:
-        p = Path(vods_dir).resolve()
-        if p.exists():
-            dirs.append(p)
-    
-    if DOWNLOADS_DIR.exists() and DOWNLOADS_DIR not in dirs:
-        dirs.append(DOWNLOADS_DIR)
-    return dirs
 
 
 def media_by_path_response() -> Any:
