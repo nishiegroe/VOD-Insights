@@ -299,6 +299,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Started MIG-FD-002 by extracting desktop backend lifecycle into `desktop/backendSupervisor.js`.
 - 2026-03-04: Expanded MOD-BE-003 helper usage across legacy clip/media and overlay path endpoints.
 - 2026-03-04: Added initial migration CI workflow for targeted Python tests and build-security/frontend guardrails.
+- 2026-03-04: Extracted path policy helpers into reusable backend module `app/path_policy.py`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

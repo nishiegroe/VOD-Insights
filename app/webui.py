@@ -42,6 +42,7 @@ from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.routes import register_blueprints
 from app.routes.system import SystemRouteDeps
+from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -995,27 +996,6 @@ def get_allowed_media_dirs(config: Dict[str, Any]) -> List[Path]:
     if DOWNLOADS_DIR.exists() and DOWNLOADS_DIR not in dirs:
         dirs.append(DOWNLOADS_DIR)
     return dirs
-
-
-def resolve_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[Path]:
-    if not path_value:
-        return None
-    candidate = Path(path_value).resolve()
-    for base in allowed_dirs:
-        try:
-            if candidate.is_relative_to(base):
-                return candidate
-        except AttributeError:
-            if str(candidate).lower().startswith(str(base).lower()):
-                return candidate
-    return None
-
-
-def resolve_existing_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[Path]:
-    file_path = resolve_allowed_path(path_value, allowed_dirs)
-    if file_path is None or not file_path.exists():
-        return None
-    return file_path
 
 
 @app.route("/media-path")
