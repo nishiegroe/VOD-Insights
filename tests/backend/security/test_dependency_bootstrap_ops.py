@@ -2,7 +2,7 @@ import pytest
 import zipfile
 from pathlib import Path
 
-import app.dependency_bootstrap_ops as ops
+import app.bootstrap.dependency_bootstrap_ops as ops
 
 
 def test_validate_dependency_host_allows_whitelist() -> None:

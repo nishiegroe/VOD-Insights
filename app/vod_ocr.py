@@ -10,10 +10,10 @@ from typing import Iterable, Optional
 
 import cv2
 
-from app.bookmark_writer import BookmarkSettings, BookmarkWriter
+from app.ocr_pipeline.bookmark_writer import BookmarkSettings, BookmarkWriter
 from app.config import load_config
-from app.detector import detect_event_line
-from app.ocr import OcrSettings, preprocess, run_ocr
+from app.ocr_pipeline.detector import detect_event_line
+from app.ocr_pipeline.ocr import OcrSettings, preprocess, run_ocr
 from app.split_bookmarks import split_from_config
 from app.runtime_paths import get_config_path, resolve_log_path, get_app_data_dir, reset_log_file
 from app.vod.stem import sanitize_stem as _sanitize_stem

@@ -7,7 +7,7 @@ Run with: python -m pytest tests/backend/integration/test_vod_download.py -v
 import pytest
 import tempfile
 from pathlib import Path
-from app.vod_download import TwitchVODDownloader
+from app.vod.download import TwitchVODDownloader
 
 
 class TestTwitchVODDownloader:

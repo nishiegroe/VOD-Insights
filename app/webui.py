@@ -30,7 +30,7 @@ from app.runtime_paths import (
     resolve_tool,
     reset_log_file,
 )
-from app.dependency_bootstrap import dependency_bootstrap
+from app.bootstrap.dependency_bootstrap import dependency_bootstrap
 from app.clips.insights import (
     calculate_averages,
     get_session_start,
@@ -62,7 +62,7 @@ from app.vod.scan_files import (
     resolve_bookmarks_context,
 )
 from app.twitch.vod_download_jobs import vod_downloader_as_twitch_jobs
-from app.gpu_ocr import (
+from app.ocr_pipeline.gpu_ocr import (
     install_gpu_ocr_dependencies,
     ocr_gpu_diagnostics_payload,
     ocr_gpu_status_payload,
@@ -86,7 +86,7 @@ from app.clips.library import (
 )
 from app.system.backend_logs import get_backend_log_path, open_backend_log, tail_lines
 from app.system.http_cache import set_no_cache_headers
-from app.vod_download_api import (
+from app.vod.download_api import (
     progress_response as vod_download_progress_payload,
     start_download_response as vod_download_start_payload,
     tools_check_response as vod_download_tools_payload,
@@ -99,7 +99,7 @@ from app.clips.queries import (
 from app.clips.range import create_clip_range_payload
 from app.session_data import session_data_payload
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
-from app.vod_download import TwitchVODDownloader
+from app.vod.download import TwitchVODDownloader
 from app.system.update_metadata import (
     fetch_latest_update_metadata as fetch_update_metadata,
     get_current_app_version,

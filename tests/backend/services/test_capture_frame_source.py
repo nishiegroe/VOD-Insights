@@ -1,6 +1,6 @@
 import numpy as np
 
-from app.capture import CaptureBackend, CaptureRegion, DxcamFrameSource, MssFrameSource
+from app.ocr_pipeline.capture import CaptureBackend, CaptureRegion, DxcamFrameSource, MssFrameSource
 
 
 class FakeDxcam:

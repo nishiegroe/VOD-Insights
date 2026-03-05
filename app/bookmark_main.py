@@ -6,11 +6,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from app.bookmark_writer import BookmarkSettings, BookmarkWriter
-from app.capture import CaptureBackend, CaptureRegion
+from app.ocr_pipeline.bookmark_writer import BookmarkSettings, BookmarkWriter
+from app.ocr_pipeline.capture import CaptureBackend, CaptureRegion
 from app.config import load_config
-from app.detector import EventDetector
-from app.ocr import OcrSettings, preprocess, run_ocr
+from app.ocr_pipeline.detector import EventDetector
+from app.ocr_pipeline.ocr import OcrSettings, preprocess, run_ocr
 from app.runtime_paths import get_config_path, resolve_log_path, reset_log_file
 
 

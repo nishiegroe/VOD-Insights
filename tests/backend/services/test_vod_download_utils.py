@@ -1,4 +1,4 @@
-from app.vod_download_utils import parse_progress_template, sanitize_filename, validate_twitch_vod_url
+from app.vod.download_utils import parse_progress_template, sanitize_filename, validate_twitch_vod_url
 
 
 def test_validate_twitch_vod_url() -> None:

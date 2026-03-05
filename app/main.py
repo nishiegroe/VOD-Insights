@@ -7,10 +7,10 @@ from pathlib import Path
 
 import cv2
 
-from app.capture import CaptureBackend, CaptureRegion
+from app.ocr_pipeline.capture import CaptureBackend, CaptureRegion
 from app.config import load_config
-from app.detector import EventDetector
-from app.ocr import OcrSettings, preprocess, run_ocr
+from app.ocr_pipeline.detector import EventDetector
+from app.ocr_pipeline.ocr import OcrSettings, preprocess, run_ocr
 from app.runtime_paths import get_config_path, resolve_log_path, reset_log_file
 
 

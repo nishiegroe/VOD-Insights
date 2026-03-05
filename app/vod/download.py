@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 import uuid
 import shutil
 
-from app.vod_download_utils import (
+from app.vod.download_utils import (
     parse_progress_template,
     sanitize_filename,
     validate_twitch_vod_url,

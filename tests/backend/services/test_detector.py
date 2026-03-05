@@ -1,4 +1,4 @@
-from app.detector import DetectionResult, EventDetector, cooldown_elapsed, detect_event_line, normalize_for_detection
+from app.ocr_pipeline.detector import DetectionResult, EventDetector, cooldown_elapsed, detect_event_line, normalize_for_detection
 
 
 def test_normalize_for_detection_keeps_alnum_and_spaces():
@@ -28,7 +28,7 @@ def test_event_detector_detect_remains_backward_compatible_signature_and_behavio
     detector = EventDetector(keywords=["knocked"], cooldown_seconds=2.0)
 
     timeline = iter([100.0, 100.5, 102.1])
-    monkeypatch.setattr("app.detector.time.time", lambda: next(timeline))
+    monkeypatch.setattr("app.ocr_pipeline.detector.time.time", lambda: next(timeline))
 
     first = detector.detect(["You knocked one"])
     second = detector.detect(["You knocked one"])

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from app.runtime_paths import ensure_dir, get_app_data_dir, get_install_dir
-from app.dependency_bootstrap_ops import (
+from app.bootstrap.dependency_bootstrap_ops import (
     download_dependency,
     install_dependency_file,
     install_python_package,

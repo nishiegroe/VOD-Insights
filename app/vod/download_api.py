@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any, Dict, Optional, Tuple
 
-from app.vod_download import TwitchVODDownloader
+from app.vod.download import TwitchVODDownloader
 
 
 def start_download_response(

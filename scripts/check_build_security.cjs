@@ -45,8 +45,8 @@ function checkBuildScript() {
 }
 
 function checkDependencyBootstrapHosts() {
-  const content = readText("app/dependency_bootstrap.py");
-    const hostAllowlistContent = readText("app/dependency_bootstrap_ops.py");
+  const content = readText("app/bootstrap/dependency_bootstrap.py");
+  const hostAllowlistContent = readText("app/bootstrap/dependency_bootstrap_ops.py");
 
   const allowedHosts = [
     "www.gyan.dev",
@@ -56,8 +56,8 @@ function checkDependencyBootstrapHosts() {
   ];
 
   for (const host of allowedHosts) {
-      if (!hostAllowlistContent.includes(`"${host}"`) && !hostAllowlistContent.includes(`'${host}'`)) {
-        fail(`app/dependency_bootstrap_ops.py host allowlist missing expected host: ${host}`);
+    if (!hostAllowlistContent.includes(`"${host}"`) && !hostAllowlistContent.includes(`'${host}'`)) {
+      fail(`app/bootstrap/dependency_bootstrap_ops.py host allowlist missing expected host: ${host}`);
     }
   }
 
@@ -100,7 +100,7 @@ function checkDependencyBootstrapHosts() {
   }
 
   if (!foundRequiredDownload) {
-    fail("Could not find any download dependencies in app/dependency_bootstrap.py");
+    fail("Could not find any download dependencies in app/bootstrap/dependency_bootstrap.py");
   }
 }
 
