@@ -338,6 +338,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted Home page orchestration/data loading into `frontend/src/hooks/useHomePage.js` with API helpers in `frontend/src/api/home.js`.
 - 2026-03-05: Extracted root app status/notifications polling and persistence logic into `frontend/src/hooks/useAppShell.js`, simplifying `frontend/src/App.jsx`.
 - 2026-03-05: Extracted `VodViewer` API calls into `frontend/src/api/vodViewer.js` and refactored `frontend/src/pages/VodViewer.jsx` to consume service functions.
+- 2026-03-05: Split app header notifications UI into `frontend/src/components/NotificationPanel.jsx`, reducing `frontend/src/components/AppHeader.jsx` complexity.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
