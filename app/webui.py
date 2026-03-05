@@ -44,6 +44,7 @@ from app.routes import register_blueprints
 from app.routes.gpu import GpuRouteDeps
 from app.routes.overlay import OverlayRouteDeps
 from app.routes.system import SystemRouteDeps
+from app.routes.vod_download import VodDownloadRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
 
@@ -94,6 +95,11 @@ def create_app() -> Flask:
             overlay_upload_response=overlay_upload_response,
             overlay_image_response=overlay_image_response,
             overlay_remove_response=overlay_remove_response,
+        ),
+        vod_download_deps=VodDownloadRouteDeps(
+            vod_download_start_response=vod_download_start_response,
+            vod_download_progress_response=vod_download_progress_response,
+            vod_check_tools_response=vod_check_tools_response,
         ),
     )
     return app
@@ -2477,8 +2483,7 @@ def react_logo() -> Any:
 
 # ==================== Twitch VOD Download Routes ====================
 
-@app.route("/api/vod/download", methods=["POST"])
-def vod_download_start() -> Any:
+def vod_download_start_response() -> Any:
     """
     Start a Twitch VOD download job
 
@@ -2533,8 +2538,7 @@ def vod_download_start() -> Any:
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/vod/progress/<job_id>", methods=["GET"])
-def vod_download_progress(job_id: str) -> Any:
+def vod_download_progress_response(job_id: str) -> Any:
     """
     Get the progress of a VOD download job
 
@@ -2558,8 +2562,7 @@ def vod_download_progress(job_id: str) -> Any:
     return jsonify(progress), 200
 
 
-@app.route("/api/vod/check-tools", methods=["GET"])
-def vod_check_tools() -> Any:
+def vod_check_tools_response() -> Any:
     """
     Check if required tools are installed
 

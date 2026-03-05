@@ -308,6 +308,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Unblocked API regression coverage (`tests/test_vod_api.py`) and fixed `/api/vod/download` missing-JSON handling.
 - 2026-03-04: Extracted OCR GPU route registration into dedicated `app/routes/gpu.py` blueprint.
 - 2026-03-04: Extracted overlay route registration into dedicated `app/routes/overlay.py` blueprint.
+- 2026-03-04: Extracted VOD download route registration into dedicated `app/routes/vod_download.py` blueprint.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
