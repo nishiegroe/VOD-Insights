@@ -42,6 +42,7 @@ from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.routes import register_blueprints
 from app.routes.gpu import GpuRouteDeps
+from app.routes.overlay import OverlayRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
@@ -88,6 +89,11 @@ def create_app() -> Flask:
             ocr_gpu_status_response=ocr_gpu_status_response,
             ocr_gpu_diagnostics_response=ocr_gpu_diagnostics_response,
             install_gpu_ocr_response=install_gpu_ocr_response,
+        ),
+        overlay_deps=OverlayRouteDeps(
+            overlay_upload_response=overlay_upload_response,
+            overlay_image_response=overlay_image_response,
+            overlay_remove_response=overlay_remove_response,
         ),
     )
     return app
@@ -2029,8 +2035,7 @@ def install_gpu_ocr_response() -> Any:
         }), 500
 
 
-@app.route("/api/overlay/upload", methods=["POST"])
-def api_overlay_upload() -> Any:
+def overlay_upload_response() -> Any:
     file = request.files.get("overlay_image")
     if file is None or not file.filename:
         return jsonify({"ok": False, "error": "Missing file"}), 400
@@ -2047,8 +2052,7 @@ def api_overlay_upload() -> Any:
     return jsonify({"ok": True, "url": "/api/overlay/image"})
 
 
-@app.route("/api/overlay/image")
-def api_overlay_image() -> Any:
+def overlay_image_response() -> Any:
     config = load_config()
     image_path = config.get("ui", {}).get("overlay_image_path", "")
     overlay_dir = get_app_data_dir() / "overlay"
@@ -2058,8 +2062,7 @@ def api_overlay_image() -> Any:
     return send_file(file_path)
 
 
-@app.route("/api/overlay/remove", methods=["POST"])
-def api_overlay_remove() -> Any:
+def overlay_remove_response() -> Any:
     config = load_config()
     image_path = config.get("ui", {}).get("overlay_image_path", "")
     overlay_dir = get_app_data_dir() / "overlay"
