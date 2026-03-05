@@ -41,6 +41,7 @@ from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, par
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.routes import register_blueprints
+from app.routes.system import SystemRouteDeps
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -61,7 +62,15 @@ app = Flask(__name__)
 
 
 def create_app() -> Flask:
-    register_blueprints(app)
+    register_blueprints(
+        app,
+        system_deps=SystemRouteDeps(
+            get_status=get_status,
+            load_config=load_config,
+            save_config=save_config,
+            update_config_from_payload=update_config_from_payload,
+        ),
+    )
     return app
 
 # Cache for ffprobe duration results: (path_str, mtime) -> Optional[float]
@@ -1790,16 +1799,6 @@ def api_control_stop() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/api/status")
-def api_status() -> Any:
-    return jsonify(get_status())
-
-
-@app.route("/api/test-connection")
-def api_test_connection() -> Any:
-    return jsonify({"status": "ok", "message": "Server is running with latest code"})
-
-
 @app.route("/api/bootstrap/status")
 def api_bootstrap_status() -> Any:
     return jsonify(dependency_bootstrap.get_status())
@@ -2102,17 +2101,6 @@ def api_install_gpu_ocr() -> Any:
             "ok": False,
             "message": f"Error: {error_str[:200]}"
         }), 500
-
-
-@app.route("/api/config", methods=["GET", "POST"])
-def api_config() -> Any:
-    if request.method == "GET":
-        return jsonify(load_config())
-    payload = request.get_json(silent=True) or {}
-    config = load_config()
-    update_config_from_payload(config, payload)
-    save_config(config)
-    return jsonify({"ok": True, "config": config})
 
 
 @app.route("/api/overlay/upload", methods=["POST"])
@@ -2681,6 +2669,9 @@ def react_app(path: str = "") -> Any:
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Expires'] = '0'
     return response
+
+
+create_app()
 
 
 def main() -> None:
