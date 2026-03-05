@@ -81,6 +81,7 @@ from app.gpu_ocr import (
     ocr_gpu_status_payload,
 )
 from app.twitch_import_runner import run_twitch_import
+from app.vod_paths import resolve_vod_media_filename, resolve_vod_path as resolve_vod_path_in_dirs
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
@@ -979,36 +980,16 @@ def media_file_response(filename: str) -> Any:
 def vod_media_file_response(filename: str) -> Any:
     config = load_config()
     allowed_dirs = [p.resolve() for p in get_vod_dirs(config) if p]
-    file_path = None
-    for base in allowed_dirs:
-        candidate = (base / filename).resolve()
-        try:
-            if candidate.is_relative_to(base):
-                file_path = candidate
-                break
-        except AttributeError:
-            if str(candidate).lower().startswith(str(base).lower()):
-                file_path = candidate
-                break
+    file_path = resolve_vod_media_filename(filename, allowed_dirs)
     if file_path is None or not file_path.exists():
         abort(404)
     return send_file(file_path)
 
 
 def resolve_vod_path(vod_path: str) -> Optional[Path]:
-    if not vod_path:
-        return None
     config = load_config()
     allowed_dirs = [p.resolve() for p in get_vod_dirs(config) if p]
-    candidate = Path(vod_path).resolve()
-    for base in allowed_dirs:
-        try:
-            if candidate.is_relative_to(base):
-                return candidate
-        except AttributeError:
-            if str(candidate).lower().startswith(str(base).lower()):
-                return candidate
-    return None
+    return resolve_vod_path_in_dirs(vod_path, allowed_dirs)
 
 
 def extract_vod_thumbnail(vod_path: Path, seconds: float, output_path: Path) -> None:
