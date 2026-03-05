@@ -22,6 +22,9 @@ jobs:
     outputs:
       line_pct: ${{ steps.backend_cov_summary.outputs.line_pct }}
       coverage_found: ${{ steps.backend_cov_summary.outputs.coverage_found }}
+      lines_covered: ${{ steps.backend_cov_summary.outputs.lines_covered }}
+      lines_valid: ${{ steps.backend_cov_summary.outputs.lines_valid }}
+      diff_pct: ${{ steps.backend_cov_summary.outputs.diff_pct }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,10 +56,13 @@ jobs:
             --cov-fail-under=67
 
       - name: Enforce backend diff coverage on PR changes
+        id: backend_diff_cov
         if: github.event_name == 'pull_request'
+        shell: bash
         run: |
+          set -o pipefail
           git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
-          diff-cover coverage.xml --compare-branch="origin/${{ github.base_ref }}" --fail-under=67
+          diff-cover coverage.xml --compare-branch="origin/${{ github.base_ref }}" --fail-under=67 | tee backend_diff_cover.txt
 
       - name: Run service smoke tests
         run: |
@@ -76,14 +82,31 @@ jobs:
             with open(out_path, 'a', encoding='utf-8') as fh:
               fh.write('coverage_found=false\n')
               fh.write('line_pct=n/a\n')
+              fh.write('lines_covered=0\n')
+              fh.write('lines_valid=0\n')
+              fh.write('diff_pct=n/a\n')
             raise SystemExit(0)
 
           root = ET.parse('coverage.xml').getroot()
           line_rate = float(root.attrib.get('line-rate', 0.0))
+          lines_covered = int(float(root.attrib.get('lines-covered', 0)))
+          lines_valid = int(float(root.attrib.get('lines-valid', 0)))
           line_pct = f"{line_rate * 100:.2f}"
+
+          diff_pct = 'n/a'
+          if os.environ.get('GITHUB_EVENT_NAME') == 'pull_request' and os.path.exists('backend_diff_cover.txt'):
+            text = open('backend_diff_cover.txt', 'r', encoding='utf-8').read()
+            import re
+            match = re.search(r'Total[^\n]*?([0-9]+(?:\.[0-9]+)?)%', text)
+            if match:
+              diff_pct = f"{float(match.group(1)):.2f}"
+
           with open(out_path, 'a', encoding='utf-8') as fh:
             fh.write('coverage_found=true\n')
             fh.write(f'line_pct={line_pct}\n')
+            fh.write(f'lines_covered={lines_covered}\n')
+            fh.write(f'lines_valid={lines_valid}\n')
+            fh.write(f'diff_pct={diff_pct}\n')
           PY
 
       - name: Upload backend coverage artifact
@@ -100,6 +123,9 @@ jobs:
     outputs:
       line_pct: ${{ steps.frontend_cov_summary.outputs.line_pct }}
       coverage_found: ${{ steps.frontend_cov_summary.outputs.coverage_found }}
+      lines_covered: ${{ steps.frontend_cov_summary.outputs.lines_covered }}
+      lines_valid: ${{ steps.frontend_cov_summary.outputs.lines_valid }}
+      diff_pct: ${{ steps.frontend_cov_summary.outputs.diff_pct }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -141,10 +167,13 @@ jobs:
         run: npm --prefix frontend run test:coverage
 
       - name: Enforce frontend diff coverage on PR changes
+        id: frontend_diff_cov
         if: github.event_name == 'pull_request'
+        shell: bash
         run: |
+          set -o pipefail
           git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
-          diff-cover frontend/coverage/cobertura-coverage.xml --compare-branch="origin/${{ github.base_ref }}" --fail-under=67 --include="frontend/src/*"
+          diff-cover frontend/coverage/cobertura-coverage.xml --compare-branch="origin/${{ github.base_ref }}" --fail-under=67 --include="frontend/src/*" | tee frontend_diff_cover.txt
 
       - name: Build frontend
         run: npm --prefix frontend run build
@@ -164,14 +193,31 @@ jobs:
             with open(out_path, 'a', encoding='utf-8') as fh:
               fh.write('coverage_found=false\n')
               fh.write('line_pct=n/a\n')
+              fh.write('lines_covered=0\n')
+              fh.write('lines_valid=0\n')
+              fh.write('diff_pct=n/a\n')
             raise SystemExit(0)
 
           root = ET.parse(coverage_file).getroot()
           line_rate = float(root.attrib.get('line-rate', 0.0))
+          lines_covered = int(float(root.attrib.get('lines-covered', 0)))
+          lines_valid = int(float(root.attrib.get('lines-valid', 0)))
           line_pct = f"{line_rate * 100:.2f}"
+
+          diff_pct = 'n/a'
+          if os.environ.get('GITHUB_EVENT_NAME') == 'pull_request' and os.path.exists('frontend_diff_cover.txt'):
+            text = open('frontend_diff_cover.txt', 'r', encoding='utf-8').read()
+            import re
+            match = re.search(r'Total[^\n]*?([0-9]+(?:\.[0-9]+)?)%', text)
+            if match:
+              diff_pct = f"{float(match.group(1)):.2f}"
+
           with open(out_path, 'a', encoding='utf-8') as fh:
             fh.write('coverage_found=true\n')
             fh.write(f'line_pct={line_pct}\n')
+            fh.write(f'lines_covered={lines_covered}\n')
+            fh.write(f'lines_valid={lines_valid}\n')
+            fh.write(f'diff_pct={diff_pct}\n')
           PY
 
       - name: Upload frontend coverage artifact
@@ -199,6 +245,12 @@ jobs:
           FRONTEND_PCT: ${{ needs.frontend-desktop-quality-checks-and-coverage.outputs.line_pct }}
           BACKEND_FOUND: ${{ needs.backend-python-tests-and-coverage.outputs.coverage_found }}
           FRONTEND_FOUND: ${{ needs.frontend-desktop-quality-checks-and-coverage.outputs.coverage_found }}
+          BACKEND_LINES_COVERED: ${{ needs.backend-python-tests-and-coverage.outputs.lines_covered }}
+          BACKEND_LINES_VALID: ${{ needs.backend-python-tests-and-coverage.outputs.lines_valid }}
+          FRONTEND_LINES_COVERED: ${{ needs.frontend-desktop-quality-checks-and-coverage.outputs.lines_covered }}
+          FRONTEND_LINES_VALID: ${{ needs.frontend-desktop-quality-checks-and-coverage.outputs.lines_valid }}
+          BACKEND_DIFF_PCT: ${{ needs.backend-python-tests-and-coverage.outputs.diff_pct }}
+          FRONTEND_DIFF_PCT: ${{ needs.frontend-desktop-quality-checks-and-coverage.outputs.diff_pct }}
         run: |
           status_icon() {
             if [ "$1" = "success" ]; then
@@ -208,8 +260,20 @@ jobs:
             fi
           }
 
+          is_number() {
+            [[ "$1" =~ ^[0-9]+([.][0-9]+)?$ ]]
+          }
+
+          min_pct() {
+            awk -v a="$1" -v b="$2" 'BEGIN { if (a < b) printf "%.2f", a; else printf "%.2f", b }'
+          }
+
           backend_cov_display="n/a"
           frontend_cov_display="n/a"
+          overall_repo_cov_display="n/a"
+          backend_pr_diff_display="n/a"
+          frontend_pr_diff_display="n/a"
+          overall_pr_diff_display="n/a"
 
           if [ "$BACKEND_FOUND" = "true" ] && [ -n "$BACKEND_PCT" ]; then
             backend_cov_display="${BACKEND_PCT}%"
@@ -217,6 +281,28 @@ jobs:
 
           if [ "$FRONTEND_FOUND" = "true" ] && [ -n "$FRONTEND_PCT" ]; then
             frontend_cov_display="${FRONTEND_PCT}%"
+          fi
+
+          total_covered=$(( ${BACKEND_LINES_COVERED:-0} + ${FRONTEND_LINES_COVERED:-0} ))
+          total_valid=$(( ${BACKEND_LINES_VALID:-0} + ${FRONTEND_LINES_VALID:-0} ))
+          if [ "$total_valid" -gt 0 ]; then
+            overall_repo_cov_display="$(awk -v c="$total_covered" -v v="$total_valid" 'BEGIN { printf "%.2f%%", (c/v)*100 }')"
+          fi
+
+          if is_number "$BACKEND_DIFF_PCT"; then
+            backend_pr_diff_display="${BACKEND_DIFF_PCT}%"
+          fi
+
+          if is_number "$FRONTEND_DIFF_PCT"; then
+            frontend_pr_diff_display="${FRONTEND_DIFF_PCT}%"
+          fi
+
+          if is_number "$BACKEND_DIFF_PCT" && is_number "$FRONTEND_DIFF_PCT"; then
+            overall_pr_diff_display="$(min_pct "$BACKEND_DIFF_PCT" "$FRONTEND_DIFF_PCT")%"
+          elif is_number "$BACKEND_DIFF_PCT"; then
+            overall_pr_diff_display="${BACKEND_DIFF_PCT}%"
+          elif is_number "$FRONTEND_DIFF_PCT"; then
+            overall_pr_diff_display="${FRONTEND_DIFF_PCT}%"
           fi
 
           {
@@ -227,6 +313,15 @@ jobs:
             echo "|---|---:|---:|---:|"
             echo "| Backend scoped coverage | $(status_icon "$BACKEND_RESULT") $BACKEND_RESULT | $backend_cov_display | 67% |"
             echo "| Frontend scoped coverage | $(status_icon "$FRONTEND_RESULT") $FRONTEND_RESULT | $frontend_cov_display | 67% |"
+            echo "| Overall repo scoped coverage | — | $overall_repo_cov_display | n/a |"
+            echo
+            echo "### PR Changed Files Coverage"
+            echo
+            echo "| Scope | Diff Coverage | Threshold |"
+            echo "|---|---:|---:|"
+            echo "| Backend changed lines | $backend_pr_diff_display | 67% |"
+            echo "| Frontend changed lines | $frontend_pr_diff_display | 67% |"
+            echo "| Overall PR changed lines (gate view) | $overall_pr_diff_display | 67% |"
             echo
             echo "Coverage comment refresh policy: previous bot comment is deleted and replaced on each CI rerun."
           } > coverage_comment.md
