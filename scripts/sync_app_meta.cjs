@@ -121,6 +121,7 @@ function syncRuntimePaths(meta) {
 
 function syncDesktopMain(meta) {
   const filePath = path.join(root, "desktop", "main.js");
+  const appLifecyclePath = path.join(root, "desktop", "appLifecycle.js");
   const splashFilePath = path.join(root, "desktop", "splashScreen.js");
   let content = fs.readFileSync(filePath, "utf8");
   const backendExePattern = /"backend", "[^"]+\.exe"/;
@@ -144,12 +145,23 @@ function syncDesktopMain(meta) {
   if (!backendPathUpdated) {
     throw new Error("Could not find backend exe path");
   }
-  content = replaceOrThrow(
-    content,
-    /dialog\.showErrorBox\(\r?\n\s*"[^\"]+",/g,
-    `dialog.showErrorBox(\n      "${meta.displayName}",`,
-    "dialog title"
-  );
+  const dialogTitlePattern = /dialog\.showErrorBox\(\r?\n\s*"[^\"]+",/g;
+  const dialogTitleReplacement = `dialog.showErrorBox(\n      "${meta.displayName}",`;
+  let dialogTitleUpdated = false;
+  if (dialogTitlePattern.test(content)) {
+    content = content.replace(dialogTitlePattern, dialogTitleReplacement);
+    dialogTitleUpdated = true;
+  } else if (fs.existsSync(appLifecyclePath)) {
+    let appLifecycleContent = fs.readFileSync(appLifecyclePath, "utf8");
+    if (dialogTitlePattern.test(appLifecycleContent)) {
+      appLifecycleContent = appLifecycleContent.replace(dialogTitlePattern, dialogTitleReplacement);
+      writeText(appLifecyclePath, appLifecycleContent);
+      dialogTitleUpdated = true;
+    }
+  }
+  if (!dialogTitleUpdated) {
+    throw new Error("Could not find dialog title");
+  }
 
   const splashTitlePattern = /<div class="app-name">[\s\S]*?<\/div>/;
   const splashTitleReplacement =

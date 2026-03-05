@@ -355,6 +355,9 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted desktop semver/version comparison helpers from `desktop/main.js` into `desktop/versionUtils.js` and updated update-check flow to consume the shared utility.
 - 2026-03-05: Extracted desktop updater orchestration (feed fetch, download/verify, install launch, persisted updater state, and IPC update handlers) from `desktop/main.js` into `desktop/updaterManager.js`.
 - 2026-03-05: Extracted desktop backend API request helpers from `desktop/main.js` into `desktop/backendApiClient.js` and rewired splash/bootstrap status calls to consume the client.
+- 2026-03-05: Extracted desktop app startup/shutdown lifecycle event wiring from `desktop/main.js` into `desktop/appLifecycle.js` and delegated lifecycle registration from the main entrypoint.
+- 2026-03-05: Updated `scripts/sync_app_meta.cjs` to sync desktop dialog-title metadata in either `desktop/main.js` or `desktop/appLifecycle.js` after lifecycle extraction.
+- 2026-03-05: Extracted Settings page updates section UI into `frontend/src/components/SettingsUpdatesPanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
