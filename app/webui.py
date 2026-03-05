@@ -48,6 +48,7 @@ from app.routes.overlay import OverlayRouteDeps
 from app.routes.session import SessionRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.routes.twitch_import import TwitchImportRouteDeps
+from app.routes.vod_scan import VodScanRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
 from app.routes.vods import VodsRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
@@ -132,6 +133,13 @@ def create_app() -> Flask:
             vod_single_response=vod_single_response,
             delete_vod_response=delete_vod_response,
             vods_stream_response=vods_stream_response,
+        ),
+        vod_scan_deps=VodScanRouteDeps(
+            vod_ocr_run_response=vod_ocr_run_response,
+            stop_vod_ocr_response=stop_vod_ocr_response,
+            pause_vod_ocr_response=pause_vod_ocr_response,
+            resume_vod_ocr_response=resume_vod_ocr_response,
+            delete_sessions_response=delete_sessions_response,
         ),
     )
     return app
@@ -1635,8 +1643,7 @@ def vod_ocr_run() -> str:
     return redirect("/vods")
 
 
-@app.route("/api/vod-ocr", methods=["POST"])
-def api_vod_ocr_run() -> Any:
+def vod_ocr_run_response() -> Any:
     global _vod_ocr_processes
     payload = request.get_json(silent=True) or {}
     vod_path = payload.get("vod_path", "")
@@ -1659,8 +1666,7 @@ def api_vod_ocr_run() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/api/stop-vod-ocr", methods=["POST"])
-def api_stop_vod_ocr() -> Any:
+def stop_vod_ocr_response() -> Any:
     global _vod_ocr_processes
     payload = request.get_json(silent=True) or {}
     vod_path = payload.get("vod_path", "")
@@ -1703,8 +1709,7 @@ def api_stop_vod_ocr() -> Any:
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/api/pause-vod-ocr", methods=["POST"])
-def api_pause_vod_ocr() -> Any:
+def pause_vod_ocr_response() -> Any:
     """Pause an ongoing VOD scan by creating a .paused marker file"""
     payload = request.get_json(silent=True) or {}
     vod_path = payload.get("vod_path", "")
@@ -1729,8 +1734,7 @@ def api_pause_vod_ocr() -> Any:
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/api/resume-vod-ocr", methods=["POST"])
-def api_resume_vod_ocr() -> Any:
+def resume_vod_ocr_response() -> Any:
     """Resume a paused VOD scan"""
     global _vod_ocr_processes
     payload = request.get_json(silent=True) or {}
@@ -1772,8 +1776,7 @@ def api_resume_vod_ocr() -> Any:
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@app.route("/api/delete-sessions", methods=["POST"])
-def api_delete_sessions() -> Any:
+def delete_sessions_response() -> Any:
     payload = request.get_json(silent=True) or {}
     vod_path = payload.get("vod_path", "")
     if not vod_path:
