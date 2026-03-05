@@ -375,6 +375,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted clip/VOD insight helpers (clip stats averaging, filename timestamp parsing, display title/offset formatting) from `app/webui.py` into `app/clip_insights.py` and rewired call sites.
 - 2026-03-05: Extracted clip title persistence/naming helpers (`clip_titles.json` read/write, title sanitization, display-name download naming, clip path normalization) from `app/webui.py` into `app/clip_titles.py` and rewired call sites.
 - 2026-03-05: Extracted Twitch job/URL/file-name helpers (job JSON read/write/list, Twitch URL validation, upload filename sanitization) from `app/webui.py` into `app/twitch_jobs.py` and rewired call sites.
+- 2026-03-05: Extracted VOD/session catalog helpers (VOD directory/path discovery, temp-file filtering, session file listing/display naming) from `app/webui.py` into `app/vod_catalog.py` and rewired call sites.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
