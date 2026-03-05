@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from flask import Flask
 
+from app.routes.clips import ClipsRouteDeps, create_clips_blueprint
 from app.routes.gpu import GpuRouteDeps, create_gpu_blueprint
 from app.routes.logs import LogsRouteDeps, create_logs_blueprint
 from app.routes.overlay import OverlayRouteDeps, create_overlay_blueprint
@@ -21,6 +22,7 @@ def register_blueprints(
     twitch_import_deps: TwitchImportRouteDeps,
     logs_deps: LogsRouteDeps,
     session_deps: SessionRouteDeps,
+    clips_deps: ClipsRouteDeps,
 ) -> Flask:
     if "system" not in app.blueprints:
         app.register_blueprint(create_system_blueprint(system_deps))
@@ -36,4 +38,6 @@ def register_blueprints(
         app.register_blueprint(create_logs_blueprint(logs_deps))
     if "session" not in app.blueprints:
         app.register_blueprint(create_session_blueprint(session_deps))
+    if "clips" not in app.blueprints:
+        app.register_blueprint(create_clips_blueprint(clips_deps))
     return app

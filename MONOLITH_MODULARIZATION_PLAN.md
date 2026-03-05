@@ -1,6 +1,6 @@
 # Monolith-to-Modular Migration Plan (Living Document)
 
-Last updated: 2026-03-04  
+Last updated: 2026-03-05  
 Status: Execution started (Phase 0)
 
 ## Purpose
@@ -313,6 +313,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Extracted log route registration into dedicated `app/routes/logs.py` blueprint.
 - 2026-03-04: Moved `/api/debug/paths` into the system blueprint dependency surface.
 - 2026-03-04: Extracted session-data route registration into dedicated `app/routes/session.py` blueprint.
+- 2026-03-05: Extracted clip API route registration into dedicated `app/routes/clips.py` blueprint.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

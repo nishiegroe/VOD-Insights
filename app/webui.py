@@ -41,6 +41,7 @@ from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, par
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.routes import register_blueprints
+from app.routes.clips import ClipsRouteDeps
 from app.routes.gpu import GpuRouteDeps
 from app.routes.logs import LogsRouteDeps
 from app.routes.overlay import OverlayRouteDeps
@@ -116,6 +117,14 @@ def create_app() -> Flask:
         ),
         session_deps=SessionRouteDeps(
             session_data_response=session_data_response,
+        ),
+        clips_deps=ClipsRouteDeps(
+            clip_days_response=clip_days_response,
+            clips_by_day_response=clips_by_day_response,
+            clip_lookup_response=clip_lookup_response,
+            clip_range_response=clip_range_response,
+            clip_name_response=clip_name_response,
+            clips_response=clips_response,
         ),
     )
     return app
@@ -539,8 +548,7 @@ def resolve_clip_path(path_value: str, config: Dict[str, Any]) -> Optional[Path]
     return None
 
 
-@app.route("/api/clips/days")
-def api_clip_days() -> Any:
+def clip_days_response() -> Any:
     config = load_config()
     files = iter_clip_files(config)
     day_counts: Dict[str, int] = {}
@@ -562,8 +570,7 @@ def api_clip_days() -> Any:
     return jsonify({"days": payload})
 
 
-@app.route("/api/clips/by-day")
-def api_clips_by_day() -> Any:
+def clips_by_day_response() -> Any:
     config = load_config()
     day_value = request.args.get("date", "unknown")
     limit_arg = request.args.get("limit")
@@ -618,8 +625,7 @@ def api_clips_by_day() -> Any:
     )
 
 
-@app.route("/api/clips/lookup")
-def api_clip_lookup() -> Any:
+def clip_lookup_response() -> Any:
     config = load_config()
     path_value = request.args.get("path", "")
     file_path = resolve_clip_path(path_value, config)
@@ -2333,8 +2339,7 @@ def session_data_response() -> Any:
     })
 
 
-@app.route("/api/clip-range", methods=["POST"])
-def api_clip_range() -> Any:
+def clip_range_response() -> Any:
     payload = request.get_json(silent=True) or {}
     vod_path = str(payload.get("vod_path", "")).strip()
     if not vod_path:
@@ -2420,8 +2425,7 @@ def api_clip_range() -> Any:
     return jsonify({"ok": True, "clip_path": str(output_file)})
 
 
-@app.route("/api/clip-name", methods=["POST"])
-def api_clip_name() -> Any:
+def clip_name_response() -> Any:
     payload = request.get_json(silent=True) or {}
     path_value = str(payload.get("path", "")).strip()
     if not path_value:
@@ -2437,8 +2441,7 @@ def api_clip_name() -> Any:
     return jsonify({"ok": True, "display_name": display_name})
 
 
-@app.route("/api/clips")
-def api_clips() -> Any:
+def clips_response() -> Any:
     config = load_config()
     limit_arg = request.args.get("limit")
     try:
