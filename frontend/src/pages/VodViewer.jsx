@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import VodBookmarkList from "../components/VodBookmarkList";
 import VodClipControls from "../components/VodClipControls";
 import {
   createClipRange,
@@ -1623,41 +1624,18 @@ export default function VodViewer() {
             />
           </div>
 
-          {!bookmarksCollapsed && (
-            <div className="bookmark-list-container expanded">
-              <div className="bookmark-panel-header">
-                <h3>Bookmarks ({filteredEvents.length})</h3>
-              </div>
-
-              {loading ? (
-                <p className="hint">Loading bookmarks...</p>
-              ) : filteredEvents.length === 0 ? (
-                <p className="hint">No events found with current filters.</p>
-              ) : (
-                <div className="bookmark-list" ref={bookmarkListRef}>
-                  {filteredEvents.map((entry) => {
-                    const isNear = Math.abs(currentTime - entry.seconds) < 2;
-                    const isNearby = nearbyEventIds.has(entry.id);
-
-                    return (
-                      <div
-                        key={entry.id}
-                        ref={isNear ? activeBookmarkRef : null}
-                        className={`bookmark-item ${isNear ? "active" : ""} ${isNearby ? "nearby" : ""}`}
-                        onClick={() => seekTo(entry)}
-                      >
-                        <div className="bookmark-time">{formatTime(entry.seconds)}</div>
-                        <div className="bookmark-content">
-                          <div className="bookmark-event">{normalizeEvent(entry.event)}</div>
-                          {entry.ocr ? <div className="bookmark-ocr">{entry.ocr}</div> : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+          <VodBookmarkList
+            bookmarksCollapsed={bookmarksCollapsed}
+            filteredEvents={filteredEvents}
+            loading={loading}
+            bookmarkListRef={bookmarkListRef}
+            currentTime={currentTime}
+            nearbyEventIds={nearbyEventIds}
+            activeBookmarkRef={activeBookmarkRef}
+            seekTo={seekTo}
+            formatTime={formatTime}
+            normalizeEvent={normalizeEvent}
+          />
         </div>
       </div>
     </section>
