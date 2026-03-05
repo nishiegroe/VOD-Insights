@@ -85,6 +85,7 @@ from app.vod_paths import resolve_vod_media_filename, resolve_vod_path as resolv
 from app.config_update import update_config_from_payload
 from app.vod_thumbnails import ensure_vod_thumbnail
 from app.replay_directory import choose_and_save_replay_dir
+from app.vod_scan_runner import launch_vod_scan_process, terminate_process
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -1032,17 +1033,7 @@ def vod_ocr_run() -> str:
     if not vod_path:
         return redirect("/vods")
     config = load_config()
-    log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_handle = log_path.open("a", encoding="utf-8")
-    cmd = build_mode_command("vod", CONFIG_PATH, ["--vod", vod_path])
-    print(f"Starting VOD OCR: {cmd}")
-    subprocess.Popen(
-        cmd,
-        cwd=str(get_project_root()),
-        stdout=log_handle,
-        stderr=log_handle,
-    )
+    launch_vod_scan_process(CONFIG_PATH, config, vod_path)
     return redirect("/vods")
 
 
@@ -1053,18 +1044,8 @@ def vod_ocr_run_response() -> Any:
     if not vod_path:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
     config = load_config()
-    log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    log_handle = log_path.open("a", encoding="utf-8")
-    cmd = build_mode_command("vod", CONFIG_PATH, ["--vod", vod_path])
-    print(f"Starting VOD OCR: {cmd}")
     with _process_lock:
-        proc = subprocess.Popen(
-            cmd,
-            cwd=str(get_project_root()),
-            stdout=log_handle,
-            stderr=log_handle,
-        )
+        proc = launch_vod_scan_process(CONFIG_PATH, config, vod_path)
         _vod_ocr_processes[vod_path] = proc
     return jsonify({"ok": True})
 
@@ -1079,14 +1060,7 @@ def stop_vod_ocr_response() -> Any:
         with _process_lock:
             proc = _vod_ocr_processes.get(vod_path)
             if proc is not None:
-                # Process exists, try to terminate it
-                if proc.poll() is None:
-                    # Process is still running
-                    proc.terminate()
-                    try:
-                        proc.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        proc.kill()
+                terminate_process(proc, timeout_seconds=5)
                 # Remove from tracking dict
                 if vod_path in _vod_ocr_processes:
                     del _vod_ocr_processes[vod_path]
@@ -1141,20 +1115,8 @@ def resume_vod_ocr_response() -> Any:
         if not paused_marker.exists():
             return jsonify({"ok": False, "error": "No paused scan found"}), 400
         
-        # Start a new scan process with --resume flag
-        log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_handle = log_path.open("a", encoding="utf-8")
-        cmd = build_mode_command("vod", CONFIG_PATH, ["--vod", vod_path, "--resume"])
-        print(f"Resuming VOD OCR: {cmd}")
-        
         with _process_lock:
-            proc = subprocess.Popen(
-                cmd,
-                cwd=str(get_project_root()),
-                stdout=log_handle,
-                stderr=log_handle,
-            )
+            proc = launch_vod_scan_process(CONFIG_PATH, config, vod_path, resume=True)
             _vod_ocr_processes[vod_path] = proc
         
         return jsonify({"ok": True})
