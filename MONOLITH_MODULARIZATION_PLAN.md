@@ -373,6 +373,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted update metadata/version/patch-note helpers from `app/webui.py` into `app/update_metadata.py` and rewired system route dependencies to use the new module.
 - 2026-03-05: Extracted Settings recording-controls toggles UI from `frontend/src/pages/Settings.jsx` into `frontend/src/components/SettingsRecordingControlsPanel.jsx` and refactored session-recorder composition to use it.
 - 2026-03-05: Extracted clip/VOD insight helpers (clip stats averaging, filename timestamp parsing, display title/offset formatting) from `app/webui.py` into `app/clip_insights.py` and rewired call sites.
+- 2026-03-05: Extracted clip title persistence/naming helpers (`clip_titles.json` read/write, title sanitization, display-name download naming, clip path normalization) from `app/webui.py` into `app/clip_titles.py` and rewired call sites.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
