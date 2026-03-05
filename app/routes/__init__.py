@@ -7,6 +7,7 @@ from app.routes.clips import ClipsRouteDeps, create_clips_blueprint
 from app.routes.gpu import GpuRouteDeps, create_gpu_blueprint
 from app.routes.legacy_control import LegacyControlRouteDeps, create_legacy_control_blueprint
 from app.routes.logs import LogsRouteDeps, create_logs_blueprint
+from app.routes.media_paths import MediaPathsRouteDeps, create_media_paths_blueprint
 from app.routes.overlay import OverlayRouteDeps, create_overlay_blueprint
 from app.routes.session import SessionRouteDeps, create_session_blueprint
 from app.routes.system import SystemRouteDeps, create_system_blueprint
@@ -27,6 +28,7 @@ def register_blueprints(
     vod_download_deps: VodDownloadRouteDeps,
     twitch_import_deps: TwitchImportRouteDeps,
     logs_deps: LogsRouteDeps,
+    media_paths_deps: MediaPathsRouteDeps,
     legacy_control_deps: LegacyControlRouteDeps,
     session_deps: SessionRouteDeps,
     clips_deps: ClipsRouteDeps,
@@ -48,6 +50,8 @@ def register_blueprints(
         app.register_blueprint(create_twitch_import_blueprint(twitch_import_deps))
     if "logs" not in app.blueprints:
         app.register_blueprint(create_logs_blueprint(logs_deps))
+    if "media_paths" not in app.blueprints:
+        app.register_blueprint(create_media_paths_blueprint(media_paths_deps))
     if "legacy_control" not in app.blueprints:
         app.register_blueprint(create_legacy_control_blueprint(legacy_control_deps))
     if "session" not in app.blueprints:

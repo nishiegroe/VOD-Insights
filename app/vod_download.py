@@ -12,7 +12,7 @@ import threading
 import re
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import shutil
 
@@ -88,7 +88,7 @@ class TwitchVODDownloader:
                 "eta": "unknown",
                 "error": None,
                 "output_file": None,
-                "started_at": datetime.utcnow().isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
             }
 
         # Start download in background thread
@@ -211,7 +211,7 @@ class TwitchVODDownloader:
             if upload_date and len(upload_date) >= 8:
                 date_str = f"{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}"
             else:
-                date_str = datetime.utcnow().strftime("%Y-%m-%d")
+                date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
             return {
                 "streamer": self._sanitize_filename(uploader),

@@ -322,6 +322,9 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted legacy control/config route registration into `app/routes/legacy_control.py` blueprint.
 - 2026-03-05: Extracted `/vod-thumbnail` registration into dedicated `app/routes/vod_thumbnail.py` blueprint.
 - 2026-03-05: Added desktop updater URL-policy helper + tests (`desktop/updateUrlPolicy.js`, `desktop/tests/updateUrlPolicy.test.js`) and integrated installer/redirect validation.
+- 2026-03-05: Extracted media/file-serving route registration into dedicated `app/routes/media_paths.py` blueprint.
+- 2026-03-05: Added migration CI guardrail to run desktop updater URL policy tests (`npm --prefix desktop test`).
+- 2026-03-05: Updated `app/vod_download.py` UTC timestamp generation to timezone-aware UTC (`datetime.now(timezone.utc)`).
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

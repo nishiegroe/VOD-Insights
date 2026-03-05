@@ -42,6 +42,12 @@ jobs:
       - name: Install root deps
         run: npm ci
 
+      - name: Install desktop deps
+        run: npm --prefix desktop ci
+
+      - name: Run desktop updater policy tests
+        run: npm --prefix desktop test
+
       - name: Run build/security preflight
         run: npm run check:build-security
 

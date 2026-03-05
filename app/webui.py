@@ -46,6 +46,7 @@ from app.routes.clips import ClipsRouteDeps
 from app.routes.gpu import GpuRouteDeps
 from app.routes.legacy_control import LegacyControlRouteDeps
 from app.routes.logs import LogsRouteDeps
+from app.routes.media_paths import MediaPathsRouteDeps
 from app.routes.overlay import OverlayRouteDeps
 from app.routes.session import SessionRouteDeps
 from app.routes.system import SystemRouteDeps
@@ -122,6 +123,17 @@ def create_app() -> Flask:
         logs_deps=LogsRouteDeps(
             logs_response=logs_response,
             open_backend_log_response=open_backend_log_response,
+        ),
+        media_paths_deps=MediaPathsRouteDeps(
+            media_by_path_response=media_by_path_response,
+            download_by_path_response=download_by_path_response,
+            open_folder_by_path_response=open_folder_by_path_response,
+            delete_by_path_response=delete_by_path_response,
+            media_file_response=media_file_response,
+            vod_media_file_response=vod_media_file_response,
+            download_file_response=download_file_response,
+            open_folder_response=open_folder_response,
+            delete_file_response=delete_file_response,
         ),
         legacy_control_deps=LegacyControlRouteDeps(
             update_config_response=update_config_response,
