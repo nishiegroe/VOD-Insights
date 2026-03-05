@@ -247,7 +247,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Deliverable: Modularized startup/supervision with no lifecycle regressions.
 - Validation: Desktop dev launch/close smoke; no orphan backend process.
 - Risk: Medium (double-spawn/orphan process).
-- Status: Not started
+- Status: In progress
 - Owner: Frontend-Desktop-Agent
 - Updated: 2026-03-04
 
@@ -296,6 +296,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Completed MIG-FD-001 and started MOD-BE-003 with path policy matrix baseline.
 - 2026-03-04: Completed OCR-MOD-002 detector seam and BRS-KICK-001 dry-run baseline closure.
 - 2026-03-04: Advanced MOD-BE-003 with centralized existing-path helper on first endpoint subset.
+- 2026-03-04: Started MIG-FD-002 by extracting desktop backend lifecycle into `desktop/backendSupervisor.js`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

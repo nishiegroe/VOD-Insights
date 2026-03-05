@@ -122,7 +122,27 @@ function syncRuntimePaths(meta) {
 function syncDesktopMain(meta) {
   const filePath = path.join(root, "desktop", "main.js");
   let content = fs.readFileSync(filePath, "utf8");
-  content = replaceOrThrow(content, /"backend", "[^"]+\.exe"/, `"backend", "${meta.internalName}.exe"`, "backend exe path");
+  const backendExePattern = /"backend", "[^"]+\.exe"/;
+  let backendPathUpdated = false;
+
+  if (backendExePattern.test(content)) {
+    content = content.replace(backendExePattern, `"backend", "${meta.internalName}.exe"`);
+    backendPathUpdated = true;
+  } else {
+    const supervisorPath = path.join(root, "desktop", "backendSupervisor.js");
+    if (fs.existsSync(supervisorPath)) {
+      let supervisorContent = fs.readFileSync(supervisorPath, "utf8");
+      if (backendExePattern.test(supervisorContent)) {
+        supervisorContent = supervisorContent.replace(backendExePattern, `"backend", "${meta.internalName}.exe"`);
+        writeText(supervisorPath, supervisorContent);
+        backendPathUpdated = true;
+      }
+    }
+  }
+
+  if (!backendPathUpdated) {
+    throw new Error("Could not find backend exe path");
+  }
   content = replaceOrThrow(
     content,
     /dialog\.showErrorBox\(\r?\n\s*"[^\"]+",/g,
