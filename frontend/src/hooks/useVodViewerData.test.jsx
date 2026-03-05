@@ -42,12 +42,15 @@ describe("useVodViewerData", () => {
     const { result } = renderHook(() => useVodViewerData("vod.mp4", null));
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedSession).toBe("session-1");
+    });
+
+    await waitFor(() => {
+      expect(result.current.bookmarks).toHaveLength(1);
     });
 
     expect(result.current.error).toBeNull();
-    expect(result.current.selectedSession).toBe("session-1");
-    expect(result.current.bookmarks).toHaveLength(1);
+    expect(fetchSessionData).toHaveBeenCalledWith("session-1");
     expect(result.current.detectionKeywords).toEqual(["kill", "assist"]);
     expect(result.current.overlayConfig).not.toBeNull();
   });
