@@ -1,0 +1,52 @@
+name: Migration CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - De-monolithing
+
+jobs:
+  python-targeted-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install targeted test deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest numpy
+
+      - name: Run targeted Python tests
+        run: |
+          python -m pytest tests/test_detector.py tests/test_capture_frame_source.py -q
+
+  node-guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install root deps
+        run: npm ci
+
+      - name: Run build/security preflight
+        run: npm run check:build-security
+
+      - name: Install frontend deps
+        run: npm --prefix frontend ci
+
+      - name: Build frontend
+        run: npm --prefix frontend run build
