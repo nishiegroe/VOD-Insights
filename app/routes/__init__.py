@@ -13,6 +13,7 @@ from app.routes.session import SessionRouteDeps, create_session_blueprint
 from app.routes.system import SystemRouteDeps, create_system_blueprint
 from app.routes.twitch_import import TwitchImportRouteDeps, create_twitch_import_blueprint
 from app.routes.vod_scan import VodScanRouteDeps, create_vod_scan_blueprint
+from app.routes.vod_actions import VodActionsRouteDeps, create_vod_actions_blueprint
 from app.routes.vod_download import VodDownloadRouteDeps, create_vod_download_blueprint
 from app.routes.vod_thumbnail import VodThumbnailRouteDeps, create_vod_thumbnail_blueprint
 from app.routes.vods import VodsRouteDeps, create_vods_blueprint
@@ -34,6 +35,7 @@ def register_blueprints(
     clips_deps: ClipsRouteDeps,
     vods_deps: VodsRouteDeps,
     vod_scan_deps: VodScanRouteDeps,
+    vod_actions_deps: VodActionsRouteDeps,
     vod_thumbnail_deps: VodThumbnailRouteDeps,
 ) -> Flask:
     if "capture_area" not in app.blueprints:
@@ -62,6 +64,8 @@ def register_blueprints(
         app.register_blueprint(create_vods_blueprint(vods_deps))
     if "vod_scan" not in app.blueprints:
         app.register_blueprint(create_vod_scan_blueprint(vod_scan_deps))
+    if "vod_actions" not in app.blueprints:
+        app.register_blueprint(create_vod_actions_blueprint(vod_actions_deps))
     if "vod_thumbnail" not in app.blueprints:
         app.register_blueprint(create_vod_thumbnail_blueprint(vod_thumbnail_deps))
     return app

@@ -347,6 +347,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted `VodViewer` playback/zoom/events/volume controls into `frontend/src/components/VodPlaybackControlsPanel.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use explicit callback props.
 - 2026-03-05: Extracted `VodViewer` video/overlay/loading container into `frontend/src/components/VodVideoPlayer.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to compose it.
 - 2026-03-05: Extracted `VodViewer` header/action cluster into `frontend/src/components/VodViewerHeader.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use it.
+- 2026-03-05: Extracted `/vod-ocr-upload`, `/api/vod-ocr-upload`, `/split-selected`, `/api/split-selected`, and `/vod-ocr` registrations into `app/routes/vod_actions.py` and wired them via dependency callbacks in `app/routes/__init__.py` + `app/webui.py`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

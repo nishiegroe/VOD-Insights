@@ -52,6 +52,7 @@ from app.routes.session import SessionRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.routes.twitch_import import TwitchImportRouteDeps
 from app.routes.vod_scan import VodScanRouteDeps
+from app.routes.vod_actions import VodActionsRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
 from app.routes.vod_thumbnail import VodThumbnailRouteDeps
 from app.routes.vods import VodsRouteDeps
@@ -167,6 +168,13 @@ def create_app() -> Flask:
             pause_vod_ocr_response=pause_vod_ocr_response,
             resume_vod_ocr_response=resume_vod_ocr_response,
             delete_sessions_response=delete_sessions_response,
+        ),
+        vod_actions_deps=VodActionsRouteDeps(
+            vod_ocr_upload_redirect_response=vod_ocr_upload,
+            api_vod_ocr_upload_response=api_vod_ocr_upload,
+            split_selected_response=split_selected,
+            api_split_selected_response=api_split_selected,
+            vod_ocr_run_redirect_response=vod_ocr_run,
         ),
         vod_thumbnail_deps=VodThumbnailRouteDeps(
             vod_thumbnail_response=vod_thumbnail_response,
@@ -1351,7 +1359,6 @@ def update_config_from_payload(config: Dict[str, Any], payload: Dict[str, Any]) 
             _set([section, key], caster(payload[field]))
 
 
-@app.route("/vod-ocr-upload", methods=["POST"])
 def vod_ocr_upload() -> str:
     file = request.files.get("vod_file")
     if file is None or not file.filename:
@@ -1375,7 +1382,6 @@ def vod_ocr_upload() -> str:
     return redirect("/vods")
 
 
-@app.route("/api/vod-ocr-upload", methods=["POST"])
 def api_vod_ocr_upload() -> Any:
     file = request.files.get("vod_file")
     if file is None or not file.filename:
@@ -1614,7 +1620,6 @@ def api_choose_replay_dir_response() -> Any:
     return jsonify({"ok": True, "directory": selected or ""})
 
 
-@app.route("/split-selected", methods=["POST"])
 def split_selected() -> str:
     vod_path = request.form.get("vod_path", "")
     session_path = request.form.get("session_path", "")
@@ -1628,7 +1633,6 @@ def split_selected() -> str:
     return redirect("/clips")
 
 
-@app.route("/api/split-selected", methods=["POST"])
 def api_split_selected() -> Any:
     payload = request.get_json(silent=True) or {}
     vod_path = payload.get("vod_path", "")
@@ -1639,7 +1643,6 @@ def api_split_selected() -> Any:
     return jsonify({"ok": True})
 
 
-@app.route("/vod-ocr", methods=["POST"])
 def vod_ocr_run() -> str:
     vod_path = request.form.get("vod_path", "")
     if not vod_path:
