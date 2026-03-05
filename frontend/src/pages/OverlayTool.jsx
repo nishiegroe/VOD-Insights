@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { fetchOverlayToolConfig, saveOverlayToolConfig } from "../api/overlayTool";
 
 export default function OverlayTool() {
   const previewRef = useRef(null);
@@ -19,8 +20,7 @@ export default function OverlayTool() {
   const [overlayError, setOverlayError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/config")
-      .then((r) => r.json())
+    fetchOverlayToolConfig()
       .then((data) => {
         const ui = data.ui || {};
         setConfig({
@@ -86,16 +86,7 @@ export default function OverlayTool() {
   const handleSave = async () => {
     setSaveStatus("Saving...");
     try {
-      const response = await fetch("/api/config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          overlay_x: config.x,
-          overlay_y: config.y,
-          overlay_width: config.width,
-          overlay_opacity: config.opacity,
-        }),
-      });
+      const response = await saveOverlayToolConfig(config);
       if (!response.ok) throw new Error("Save failed");
       setSaveStatus("Saved!");
       setTimeout(() => setSaveStatus(""), 2000);

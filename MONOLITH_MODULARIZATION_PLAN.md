@@ -395,6 +395,15 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted shared no-cache response header behavior from SPA/static handlers in `app/webui.py` into `app/http_cache.py`.
 - 2026-03-05: Extracted Twitch VOD download route internals (input validation, job start/progress/tool-check payload building) from `app/webui.py` into `app/vod_download_api.py`.
 - 2026-03-05: Extracted clip day/list/lookup response shaping (date grouping, pagination parsing, per-path lookup payloads) from `app/webui.py` into `app/clip_queries.py` and rewired clip query route handlers to thin wrappers.
+- 2026-03-05: Extracted webui app-shell helpers (signal registration, file-watch restart loop, replay directory picker, exit cleanup pause markers) from `app/webui.py` into `app/webui_app_shell.py`.
+- 2026-03-05: Extracted session-data payload parsing/validation from `app/webui.py` into `app/session_data.py` and rewired session route handler to thin wrapper.
+- 2026-03-05: Extracted clip range creation payload orchestration from `app/webui.py` into `app/clip_range.py` and rewired clip-range route to thin wrapper.
+- 2026-03-05: Extracted dependency bootstrap host/download/install/python-package internals from `app/dependency_bootstrap.py` into `app/dependency_bootstrap_ops.py`.
+- 2026-03-05: Extracted Twitch VOD URL/progress-template/filename sanitization internals from `app/vod_download.py` into `app/vod_download_utils.py`.
+- 2026-03-05: Extracted split clip export loop from `app/split_bookmarks.py` into `app/split_export.py`.
+- 2026-03-05: Continued frontend page decomposition by adding dedicated API modules (`frontend/src/api/captureArea.js`, `frontend/src/api/clips.js`, `frontend/src/api/clipsViewer.js`, `frontend/src/api/overlayTool.js`) and refactoring affected pages to use them.
+- 2026-03-05: Extracted `VodViewer` data/config/session loading effects into `frontend/src/hooks/useVodViewerData.js` and refactored `frontend/src/pages/VodViewer.jsx` to consume the hook.
+- 2026-03-05: Added backend regression coverage for new extracted modules (`tests/test_session_data.py`, `tests/test_clip_range.py`, `tests/test_dependency_bootstrap_ops.py`, `tests/test_vod_download_utils.py`).
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

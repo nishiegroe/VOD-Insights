@@ -3,7 +3,6 @@ from __future__ import annotations
 from __future__ import annotations
 
 import atexit
-import csv
 import json
 import os
 import re
@@ -97,6 +96,8 @@ from app.clip_queries import (
     clip_lookup_payload,
     clips_by_day_payload,
 )
+from app.clip_range import create_clip_range_payload
+from app.session_data import session_data_payload
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -122,6 +123,12 @@ from app.routes.vod_download import VodDownloadRouteDeps
 from app.routes.vod_thumbnail import VodThumbnailRouteDeps
 from app.routes.vods import VodsRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
+from app.webui_app_shell import (
+    choose_directory,
+    cleanup_vod_scans_on_exit,
+    register_signal_handlers,
+    watch_for_changes,
+)
 
 
 APP_ROOT = Path(__file__).resolve().parent
@@ -265,88 +272,15 @@ _vod_downloader: Optional[TwitchVODDownloader] = None
 
 
 def cleanup_on_exit() -> None:
-    """Pause all running VOD scans when the application exits"""
-    print("Cleaning up: pausing all active VOD scans...")
-    try:
-        config = load_config()
-        bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
-        
-        with _process_lock:
-            for vod_path in list(_vod_ocr_processes.keys()):
-                try:
-                    _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
-                    # Create pause marker to trigger graceful pause
-                    paused_marker.write_text(json.dumps({"paused": True}), encoding="utf-8")
-                    print(f"Paused scan for: {vod_path}")
-                except Exception as e:
-                    print(f"Error pausing scan for {vod_path}: {e}")
-    except Exception as e:
-        print(f"Error during cleanup: {e}")
+    cleanup_vod_scans_on_exit(load_config, _process_lock, _vod_ocr_processes)
 
 
 # Register cleanup handlers
 atexit.register(cleanup_on_exit)
 
 
-def signal_handler(signum, frame):
-    """Handle signals like SIGINT and SIGTERM"""
-    print(f"Received signal {signum}, cleaning up...")
-    cleanup_on_exit()
-    sys.exit(0)
-
-
 # Register signal handlers for graceful shutdown
-signal.signal(signal.SIGINT, signal_handler)
-signal.signal(signal.SIGTERM, signal_handler)
-
-
-def watch_for_changes(
-    paths: List[Path],
-    interval: float = 1.0,
-    include_suffixes: Optional[set[str]] = None,
-    ignore_paths: Optional[set[Path]] = None,
-) -> None:
-    include_suffixes = include_suffixes or {".py", ".html", ".css", ".js"}
-    ignore_paths = ignore_paths or set()
-
-    def _is_ignored(path: Path) -> bool:
-        if path in ignore_paths:
-            return True
-        for ignored in ignore_paths:
-            if ignored.is_dir():
-                try:
-                    if path.is_relative_to(ignored):
-                        return True
-                except ValueError:
-                    continue
-        return False
-
-    def _snapshot() -> Dict[Path, float]:
-        snapshot: Dict[Path, float] = {}
-        for root in paths:
-            if not root.exists():
-                continue
-            if root.is_file():
-                if _is_ignored(root) or root.suffix not in include_suffixes:
-                    continue
-                snapshot[root] = root.stat().st_mtime
-                continue
-            for file in root.rglob("*"):
-                if not file.is_file():
-                    continue
-                if _is_ignored(file) or file.suffix not in include_suffixes:
-                    continue
-                snapshot[file] = file.stat().st_mtime
-        return snapshot
-
-    last_state = _snapshot()
-    while True:
-        time.sleep(interval)
-        current = _snapshot()
-        if current != last_state:
-            print("File change detected. Restarting web UI...")
-            os._exit(EXIT_RESTART_CODE)
-        last_state = current
+register_signal_handlers(cleanup_on_exit)
 
 
 def load_config() -> Dict[str, Any]:
@@ -355,41 +289,6 @@ def load_config() -> Dict[str, Any]:
 
 def save_config(data: Dict[str, Any]) -> None:
     CONFIG_PATH.write_text(json.dumps(data, indent=2), encoding="utf-8")
-
-
-def choose_directory(initial: Optional[str] = None) -> str:
-    initial_dir = initial or str(get_project_root())
-
-    if sys.platform == "win32":
-        script = """
-Add-Type -AssemblyName System.Windows.Forms
-$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.ShowNewFolderButton = $false
-$dialog.Description = 'Select replay directory'
-$initial = $env:AET_INITIAL_DIR
-if ($initial -and (Test-Path $initial)) { $dialog.SelectedPath = $initial }
-if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-  Write-Output $dialog.SelectedPath
-}
-"""
-        env = os.environ.copy()
-        env["AET_INITIAL_DIR"] = initial_dir
-        try:
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-STA", "-Command", script],
-                check=False,
-                capture_output=True,
-                text=True,
-                env=env,
-            )
-        except OSError:
-            return ""
-        if result.returncode == 0:
-            return result.stdout.strip()
-        return ""
-
-    return ""
 
 
 def get_status() -> Dict[str, Any]:
@@ -1013,148 +912,21 @@ def twitch_import_status_response(job_id: str) -> Any:
 
 def session_data_response() -> Any:
     session_path = request.args.get("path", "")
-    if not session_path:
-        return jsonify({"ok": False, "error": "Missing session path"}), 400
-    
-    file_path = Path(session_path)
-    if not file_path.exists():
-        return jsonify({"ok": False, "error": "Session file not found"}), 404
-    
     config = load_config()
-    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-    if not bookmarks_dir.is_absolute():
-        bookmarks_dir = get_app_data_dir() / bookmarks_dir
-    
-    # Validate that the file is in the bookmarks directory
-    try:
-        if not file_path.is_relative_to(bookmarks_dir):
-            return jsonify({"ok": False, "error": "Invalid session path"}), 403
-    except (ValueError, AttributeError):
-        # Fallback for Python < 3.9 or path validation issues
-        if not str(file_path).startswith(str(bookmarks_dir)):
-            return jsonify({"ok": False, "error": "Invalid session path"}), 403
-    
-    bookmarks = []
-    try:
-        with file_path.open("r", encoding="utf-8") as f:
-            if file_path.suffix.lower() == ".csv":
-                reader = csv.DictReader(f)
-                for row in reader:
-                    try:
-                        bookmarks.append({
-                            "timestamp": row.get("timestamp", ""),
-                            "seconds": float(row.get("seconds_since_start", 0)),
-                            "event": row.get("event", ""),
-                            "ocr": row.get("ocr", "")
-                        })
-                    except (ValueError, KeyError):
-                        continue
-            elif file_path.suffix.lower() == ".jsonl":
-                for line in f:
-                    try:
-                        data = json.loads(line)
-                        bookmarks.append({
-                            "timestamp": data.get("timestamp", ""),
-                            "seconds": float(data.get("seconds_since_start", 0)),
-                            "event": data.get("event", ""),
-                            "ocr": data.get("ocr", "")
-                        })
-                    except (json.JSONDecodeError, ValueError, KeyError):
-                        continue
-    except (OSError, IOError) as e:
-        return jsonify({"ok": False, "error": "Failed to read session file"}), 500
-    
-    return jsonify({
-        "ok": True,
-        "bookmarks": bookmarks,
-        "session_name": file_path.name
-    })
+    payload, status_code = session_data_payload(session_path, config)
+    return jsonify(payload), status_code
 
 
 def clip_range_response() -> Any:
     payload = request.get_json(silent=True) or {}
-    vod_path = str(payload.get("vod_path", "")).strip()
-    if not vod_path:
-        return jsonify({"ok": False, "error": "Missing VOD path"}), 400
-
-    try:
-        start = float(payload.get("start"))
-        end = float(payload.get("end"))
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Invalid start/end"}), 400
-
-    if end <= start:
-        return jsonify({"ok": False, "error": "End must be after start"}), 400
-
     config = load_config()
-    vod_file = Path(vod_path)
-    if not vod_file.exists() or not vod_file.is_file():
-        return jsonify({"ok": False, "error": "VOD not found"}), 404
-
-    extensions = {
-        ext.lower() for ext in config.get("split", {}).get("extensions", [])
-    }
-    if extensions and vod_file.suffix.lower() not in extensions:
-        return jsonify({"ok": False, "error": "Unsupported VOD type"}), 400
-
-    allowed_dirs = [path for path in get_vod_dirs(config) if str(path)]
-    if allowed_dirs:
-        try:
-            allowed = any(vod_file.is_relative_to(root) for root in allowed_dirs)
-        except (AttributeError, ValueError):
-            allowed = any(str(vod_file).startswith(str(root)) for root in allowed_dirs)
-        if not allowed:
-            return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
-
-    split_cfg = config.get("split", {})
-    output_dir = Path(split_cfg.get("output_dir", ""))
-    # Output is relative to the VOD directory unless explicitly absolute.
-    if not output_dir.name:
-        output_dir = vod_file.parent / "clips"
-    elif not output_dir.is_absolute():
-        output_dir = vod_file.parent / output_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    vod_start = parse_vod_start_time(vod_file)
-    if vod_start is None:
-        vod_start = datetime.fromtimestamp(vod_file.stat().st_mtime)
-
-    duration = max(0.1, end - start)
-    offset_seconds = int(round(start))
-    clip_time = vod_start + timedelta(seconds=start)
-    timestamp = clip_time.strftime("%Y%m%d_%H%M%S")
-    output_name = f"clip_{timestamp}_t{offset_seconds}s"
-    
-    # Try to load bookmarks and count events within the clip range
-    bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
-    if not bookmarks_dir.is_absolute():
-        bookmarks_dir = get_app_data_dir() / bookmarks_dir
-    session_prefix = config.get("bookmarks", {}).get("session_prefix", "session")
-    sessions = list_sessions_for_vod(bookmarks_dir, session_prefix, vod_file.stem)
-    
-    if sessions and split_cfg.get("encode_counts", True):
-        # Use the first (most recent) session
-        session_path = Path(sessions[0]["path"])
-        try:
-            all_events = load_bookmarks(session_path)
-            # Filter events within the clip range
-            clip_events = [e for e in all_events if start <= e.time <= end]
-            if clip_events:
-                counts = count_events(clip_events)
-                count_format = split_cfg.get("count_format", "k{kills}_a{assists}_d{deaths}")
-                output_name = f"{output_name}_{count_format.format(**counts)}"
-        except Exception:
-            # If bookmark loading fails, just skip counts
-            pass
-    
-    output_file = output_dir / f"{output_name}{vod_file.suffix}"
-
-    try:
-        run_ffmpeg(vod_file, output_file, start, duration)
-    except (subprocess.CalledProcessError, RuntimeError) as exc:
-        return jsonify({"ok": False, "error": f"FFmpeg failed: {exc}"}), 500
-
-    return jsonify({"ok": True, "clip_path": str(output_file)})
+    response_payload, status_code = create_clip_range_payload(
+        config,
+        payload.get("vod_path", ""),
+        payload.get("start"),
+        payload.get("end"),
+    )
+    return jsonify(response_payload), status_code
 
 
 def clip_name_response() -> Any:
@@ -1281,7 +1053,7 @@ def main() -> None:
         ignore_paths = {log_path, get_uploads_dir()}
         watcher = threading.Thread(
             target=watch_for_changes,
-            args=(watch_paths,),
+            args=(watch_paths, EXIT_RESTART_CODE),
             kwargs={"ignore_paths": ignore_paths},
             daemon=True,
         )

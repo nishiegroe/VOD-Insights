@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { chooseReplayDir, fetchClipDays as fetchClipDaysApi, fetchClipsByDay } from "../api/clips";
 import { formatDuration } from "../utils/formatDuration";
 
 const INITIAL_CLIPS_PER_DAY = 6;
@@ -39,9 +40,7 @@ export default function Clips() {
     }
     setLoading(true);
     try {
-      const clipsRes = await fetch("/api/clips/days");
-      const payload = await clipsRes.json();
-      const days = payload.days || [];
+      const days = await fetchClipDaysApi();
       setClipDays(days);
       setDayClips({});
       setDayTotals({});
@@ -93,15 +92,7 @@ export default function Clips() {
   ) => {
     setDayLoading((prev) => ({ ...prev, [dayKey]: true }));
     try {
-      const params = new URLSearchParams({
-        date: dayKey,
-        offset: String(offset),
-      });
-      if (Number.isFinite(limit)) {
-        params.set("limit", String(limit));
-      }
-      const res = await fetch(`/api/clips/by-day?${params.toString()}`);
-      const payload = await res.json();
+      const payload = await fetchClipsByDay(dayKey, { offset, limit });
       const clips = payload.clips || [];
       const total = Number.isFinite(payload.total) ? payload.total : clips.length;
 
@@ -188,8 +179,7 @@ export default function Clips() {
             type="button"
             className="primary clips-choose-button"
             onClick={async () => {
-              const response = await fetch("/api/choose-replay-dir", { method: "POST" });
-              const payload = await response.json();
+              const payload = await chooseReplayDir();
               if (payload.directory) {
                 setRecordingDir(payload.directory);
                 await fetchClipDays(payload.directory);

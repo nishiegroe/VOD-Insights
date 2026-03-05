@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  deleteClip,
+  fetchClipByPath,
+  fetchOverlayConfig,
+  getClipDownloadUrl,
+  openClipFolder,
+  renameClip,
+} from "../api/clipsViewer";
 import { formatDuration } from "../utils/formatDuration";
 
 export default function ClipsViewer() {
@@ -28,8 +36,7 @@ export default function ClipsViewer() {
       }
       setLoading(true);
       try {
-        const res = await fetch(`/api/clips/lookup?path=${encodeURIComponent(clipPath)}`);
-        const payload = await res.json();
+        const payload = await fetchClipByPath(clipPath);
         if (!payload.ok || !payload.clip) {
           throw new Error(payload.error || "Clip not found");
         }
@@ -46,8 +53,7 @@ export default function ClipsViewer() {
   }, [clipPath]);
 
   useEffect(() => {
-    fetch("/api/config")
-      .then((r) => r.json())
+    fetchOverlayConfig()
       .then((data) => {
         const ui = data.ui || {};
         if (ui.overlay_image_path && ui.overlay_enabled !== false) {
@@ -100,12 +106,12 @@ export default function ClipsViewer() {
 
   const handleOpenFolder = async () => {
     if (!clip?.path) return;
-    await fetch(`/open-folder-path?path=${encodeURIComponent(clip.path)}`, { method: "POST" });
+    await openClipFolder(clip.path);
   };
 
   const handleDownload = () => {
     if (!clip?.path) return;
-    window.location.href = `/download-path?path=${encodeURIComponent(clip.path)}`;
+    window.location.href = getClipDownloadUrl(clip.path);
   };
 
   const handleDelete = async () => {
@@ -113,7 +119,7 @@ export default function ClipsViewer() {
     const label = clip.display_name || clip.details?.pretty_time || clip.name || "this clip";
     const confirmed = window.confirm(`Delete ${label}? This will remove the file from disk.`);
     if (!confirmed) return;
-    const response = await fetch(`/delete-path?path=${encodeURIComponent(clip.path)}`, { method: "POST" });
+    const response = await deleteClip(clip.path);
     if (response.ok) {
       navigate("/clips");
     }
@@ -123,11 +129,7 @@ export default function ClipsViewer() {
     if (!clip?.path) return;
     setRenameSaving(true);
     try {
-      const response = await fetch("/api/clip-name", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: clip.path, name: renameValue }),
-      });
+      const response = await renameClip(clip.path, renameValue);
       if (!response.ok) return;
       const payload = await response.json();
       const displayName = payload.display_name || "";
