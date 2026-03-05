@@ -8,6 +8,7 @@ const { registerAppLifecycle } = require("./appLifecycle");
 const { registerDesktopIpcHandlers } = require("./ipcHandlers");
 const { createAssetResolvers } = require("./assetPaths");
 const { createBackendApiClient } = require("./backendApiClient");
+const { createBackendRuntime } = require("./backendRuntime");
 const { createSplashScreenTools } = require("./splashScreen");
 const { createUpdaterManager } = require("./updaterManager");
 const { validateInstallerDownloadUrl } = require("./updateUrlPolicy");
@@ -52,6 +53,10 @@ const backendSupervisor = createBackendSupervisor({
   pyiTempDir
 });
 
+const backendRuntime = createBackendRuntime({
+  backendSupervisor,
+});
+
 const windowManager = createWindowManager({
   BrowserWindow,
   fs,
@@ -61,7 +66,7 @@ const windowManager = createWindowManager({
   host: HOST,
   port: PORT,
   backendSupervisor,
-  stopBackend,
+  stopBackend: backendRuntime.stopBackend,
   getIsQuitting: () => isQuitting,
   setIsQuitting: (value) => {
     isQuitting = value;
@@ -98,7 +103,7 @@ const updaterManager = createUpdaterManager({
   spawn,
   processObj: process,
   backendSupervisor,
-  stopBackend,
+  stopBackend: backendRuntime.stopBackend,
   validateInstallerDownloadUrl,
   compareVersions,
   updaterStatePath,
@@ -108,18 +113,6 @@ const updaterManager = createUpdaterManager({
   updateRequestTimeoutMs: UPDATE_REQUEST_TIMEOUT_MS,
   updateMaxRedirects: UPDATE_MAX_REDIRECTS,
 });
-
-function startBackend() {
-  backendSupervisor.startBackend();
-}
-
-function waitForPort(host, port, timeoutMs = 120000, intervalMs = 500) {
-  return backendSupervisor.waitForPort(host, port, timeoutMs, intervalMs);
-}
-
-function stopBackend() {
-  return backendSupervisor.stopBackend();
-}
 
 const splashScreenTools = createSplashScreenTools({
   app,
@@ -151,15 +144,15 @@ registerAppLifecycle({
   app,
   dialog,
   backendSupervisor,
-  stopBackend,
+  stopBackend: backendRuntime.stopBackend,
   updaterManager,
   getIsQuitting: () => isQuitting,
   setIsQuitting: (value) => {
     isQuitting = value;
   },
   createSplashScreen,
-  startBackend,
-  waitForPort,
+  startBackend: backendRuntime.startBackend,
+  waitForPort: backendRuntime.waitForPort,
   host: HOST,
   port: PORT,
   waitForDependencyBootstrap,

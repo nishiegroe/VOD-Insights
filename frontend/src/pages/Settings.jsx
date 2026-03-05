@@ -1,5 +1,6 @@
 import React from "react";
 import SettingsDetectionPanel from "../components/SettingsDetectionPanel";
+import SettingsOcrPanel from "../components/SettingsOcrPanel";
 import SettingsPanel from "../components/SettingsPanel";
 import SettingsOverlayPanel from "../components/SettingsOverlayPanel";
 import SettingsSectionNav from "../components/SettingsSectionNav";
@@ -230,44 +231,14 @@ export default function Settings({ status }) {
               </p>
             </SettingsPanel>
 
-            <SettingsPanel
-              sectionId="ocr"
+            <SettingsOcrPanel
               bindSectionRef={bindSectionRef}
-              title="OCR & Performance"
-            >
-              <label>
-                OCR Engine
-                <select
-                  value={form.ocr_engine}
-                  onChange={(event) => updateField("ocr_engine", event.target.value)}
-                >
-                  <option value="tesseract">Tesseract (CPU)</option>
-                  <option value="easyocr">EasyOCR (GPU capable)</option>
-                </select>
-              </label>
-              <div className="input-row settings-ocr-actions">
-                <button type="button" className="secondary" onClick={testGpuOcr} disabled={gpuTesting}>
-                  {gpuTesting ? "Testing..." : "Test GPU OCR"}
-                </button>
-              </div>
-              {gpuStatus ? <p className="hint settings-inline-status">{gpuStatus}</p> : null}
-
-              <details className="settings-advanced">
-                <summary>Advanced</summary>
-                <div className="settings-advanced-grid">
-                  <label>
-                    OCR Interval (seconds)
-                    <input
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      value={form.ocr_interval}
-                      onChange={(event) => updateField("ocr_interval", event.target.value)}
-                    />
-                  </label>
-                </div>
-              </details>
-            </SettingsPanel>
+              form={form}
+              updateField={updateField}
+              testGpuOcr={testGpuOcr}
+              gpuTesting={gpuTesting}
+              gpuStatus={gpuStatus}
+            />
 
             <SettingsOverlayPanel
               bindSectionRef={bindSectionRef}
