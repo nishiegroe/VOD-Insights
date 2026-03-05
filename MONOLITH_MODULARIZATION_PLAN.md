@@ -349,6 +349,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted `VodViewer` header/action cluster into `frontend/src/components/VodViewerHeader.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use it.
 - 2026-03-05: Extracted `/vod-ocr-upload`, `/api/vod-ocr-upload`, `/split-selected`, `/api/split-selected`, and `/vod-ocr` registrations into `app/routes/vod_actions.py` and wired them via dependency callbacks in `app/routes/__init__.py` + `app/webui.py`.
 - 2026-03-05: Extracted `/logo.png`, `/`, and `/<path:path>` registrations into `app/routes/spa.py`, removing all remaining direct `@app.route` decorators from `app/webui.py`.
+- 2026-03-05: Extracted desktop window state/lifecycle logic (`loadWindowState`, `saveWindowState`, `createWindow`) from `desktop/main.js` into `desktop/windowManager.js` and delegated main process window creation through the new module.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

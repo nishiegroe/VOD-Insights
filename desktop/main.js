@@ -7,6 +7,7 @@ const net = require("net");
 const path = require("path");
 const { createBackendSupervisor } = require("./backendSupervisor");
 const { validateInstallerDownloadUrl } = require("./updateUrlPolicy");
+const { createWindowManager } = require("./windowManager");
 
 const userDataDir = app.getPath("userData");
 const backendLogPath = path.join(userDataDir, "backend.log");
@@ -46,6 +47,22 @@ const backendSupervisor = createBackendSupervisor({
   userDataDir,
   backendLogPath,
   pyiTempDir
+});
+
+const windowManager = createWindowManager({
+  BrowserWindow,
+  fs,
+  path,
+  windowStatePath,
+  resolveWindowIconPath,
+  host: HOST,
+  port: PORT,
+  backendSupervisor,
+  stopBackend,
+  getIsQuitting: () => isQuitting,
+  setIsQuitting: (value) => {
+    isQuitting = value;
+  }
 });
 
 function resolveDesktopAssetPath(filename) {
@@ -613,43 +630,6 @@ async function maybeCheckForUpdates(options = {}) {
   }
 }
 
-function loadWindowState() {
-  try {
-    const raw = fs.readFileSync(windowStatePath, "utf8");
-    const state = JSON.parse(raw);
-    if (typeof state.width === "number" && typeof state.height === "number") {
-      return {
-        width: state.width,
-        height: state.height,
-        x: typeof state.x === "number" ? state.x : undefined,
-        y: typeof state.y === "number" ? state.y : undefined,
-        isMaximized: Boolean(state.isMaximized)
-      };
-    }
-  } catch (error) {
-    // Ignore missing/invalid state file.
-  }
-  return { width: 1600, height: 900, x: undefined, y: undefined, isMaximized: false };
-}
-
-function saveWindowState(win) {
-  if (!win || win.isDestroyed()) {
-    return;
-  }
-  const { width, height, x, y } = win.getBounds();
-  const isMaximized = win.isMaximized();
-  try {
-    fs.mkdirSync(userDataDir, { recursive: true });
-    fs.writeFileSync(
-      windowStatePath,
-      JSON.stringify({ width, height, x, y, isMaximized }, null, 2),
-      "utf8"
-    );
-  } catch (error) {
-    // Ignore write errors.
-  }
-}
-
 function startBackend() {
   backendSupervisor.startBackend();
 }
@@ -741,55 +721,7 @@ document.getElementById('time').textContent = m > 0 ? m + 'm ' + sec + 's' : sec
 }
 
 function createWindow() {
-  const lastState = loadWindowState();
-  const win = new BrowserWindow({
-    width: lastState.width,
-    height: lastState.height,
-    x: lastState.x,
-    y: lastState.y,
-    icon: resolveWindowIconPath(),
-    backgroundColor: "#111111",
-    show: false,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: path.join(__dirname, "preload.js")
-    }
-  });
-
-  win.setMenuBarVisibility(false);
-  win.setAutoHideMenuBar(true);
-
-  win.once("ready-to-show", () => {
-    if (lastState.isMaximized) {
-      win.maximize();
-    }
-    win.show();
-  });
-
-  let saveTimer = null;
-  const scheduleSave = () => {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveWindowState(win), 200);
-  };
-
-  win.on("resize", scheduleSave);
-  win.on("move", scheduleSave);
-  win.on("close", () => saveWindowState(win));
-
-  win.on("close", (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      isQuitting = true;
-      backendSupervisor.markQuitting();
-      stopBackend().then(() => {
-        win.destroy();
-      });
-    }
-  });
-
-  win.loadURL(`http://${HOST}:${PORT}`);
-  return win;
+  return windowManager.createWindow();
 }
 
 async function handleUpdateAppRequest() {
