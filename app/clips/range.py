@@ -7,7 +7,7 @@ from typing import Any, Dict, Tuple
 
 from app.runtime_paths import get_app_data_dir
 from app.split_bookmarks import count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg
-from app.vod_catalog import get_vod_dirs, list_sessions_for_vod
+from app.vod.catalog import get_vod_dirs, list_sessions_for_vod
 
 
 def create_clip_range_payload(

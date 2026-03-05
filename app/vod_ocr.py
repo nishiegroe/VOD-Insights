@@ -16,7 +16,7 @@ from app.detector import detect_event_line
 from app.ocr import OcrSettings, preprocess, run_ocr
 from app.split_bookmarks import split_from_config
 from app.runtime_paths import get_config_path, resolve_log_path, get_app_data_dir, reset_log_file
-from app.vod_stem import sanitize_stem as _sanitize_stem
+from app.vod.stem import sanitize_stem as _sanitize_stem
 
 
 def sanitize_stem(value: str) -> str:

@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
-from app.clip_insights import format_timestamp, format_vod_display_title, parse_vod_timestamp
+from app.clips.insights import format_timestamp, format_vod_display_title, parse_vod_timestamp
 from app.media_duration import get_media_duration
 from app.split_bookmarks import load_bookmarks
-from app.vod_catalog import list_sessions_for_vod
-from app.vod_scan_files import find_vod_scan_state
+from app.vod.catalog import list_sessions_for_vod
+from app.vod.scan_files import find_vod_scan_state
 
 
 def get_hottest_event_time(bookmark_path: Path, duration: Optional[float]) -> Optional[float]:

@@ -14,7 +14,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from app.config import load_config
 from app.runtime_paths import get_app_data_dir, get_config_path, resolve_log_path, resolve_tool, reset_log_file
-from app.split_export import export_clip_windows
+from app.clips.split_export import export_clip_windows
 
 
 @dataclass

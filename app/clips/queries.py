@@ -4,14 +4,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.clip_insights import calculate_averages, get_session_start, parse_clip_details
-from app.clip_library import (
+from app.clips.insights import calculate_averages, get_session_start, parse_clip_details
+from app.clips.library import (
     build_clip_entry,
     iter_clip_files,
     resolve_clip_path,
     serialize_clip,
 )
-from app.clip_titles import load_clip_titles
+from app.clips.titles import load_clip_titles
 
 
 def clip_days_payload(config: Dict[str, Any]) -> List[Dict[str, Any]]:

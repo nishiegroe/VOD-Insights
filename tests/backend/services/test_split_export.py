@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from app.split_export import export_clip_windows
+from app.clips.split_export import export_clip_windows
 
 
 def test_export_clip_windows_success(tmp_path: Path) -> None:

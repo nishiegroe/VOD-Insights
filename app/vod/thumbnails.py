@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 
 from app.runtime_paths import get_app_data_dir, resolve_tool
-from app.vod_stem import sanitize_stem
+from app.vod.stem import sanitize_stem
 
 
 def extract_vod_thumbnail(vod_path: Path, seconds: float, output_path: Path) -> None:

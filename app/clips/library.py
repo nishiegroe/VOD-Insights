@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from app.clip_insights import (
+from app.clips.insights import (
     build_top_reason,
     calculate_averages,
     format_offset_seconds,
@@ -14,9 +14,9 @@ from app.clip_insights import (
     is_above_average,
     parse_clip_details,
 )
-from app.clip_titles import CLIP_NAME_PATTERN, get_clip_title, load_clip_titles
+from app.clips.titles import CLIP_NAME_PATTERN, get_clip_title, load_clip_titles
 from app.media_duration import get_media_duration
-from app.vod_catalog import get_clips_dir
+from app.vod.catalog import get_clips_dir
 
 
 def get_clip_dirs(config: Dict[str, Any]) -> List[Path]:

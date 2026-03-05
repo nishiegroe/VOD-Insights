@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import app.clip_range as clip_range
+import app.clips.range as clip_range
 
 
 def _base_config(replay_dir: Path, bookmarks_dir: Path) -> dict:

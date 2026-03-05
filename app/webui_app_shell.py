@@ -11,7 +11,7 @@ from threading import Lock
 from typing import Any, Callable, Dict, Optional
 
 from app.runtime_paths import get_project_root
-from app.vod_scan_files import get_scan_marker_paths, resolve_bookmarks_context
+from app.vod.scan_files import get_scan_marker_paths, resolve_bookmarks_context
 
 
 def cleanup_vod_scans_on_exit(
