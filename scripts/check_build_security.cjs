@@ -46,6 +46,7 @@ function checkBuildScript() {
 
 function checkDependencyBootstrapHosts() {
   const content = readText("app/dependency_bootstrap.py");
+    const hostAllowlistContent = readText("app/dependency_bootstrap_ops.py");
 
   const allowedHosts = [
     "www.gyan.dev",
@@ -55,8 +56,8 @@ function checkDependencyBootstrapHosts() {
   ];
 
   for (const host of allowedHosts) {
-    if (!content.includes(`\"${host}\"`) && !content.includes(`'${host}'`)) {
-      fail(`app/dependency_bootstrap.py host allowlist missing expected host: ${host}`);
+      if (!hostAllowlistContent.includes(`"${host}"`) && !hostAllowlistContent.includes(`'${host}'`)) {
+        fail(`app/dependency_bootstrap_ops.py host allowlist missing expected host: ${host}`);
     }
   }
 

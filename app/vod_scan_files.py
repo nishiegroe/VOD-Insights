@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.runtime_paths import get_app_data_dir
-from app.vod_ocr import sanitize_stem
+from app.vod_stem import sanitize_stem
 
 
 def resolve_bookmarks_context(config: Dict[str, Any]) -> Tuple[Path, str]:

@@ -37,12 +37,13 @@ def test_register_signal_handlers(monkeypatch) -> None:
 def test_watch_for_changes_triggers_exit(tmp_path: Path, monkeypatch) -> None:
     target_file = tmp_path / "watch.py"
     target_file.write_text("a=1", encoding="utf-8")
+    changed_file = tmp_path / "watch_changed.py"
 
     state = {"slept": 0}
 
     def fake_sleep(seconds: float) -> None:
         if state["slept"] == 0:
-            target_file.write_text("a=2", encoding="utf-8")
+            changed_file.write_text("a=2", encoding="utf-8")
         state["slept"] += 1
 
     class RestartTriggered(Exception):

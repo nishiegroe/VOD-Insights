@@ -279,10 +279,6 @@ def cleanup_on_exit() -> None:
 atexit.register(cleanup_on_exit)
 
 
-# Register signal handlers for graceful shutdown
-register_signal_handlers(cleanup_on_exit)
-
-
 def load_config() -> Dict[str, Any]:
     return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
@@ -1033,6 +1029,8 @@ create_app()
 
 def main() -> None:
     global _vod_downloader
+
+    register_signal_handlers(cleanup_on_exit)
 
     config = load_config()
     log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))

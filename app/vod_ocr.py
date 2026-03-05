@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -17,10 +16,11 @@ from app.detector import detect_event_line
 from app.ocr import OcrSettings, preprocess, run_ocr
 from app.split_bookmarks import split_from_config
 from app.runtime_paths import get_config_path, resolve_log_path, get_app_data_dir, reset_log_file
+from app.vod_stem import sanitize_stem as _sanitize_stem
 
 
 def sanitize_stem(value: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9_-]+", "_", value).strip("_")
+    return _sanitize_stem(value)
 
 
 def detect_match(lines: Iterable[str], keywords: Iterable[str]) -> str:

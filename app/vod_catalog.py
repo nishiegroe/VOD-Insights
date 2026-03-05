@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 
 from app.clip_insights import format_timestamp, parse_vod_timestamp
 from app.runtime_paths import get_downloads_dir
-from app.vod_ocr import sanitize_stem
+from app.vod_stem import sanitize_stem
 
 
 DOWNLOADS_DIR = get_downloads_dir()
