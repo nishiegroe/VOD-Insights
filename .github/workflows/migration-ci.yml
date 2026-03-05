@@ -53,12 +53,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
+
+      - name: Setup Python for diff coverage
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install diff-cover
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install diff-cover
 
       - name: Install root deps
         run: npm ci
@@ -74,6 +86,15 @@ jobs:
 
       - name: Install frontend deps
         run: npm --prefix frontend ci
+
+      - name: Run frontend unit tests with coverage gate
+        run: npm --prefix frontend run test:coverage
+
+      - name: Enforce frontend diff coverage on PR changes
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin main:origin/main
+          diff-cover frontend/coverage/cobertura-coverage.xml --compare-branch=origin/main --fail-under=67 --include="frontend/src/*"
 
       - name: Build frontend
         run: npm --prefix frontend run build
