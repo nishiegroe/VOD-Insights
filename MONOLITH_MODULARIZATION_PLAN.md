@@ -368,6 +368,8 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted Settings page capture section UI into `frontend/src/components/SettingsCapturePanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
 - 2026-03-05: Extracted updater feed/env constants from `desktop/main.js` into `desktop/updaterConfig.js` and rewired desktop updater initialization to consume the config module.
 - 2026-03-05: Extracted Settings page clips section UI into `frontend/src/components/SettingsClipsPanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
+- 2026-03-05: Simplified `desktop/main.js` lifecycle wiring by passing splash/window manager methods directly into `registerAppLifecycle` and removing redundant local wrappers.
+- 2026-03-05: Extracted optional session-recorder card UI from `frontend/src/pages/Settings.jsx` into `frontend/src/components/SettingsSessionRecorderCard.jsx`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

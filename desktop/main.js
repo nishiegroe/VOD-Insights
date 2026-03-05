@@ -109,18 +109,6 @@ const splashScreenTools = createSplashScreenTools({
   requestApiJson: backendApiClient.requestApiJson,
 });
 
-function createSplashScreen() {
-  return splashScreenTools.createSplashScreen();
-}
-
-function waitForDependencyBootstrap(splash) {
-  return splashScreenTools.waitForDependencyBootstrap(splash);
-}
-
-function createWindow() {
-  return windowManager.createWindow();
-}
-
 registerDesktopIpcHandlers({
   ipcMain,
   updaterManager,
@@ -136,11 +124,11 @@ registerAppLifecycle({
   setIsQuitting: (value) => {
     isQuitting = value;
   },
-  createSplashScreen,
+  createSplashScreen: splashScreenTools.createSplashScreen,
   startBackend: backendRuntime.startBackend,
   waitForPort: backendRuntime.waitForPort,
   host: HOST,
   port: PORT,
-  waitForDependencyBootstrap,
-  createWindow,
+  waitForDependencyBootstrap: splashScreenTools.waitForDependencyBootstrap,
+  createWindow: windowManager.createWindow,
 });
