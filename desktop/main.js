@@ -5,6 +5,7 @@ const net = require("net");
 const path = require("path");
 const { createBackendSupervisor } = require("./backendSupervisor");
 const { registerAppLifecycle } = require("./appLifecycle");
+const { registerDesktopIpcHandlers } = require("./ipcHandlers");
 const { createAssetResolvers } = require("./assetPaths");
 const { createBackendApiClient } = require("./backendApiClient");
 const { createSplashScreenTools } = require("./splashScreen");
@@ -141,8 +142,10 @@ function createWindow() {
   return windowManager.createWindow();
 }
 
-ipcMain.handle("desktop:update-app", () => updaterManager.handleUpdateAppRequest());
-ipcMain.handle("desktop:check-for-updates", () => updaterManager.handleUpdateAppRequest());
+registerDesktopIpcHandlers({
+  ipcMain,
+  updaterManager,
+});
 
 registerAppLifecycle({
   app,

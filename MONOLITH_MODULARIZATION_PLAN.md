@@ -360,6 +360,8 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted Settings page updates section UI into `frontend/src/components/SettingsUpdatesPanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
 - 2026-03-05: Extracted desktop asset/icon resolver helpers from `desktop/main.js` into `desktop/assetPaths.js` and delegated icon path lookup through the new utility.
 - 2026-03-05: Extracted Settings page overlay section UI into `frontend/src/components/SettingsOverlayPanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
+- 2026-03-05: Extracted desktop update IPC handler registration from `desktop/main.js` into `desktop/ipcHandlers.js`.
+- 2026-03-05: Extracted Settings page detection section UI into `frontend/src/components/SettingsDetectionPanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
