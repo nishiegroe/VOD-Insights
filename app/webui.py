@@ -44,6 +44,7 @@ from app.routes import register_blueprints
 from app.routes.gpu import GpuRouteDeps
 from app.routes.overlay import OverlayRouteDeps
 from app.routes.system import SystemRouteDeps
+from app.routes.twitch_import import TwitchImportRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
@@ -100,6 +101,11 @@ def create_app() -> Flask:
             vod_download_start_response=vod_download_start_response,
             vod_download_progress_response=vod_download_progress_response,
             vod_check_tools_response=vod_check_tools_response,
+        ),
+        twitch_import_deps=TwitchImportRouteDeps(
+            twitch_imports_response=twitch_imports_response,
+            twitch_import_start_response=twitch_import_start_response,
+            twitch_import_status_response=twitch_import_status_response,
         ),
     )
     return app
@@ -2218,8 +2224,7 @@ def api_vods_stream() -> Response:
     )
 
 
-@app.route("/api/twitch-imports")
-def api_twitch_imports() -> Any:
+def twitch_imports_response() -> Any:
     limit_arg = request.args.get("limit")
     try:
         limit = int(limit_arg) if limit_arg else 20
@@ -2228,8 +2233,7 @@ def api_twitch_imports() -> Any:
     return jsonify({"jobs": list_twitch_jobs(limit=limit)})
 
 
-@app.route("/api/twitch-import", methods=["POST"])
-def api_twitch_import() -> Any:
+def twitch_import_start_response() -> Any:
     payload = request.get_json(silent=True) or {}
     url = str(payload.get("url", "")).strip()
     if not url:
@@ -2253,8 +2257,7 @@ def api_twitch_import() -> Any:
     return jsonify({"ok": True, "job": job})
 
 
-@app.route("/api/twitch-import/<job_id>")
-def api_twitch_import_status(job_id: str) -> Any:
+def twitch_import_status_response(job_id: str) -> Any:
     job = read_twitch_job(job_id)
     if not job:
         return jsonify({"ok": False, "error": "Job not found"}), 404
