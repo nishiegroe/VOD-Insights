@@ -387,6 +387,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted VOD scan subprocess launch/termination helpers (log setup, command construction, resume flag handling) from `app/webui.py` into `app/vod_scan_runner.py` and rewired run/resume/stop handlers.
 - 2026-03-05: Extracted ffprobe-based media duration caching/probing from `app/webui.py` into `app/media_duration.py` and rewired clip/VOD entry builders.
 - 2026-03-05: Extracted VOD entry assembly and hottest-event thumbnail timing logic from `app/webui.py` into `app/vod_entries.py` and rewired VOD list/single responses.
+- 2026-03-05: Extracted shared VOD upload/save/start-scan workflow from `app/webui.py` into `app/vod_upload.py` and rewired both upload endpoints.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

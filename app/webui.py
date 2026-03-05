@@ -54,7 +54,6 @@ from app.twitch_jobs import (
     is_twitch_vod_url,
     list_twitch_jobs,
     read_twitch_job,
-    sanitize_filename,
     write_twitch_job,
 )
 from app.vod_catalog import (
@@ -84,6 +83,7 @@ from app.replay_directory import choose_and_save_replay_dir
 from app.vod_scan_runner import launch_vod_scan_process, terminate_process
 from app.media_duration import get_media_duration
 from app.vod_entries import build_vod_entries
+from app.vod_upload import save_uploaded_vod_file, start_vod_scan_for_path
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -700,20 +700,8 @@ def vod_ocr_upload() -> str:
         return redirect("/")
 
     config = load_config()
-    recordings_dir = Path(config.get("replay", {}).get("directory", "")).resolve()  # Use replay directory
-    upload_dir = recordings_dir if recordings_dir.exists() else get_uploads_dir()
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    filename = sanitize_filename(file.filename)
-    dest_path = upload_dir / filename
-    file.save(dest_path)
-
-    subprocess.Popen(
-        build_mode_command("vod", CONFIG_PATH, ["--vod", str(dest_path)]),
-        cwd=str(get_project_root()),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    dest_path = save_uploaded_vod_file(file, config)
+    start_vod_scan_for_path(CONFIG_PATH, dest_path)
     return redirect("/vods")
 
 
@@ -723,20 +711,8 @@ def api_vod_ocr_upload() -> Any:
         return jsonify({"ok": False, "error": "Missing file"}), 400
 
     config = load_config()
-    recordings_dir = Path(config.get("replay", {}).get("directory", "")).resolve()  # Use replay directory
-    upload_dir = recordings_dir if recordings_dir.exists() else get_uploads_dir()
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    filename = sanitize_filename(file.filename)
-    dest_path = upload_dir / filename
-    file.save(dest_path)
-
-    subprocess.Popen(
-        build_mode_command("vod", CONFIG_PATH, ["--vod", str(dest_path)]),
-        cwd=str(get_project_root()),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    dest_path = save_uploaded_vod_file(file, config)
+    start_vod_scan_for_path(CONFIG_PATH, dest_path)
     return jsonify({"ok": True, "path": str(dest_path), "name": dest_path.name})
 
 
