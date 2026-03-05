@@ -1,5 +1,6 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
+import BrandTitle from "./BrandTitle";
 
 const navLinkClass = ({ isActive }) =>
   isActive ? "link-button active" : "link-button";
@@ -19,10 +20,12 @@ export default function AppHeader({
   return (
     <header className="header">
       <div>
-        <h1 className="brand-title brand-title-main">
-          <img src="/logo.png" alt="" className="brand-logo brand-logo-main" aria-hidden="true" />
-          <span>VOD Insights</span>
-        </h1>
+        <BrandTitle
+          as="h1"
+          text="VOD Insights"
+          logoClassName="brand-logo brand-logo-main"
+          titleClassName="brand-title brand-title-main"
+        />
       </div>
       <div className="status">
         <div className="header-actions">

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DownloadVODModal from "../components/DownloadVODModal";
+import BrandTitle from "../components/BrandTitle";
 import {
   chooseReplayDir,
   clearVodSessions,
@@ -15,6 +16,7 @@ import {
   stopVodScan,
   uploadVodFile,
 } from "../api/vods";
+import { formatDuration } from "../utils/formatDuration";
 
 export default function Vods({ status }) {
   const WIZARD_STEP_START_SCAN = 1;
@@ -197,19 +199,6 @@ export default function Vods({ status }) {
     } catch (error) {
       showToast(error.message || "Failed to delete VOD");
     }
-  };
-
-  const formatDuration = (seconds) => {
-    if (!Number.isFinite(seconds) || seconds <= 0) return "";
-    const total = Math.round(seconds);
-    const hrs = Math.floor(total / 3600);
-    const mins = Math.floor((total % 3600) / 60);
-    const secs = total % 60;
-    const parts = [];
-    if (hrs > 0) parts.push(`${hrs} hr`);
-    if (mins > 0 || hrs > 0) parts.push(`${mins} min`);
-    parts.push(`${secs} sec`);
-    return parts.join(" ");
   };
 
   const handleScan = async (vod) => {
@@ -506,10 +495,12 @@ export default function Vods({ status }) {
     <section className="grid">
       {!recordingDir ? (
         <section className="card centered" style={{ padding: '3rem 2rem' }}>
-          <h2 className="brand-title brand-title-welcome">
-            <img src="/logo.png" alt="" className="brand-logo brand-logo-welcome" aria-hidden="true" />
-            <span>Welcome to VOD Insights!</span>
-          </h2>
+          <BrandTitle
+            as="h2"
+            text="Welcome to VOD Insights!"
+            logoClassName="brand-logo brand-logo-welcome"
+            titleClassName="brand-title brand-title-welcome"
+          />
           <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
             To get started, you need to configure where your Apex Legends recordings are stored.
           </p>

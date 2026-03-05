@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { apiJson, apiPost } from "../api/client";
+import BrandTitle from "../components/BrandTitle";
 import SectionHeader from "../components/SectionHeader";
+import { formatDuration } from "../utils/formatDuration";
 
 export default function Home({ status }) {
   const navigate = useNavigate();
@@ -60,19 +62,6 @@ export default function Home({ status }) {
     }
   };
 
-  const formatDuration = (seconds) => {
-    if (!Number.isFinite(seconds) || seconds <= 0) return "";
-    const total = Math.round(seconds);
-    const hrs = Math.floor(total / 3600);
-    const mins = Math.floor((total % 3600) / 60);
-    const secs = total % 60;
-    const parts = [];
-    if (hrs > 0) parts.push(`${hrs} hr`);
-    if (mins > 0 || hrs > 0) parts.push(`${mins} min`);
-    parts.push(`${secs} sec`);
-    return parts.join(" ");
-  };
-
   if (!configLoaded) {
     return null; // Don't render anything until config is loaded
   }
@@ -110,10 +99,12 @@ export default function Home({ status }) {
 
       {!recordingDir ? (
         <section className="card centered" style={{ padding: '3rem 2rem' }}>
-          <h2 className="brand-title brand-title-welcome">
-            <img src="/logo.png" alt="" className="brand-logo brand-logo-welcome" aria-hidden="true" />
-            <span>Welcome to VOD Insights!</span>
-          </h2>
+          <BrandTitle
+            as="h2"
+            text="Welcome to VOD Insights!"
+            logoClassName="brand-logo brand-logo-welcome"
+            titleClassName="brand-title brand-title-welcome"
+          />
           <p style={{ fontSize: '1.1rem', marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
             To get started, you need to configure where your Apex Legends recordings are stored.
           </p>
