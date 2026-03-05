@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import VodBookmarkList from "../components/VodBookmarkList";
 import VodClipControls from "../components/VodClipControls";
 import VodOverviewTimeline from "../components/VodOverviewTimeline";
+import VodScrubTimeline from "../components/VodScrubTimeline";
 import {
   createClipRange,
   deleteVod as deleteVodRequest,
@@ -112,6 +113,8 @@ export default function VodViewer() {
       ? duration || 0
       : Math.min(duration || 0, currentTime + scrubHalfSeconds);
   const scrubWindowSpan = Math.max(1, scrubWindowEnd - scrubWindowStart);
+  const windowClipStart = Math.max(scrubWindowStart, Math.min(scrubWindowEnd, clipStart));
+  const windowClipEnd = Math.max(windowClipStart, Math.min(scrubWindowEnd, clipEnd));
 
   const toWindowPercent = (time) => {
     const clamped = Math.max(scrubWindowStart, Math.min(scrubWindowEnd, time));
@@ -1015,6 +1018,34 @@ export default function VodViewer() {
     setOverviewDragging(true);
   };
 
+  const handleRangeBarPointerDown = (event) => {
+    if (!showClipTools || !timelineRef.current) return;
+    event.preventDefault();
+    const rect = timelineRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const time = fromWindowPercent(pct);
+    rangeDragOffsetRef.current = time - clipStartRef.current;
+    setRangeDragging(true);
+  };
+
+  const handleScrubHandlePointerDown = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setScrubDragging(true);
+  };
+
+  const handleClipStartHandlePointerDown = (event) => {
+    event.preventDefault();
+    dragStateRef.current.handle = "start";
+    setDraggingHandle("start");
+  };
+
+  const handleClipEndHandlePointerDown = (event) => {
+    event.preventDefault();
+    dragStateRef.current.handle = "end";
+    setDraggingHandle("end");
+  };
+
   if (error) {
     return (
       <section className="grid">
@@ -1381,157 +1412,30 @@ export default function VodViewer() {
               currentTime={currentTime}
             />
 
-            {duration > 0 && (
-              (() => {
-                const windowClipStart = Math.max(scrubWindowStart, Math.min(scrubWindowEnd, clipStart));
-                const windowClipEnd = Math.max(windowClipStart, Math.min(scrubWindowEnd, clipEnd));
-                return (
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "12px 0" }}>
-                    <div style={{ minWidth: "58px", textAlign: "right", fontSize: "12px", color: "var(--muted)" }}>
-                      {formatTime(scrubWindowStart)}
-                    </div>
-                    <div
-                      className="timeline-range-container"
-                      ref={timelineRef}
-                      onWheel={handleZoomWheel}
-                      onPointerDown={handleTimelinePointerDown}
-                      style={{ position: "relative", height: "32px", margin: 0, flex: 1 }}
-                    >
-                      <div
-                        className="timeline-scrub-line"
-                        style={{
-                          position: "absolute",
-                          left: 0,
-                          right: 0,
-                          top: "15px",
-                          height: "2px",
-                          background: "rgba(255, 255, 255, 0.2)",
-                          borderRadius: "2px",
-                          zIndex: 1,
-                        }}
-                      />
-
-                      {windowEvents.map((entry) => {
-                        const isNear = Math.abs(currentTime - entry.seconds) < 2;
-                        const isNearby = nearbyEventIds.has(entry.id);
-                        const markerColor = getEventColor(entry.filterKey);
-                        return (
-                          <div
-                            key={entry.id}
-                            className={`timeline-marker scrub-marker ${isNear ? "active" : ""} ${isNearby ? "nearby" : ""}`}
-                            style={{
-                              left: `${toWindowPercent(entry.seconds)}%`,
-                              top: "50%",
-                              transform: "translate(-50%, -50%)",
-                              zIndex: 4,
-                              background: markerColor,
-                            }}
-                            onClick={() => seekToExact(entry.seconds)}
-                            title={`${formatTime(entry.seconds)} - ${normalizeEvent(entry.event)}`}
-                          />
-                        );
-                      })}
-
-                      <div
-                        className="timeline-range-bar"
-                        hidden={!showClipTools}
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(windowClipStart)}%`,
-                          width: `${Math.max(0, ((windowClipEnd - windowClipStart) / scrubWindowSpan) * 100)}%`,
-                          top: "12px",
-                          height: "8px",
-                          background: "#e34b6c",
-                          borderRadius: "4px",
-                          zIndex: 2,
-                          cursor: "grab",
-                        }}
-                        onPointerDown={(e) => {
-                          if (!showClipTools || !timelineRef.current) return;
-                          e.preventDefault();
-                          const rect = timelineRef.current.getBoundingClientRect();
-                          const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                          const time = fromWindowPercent(pct);
-                          rangeDragOffsetRef.current = time - clipStartRef.current;
-                          setRangeDragging(true);
-                        }}
-                      />
-
-                      <div
-                        className="timeline-scrub-handle"
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(currentTime)}%`,
-                          top: "6px",
-                          width: "8px",
-                          height: "20px",
-                          background: "#ffd46a",
-                          borderRadius: "4px",
-                          transform: "translateX(-50%)",
-                          cursor: "ew-resize",
-                          zIndex: 5,
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setScrubDragging(true);
-                        }}
-                        title="Drag to scrub"
-                      />
-
-                      <div
-                        className="timeline-range-handle start"
-                        hidden={!showClipTools}
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(windowClipStart)}%`,
-                          top: "8px",
-                          width: "12px",
-                          height: "16px",
-                          background: draggingHandle === "start" ? "#e34b6c" : "#fff",
-                          border: "2px solid #e34b6c",
-                          borderRadius: "4px",
-                          cursor: "ew-resize",
-                          zIndex: 4,
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          dragStateRef.current.handle = "start";
-                          setDraggingHandle("start");
-                        }}
-                        title="Drag to set clip start"
-                      />
-
-                      <div
-                        className="timeline-range-handle end"
-                        hidden={!showClipTools}
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(windowClipEnd)}%`,
-                          top: "8px",
-                          width: "12px",
-                          height: "16px",
-                          background: draggingHandle === "end" ? "#e34b6c" : "#fff",
-                          border: "2px solid #e34b6c",
-                          borderRadius: "4px",
-                          cursor: "ew-resize",
-                          zIndex: 4,
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          dragStateRef.current.handle = "end";
-                          setDraggingHandle("end");
-                        }}
-                        title="Drag to set clip end"
-                      />
-                    </div>
-                    <div style={{ minWidth: "58px", textAlign: "left", fontSize: "12px", color: "var(--muted)" }}>
-                      {formatTime(scrubWindowEnd)}
-                    </div>
-                  </div>
-                );
-              })()
-            )}
+            <VodScrubTimeline
+              duration={duration}
+              scrubWindowStart={scrubWindowStart}
+              scrubWindowEnd={scrubWindowEnd}
+              formatTime={formatTime}
+              timelineRef={timelineRef}
+              handleZoomWheel={handleZoomWheel}
+              handleTimelinePointerDown={handleTimelinePointerDown}
+              windowEvents={windowEvents}
+              currentTime={currentTime}
+              nearbyEventIds={nearbyEventIds}
+              toWindowPercent={toWindowPercent}
+              seekToExact={seekToExact}
+              normalizeEvent={normalizeEvent}
+              showClipTools={showClipTools}
+              windowClipStart={windowClipStart}
+              windowClipEnd={windowClipEnd}
+              scrubWindowSpan={scrubWindowSpan}
+              draggingHandle={draggingHandle}
+              handleRangeBarPointerDown={handleRangeBarPointerDown}
+              handleScrubHandlePointerDown={handleScrubHandlePointerDown}
+              handleClipStartHandlePointerDown={handleClipStartHandlePointerDown}
+              handleClipEndHandlePointerDown={handleClipEndHandlePointerDown}
+            />
 
             <VodClipControls
               duration={duration}
