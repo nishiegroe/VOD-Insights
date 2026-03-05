@@ -391,6 +391,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted Windows Explorer reveal invocation used by open-folder handlers from `app/webui.py` into `app/file_explorer.py`.
 - 2026-03-05: Extracted media file-serving allowlist directory resolution from `app/webui.py` into `app/media_access.py`.
 - 2026-03-05: Extracted clip library helpers (clip directory discovery, file iteration/filtering, entry serialization, clip path resolution) from `app/webui.py` into `app/clip_library.py`.
+- 2026-03-05: Extracted backend log utilities (log path resolution, log tailing, OS-specific log opening) from `app/webui.py` into `app/backend_logs.py`.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

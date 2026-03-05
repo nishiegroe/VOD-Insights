@@ -86,6 +86,7 @@ from app.clip_library import (
     resolve_clip_path,
     serialize_clip,
 )
+from app.backend_logs import get_backend_log_path, open_backend_log, tail_lines
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -418,13 +419,6 @@ def stop_bookmark_process() -> None:
             except subprocess.TimeoutExpired:
                 _bookmark_process.kill()
         _bookmark_process = None
-
-
-def tail_lines(path: Path, max_lines: int = 200) -> List[str]:
-    if not path.exists():
-        return []
-    lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
-    return lines[-max_lines:]
 
 
 def clip_days_response() -> Any:
@@ -1260,22 +1254,17 @@ def logs_response() -> Any:
     except ValueError:
         limit = 200
     config = load_config()
-    log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
+    log_path = get_backend_log_path(config, CONFIG_PATH)
     return jsonify({"lines": tail_lines(log_path, max_lines=limit)})
 
 
 def open_backend_log_response() -> Any:
     config = load_config()
-    log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
+    log_path = get_backend_log_path(config, CONFIG_PATH)
     if not log_path.exists():
         return jsonify({"ok": False, "error": "Log file not found"}), 404
     try:
-        if sys.platform.startswith("win"):
-            subprocess.Popen(["notepad", str(log_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        elif sys.platform == "darwin":
-            subprocess.Popen(["open", "-a", "TextEdit", str(log_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        else:
-            subprocess.Popen(["xdg-open", str(log_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        open_backend_log(log_path)
     except Exception:
         return jsonify({"ok": False, "error": "Failed to open log"}), 500
     return jsonify({"ok": True})
