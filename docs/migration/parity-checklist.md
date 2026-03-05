@@ -11,8 +11,8 @@ Run this checklist before and after each migration PR that moves routes, process
 - Backend starts locally: `python -m app.webui`
 
 ## Automated Baseline
-- [ ] `python tests/test_vod_api.py`
-- [ ] `python -m pytest tests/test_vod_download.py -v`
+- [ ] `python -m pytest tests/backend/api/test_vod_api.py`
+- [ ] `python -m pytest tests/backend/integration/test_vod_download.py -v`
 
 ## API Smoke (PowerShell)
 - [ ] `Invoke-RestMethod http://127.0.0.1:5170/api/status`

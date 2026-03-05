@@ -7,11 +7,13 @@ on:
       - De-monolithing
 
 jobs:
-  python-targeted-tests:
+  python-coverage-gate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -21,11 +23,30 @@ jobs:
       - name: Install targeted test deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest numpy
+          python -m pip install pytest pytest-cov diff-cover numpy flask
 
-      - name: Run targeted Python tests
+      - name: Run backend tests with coverage gate
         run: |
-          python -m pytest tests/test_detector.py tests/test_capture_frame_source.py -q
+          python -m pytest tests/backend -q \
+            --cov=app.clip_range \
+            --cov=app.session_data \
+            --cov=app.dependency_bootstrap_ops \
+            --cov=app.vod_download_utils \
+            --cov=app.split_export \
+            --cov=app.webui_app_shell \
+            --cov-report=xml \
+            --cov-report=term \
+            --cov-fail-under=67
+
+      - name: Enforce diff coverage on PR changes
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin main:origin/main
+          diff-cover coverage.xml --compare-branch=origin/main --fail-under=67
+
+      - name: Run service smoke tests
+        run: |
+          python -m pytest tests/backend/services/test_detector.py tests/backend/services/test_capture_frame_source.py -q
 
   node-guardrails:
     runs-on: ubuntu-latest

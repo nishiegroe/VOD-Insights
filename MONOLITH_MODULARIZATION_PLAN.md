@@ -40,8 +40,8 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Baseline performance notes for startup and scan flows.
 
 #### Validation
-- `python tests/test_vod_api.py`
-- `python -m pytest tests/test_vod_download.py -v`
+- `python -m pytest tests/backend/api/test_vod_api.py`
+- `python -m pytest tests/backend/integration/test_vod_download.py -v`
 - `python -m app.webui` and manual checks:
   - `GET /api/status`
   - `GET /api/config`
@@ -190,7 +190,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - Objective: Introduce `create_app` and first blueprint scaffold without response changes.
 - Inputs/Files: `app/webui.py`, `app/routes/__init__.py`, `app/routes/system.py`
 - Deliverable: App factory + one migrated low-risk route group.
-- Validation: `python tests/test_vod_api.py` and `/api/status` + `/api/config` parity.
+- Validation: `python -m pytest tests/backend/api/test_vod_api.py` and `/api/status` + `/api/config` parity.
 - Risk: Medium (contract drift).
 - Status: Done
 - Owner: Backend-WebUI-Agent
@@ -210,7 +210,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 ### OCR-MOD-001
 - Track: OCR/Detection
 - Objective: Add `FrameSource` seam with default adapter preserving `dxcam -> mss` behavior.
-- Inputs/Files: `app/capture.py`, `app/main.py`, `app/vod_ocr.py`, `tests/test_capture_frame_source.py`
+- Inputs/Files: `app/capture.py`, `app/main.py`, `app/vod_ocr.py`, `tests/backend/services/test_capture_frame_source.py`
 - Deliverable: Injectable frame source abstraction + fake source for tests.
 - Validation: Preview smoke + fallback parity checks.
 - Risk: Medium (timing assumptions).
@@ -305,7 +305,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-04: Completed MIG-FD-002 with `desktop/backendSupervisor.js` extraction and successful desktop build.
 - 2026-03-04: Completed MOD-BE-003 with shared `app/path_policy.py` and migrated endpoint usage.
 - 2026-03-04: Continued frontend API-client adoption by migrating `TwitchImport` network calls.
-- 2026-03-04: Unblocked API regression coverage (`tests/test_vod_api.py`) and fixed `/api/vod/download` missing-JSON handling.
+- 2026-03-04: Unblocked API regression coverage (`tests/backend/api/test_vod_api.py`) and fixed `/api/vod/download` missing-JSON handling.
 - 2026-03-04: Extracted OCR GPU route registration into dedicated `app/routes/gpu.py` blueprint.
 - 2026-03-04: Extracted overlay route registration into dedicated `app/routes/overlay.py` blueprint.
 - 2026-03-04: Extracted VOD download route registration into dedicated `app/routes/vod_download.py` blueprint.
@@ -317,7 +317,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted VOD list/single/delete/stream route registration into dedicated `app/routes/vods.py` blueprint.
 - 2026-03-05: Extracted VOD scan control API route registration into dedicated `app/routes/vod_scan.py` blueprint.
 - 2026-03-05: Extracted `/capture-area/save` registration into dedicated `app/routes/capture_area.py` blueprint.
-- 2026-03-05: Added path-policy and API traversal regression tests (`tests/test_path_policy.py`, `tests/test_webui_path_security.py`).
+- 2026-03-05: Added path-policy and API traversal regression tests (`tests/backend/security/test_path_policy.py`, `tests/backend/security/test_webui_path_security.py`).
 - 2026-03-05: Hardened desktop supervisor command resolution for PATH commands and ensured `backendSupervisor.js` is packaged.
 - 2026-03-05: Extracted legacy control/config route registration into `app/routes/legacy_control.py` blueprint.
 - 2026-03-05: Extracted `/vod-thumbnail` registration into dedicated `app/routes/vod_thumbnail.py` blueprint.
@@ -403,7 +403,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted split clip export loop from `app/split_bookmarks.py` into `app/split_export.py`.
 - 2026-03-05: Continued frontend page decomposition by adding dedicated API modules (`frontend/src/api/captureArea.js`, `frontend/src/api/clips.js`, `frontend/src/api/clipsViewer.js`, `frontend/src/api/overlayTool.js`) and refactoring affected pages to use them.
 - 2026-03-05: Extracted `VodViewer` data/config/session loading effects into `frontend/src/hooks/useVodViewerData.js` and refactored `frontend/src/pages/VodViewer.jsx` to consume the hook.
-- 2026-03-05: Added backend regression coverage for new extracted modules (`tests/test_session_data.py`, `tests/test_clip_range.py`, `tests/test_dependency_bootstrap_ops.py`, `tests/test_vod_download_utils.py`).
+- 2026-03-05: Added backend regression coverage for new extracted modules (`tests/backend/services/test_session_data.py`, `tests/backend/services/test_clip_range.py`, `tests/backend/security/test_dependency_bootstrap_ops.py`, `tests/backend/services/test_vod_download_utils.py`).
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

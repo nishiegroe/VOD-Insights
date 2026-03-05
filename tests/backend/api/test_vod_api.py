@@ -1,7 +1,7 @@
 """
 Test script for Twitch VOD Download API endpoints
 
-Run with: python tests/test_vod_api.py
+Run with: python -m pytest tests/backend/api/test_vod_api.py
 
 This tests the API without actually downloading VODs (which would be slow).
 """
