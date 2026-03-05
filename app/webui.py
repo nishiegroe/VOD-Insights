@@ -86,6 +86,7 @@ from app.config_update import update_config_from_payload
 from app.vod_thumbnails import ensure_vod_thumbnail
 from app.replay_directory import choose_and_save_replay_dir
 from app.vod_scan_runner import launch_vod_scan_process, terminate_process
+from app.media_duration import get_media_duration
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
 from app.update_metadata import (
@@ -242,9 +243,6 @@ def create_app() -> Flask:
         ),
     )
     return app
-
-# Cache for ffprobe duration results: (path_str, mtime) -> Optional[float]
-_duration_cache: Dict[tuple, Optional[float]] = {}
 
 _process_lock = threading.Lock()
 _bookmark_process: Optional[subprocess.Popen] = None
@@ -719,41 +717,6 @@ def get_hottest_event_time(bookmark_path: Path, duration: Optional[float]) -> Op
     if not hottest_events:
         return None
     return max(hottest_events)
-
-
-def get_media_duration(path: Path) -> Optional[float]:
-    try:
-        mtime = path.stat().st_mtime
-    except OSError:
-        return None
-    cache_key = (str(path), mtime)
-    if cache_key in _duration_cache:
-        return _duration_cache[cache_key]
-    duration: Optional[float] = None
-    try:
-        ffprobe_path = resolve_tool("ffprobe", ["ffprobe.exe"])
-        if ffprobe_path:
-            result = subprocess.run(
-                [
-                    ffprobe_path,
-                    "-v",
-                    "error",
-                    "-show_entries",
-                    "format=duration",
-                    "-of",
-                    "default=noprint_wrappers=1:nokey=1",
-                    str(path),
-                ],
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            duration = float(result.stdout.strip())
-    except Exception:
-        duration = None
-    _duration_cache[cache_key] = duration
-    return duration
 
 
 def get_allowed_media_dirs(config: Dict[str, Any]) -> List[Path]:
