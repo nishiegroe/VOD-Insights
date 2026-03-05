@@ -41,6 +41,7 @@ from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, par
 from app.vod_ocr import sanitize_stem
 from app.vod_download import TwitchVODDownloader
 from app.routes import register_blueprints
+from app.routes.gpu import GpuRouteDeps
 from app.routes.system import SystemRouteDeps
 from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
@@ -82,6 +83,11 @@ def create_app() -> Flask:
             get_current_app_version=get_current_app_version,
             fetch_latest_update_metadata=fetch_latest_update_metadata,
             update_feed_url=UPDATE_FEED_URL,
+        ),
+        gpu_deps=GpuRouteDeps(
+            ocr_gpu_status_response=ocr_gpu_status_response,
+            ocr_gpu_diagnostics_response=ocr_gpu_diagnostics_response,
+            install_gpu_ocr_response=install_gpu_ocr_response,
         ),
     )
     return app
@@ -1801,8 +1807,7 @@ def _vod_downloader_as_twitch_jobs() -> List[Dict[str, Any]]:
     return result
 
 
-@app.route("/api/ocr-gpu-status")
-def api_ocr_gpu_status() -> Any:
+def ocr_gpu_status_response() -> Any:
     """Check if Torch CUDA is available. Always returns 200 with graceful degradation."""
     runtime_info = prepare_torch_runtime()
     try:
@@ -1836,8 +1841,7 @@ def api_ocr_gpu_status() -> Any:
         })
 
 
-@app.route("/api/ocr-gpu-diagnostics")
-def api_ocr_gpu_diagnostics() -> Any:
+def ocr_gpu_diagnostics_response() -> Any:
     """Detailed diagnostics for packaged Torch/CUDA runtime issues."""
     runtime_info = prepare_torch_runtime()
     payload: Dict[str, Any] = {
@@ -1868,8 +1872,7 @@ def api_ocr_gpu_diagnostics() -> Any:
     return jsonify(payload)
 
 
-@app.route("/api/install-gpu-ocr", methods=["POST"])
-def api_install_gpu_ocr() -> Any:
+def install_gpu_ocr_response() -> Any:
     """Download and install Torch/CUDA for GPU OCR support."""
     try:
         python_candidates: List[List[str]] = []
