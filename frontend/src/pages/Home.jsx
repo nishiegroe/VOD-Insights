@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { apiJson, apiPost } from "../api/client";
 
 export default function Home({ status }) {
   const navigate = useNavigate();
@@ -14,20 +15,17 @@ export default function Home({ status }) {
   useEffect(() => {
     const load = async () => {
       // Load config to check if recording directory is set
-      const configRes = await fetch("/api/config");
-      const config = await configRes.json();
+      const config = await apiJson("/api/config");
       const replayDir = config.replay?.directory || "";
       setRecordingDir(replayDir);
       setConfigLoaded(true);
 
       // Only load VODs and clips if directory is configured
       if (replayDir) {
-        const vodRes = await fetch("/api/vods?limit=5");
-        const vodPayload = await vodRes.json();
+        const vodPayload = await apiJson("/api/vods?limit=5");
         setVods(vodPayload.vods || []);
 
-        const clipsRes = await fetch("/api/clips?limit=5");
-        const clipsPayload = await clipsRes.json();
+        const clipsPayload = await apiJson("/api/clips?limit=5");
         setClips(clipsPayload.clips || []);
       }
     };
@@ -36,16 +34,15 @@ export default function Home({ status }) {
   }, []);
 
   const startSession = async () => {
-    await fetch("/api/control/start", { method: "POST" });
+    await apiPost("/api/control/start");
   };
 
   const stopSession = async () => {
-    await fetch("/api/control/stop", { method: "POST" });
+    await apiPost("/api/control/stop");
   };
 
   const handleConfigureDirectory = async () => {
-    const response = await fetch("/api/choose-replay-dir", { method: "POST" });
-    const payload = await response.json();
+    const payload = await apiJson("/api/choose-replay-dir", { method: "POST" });
     if (payload.directory) {
       setRecordingDir(payload.directory);
       navigate("/vods");
