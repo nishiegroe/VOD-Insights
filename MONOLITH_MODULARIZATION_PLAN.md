@@ -364,6 +364,8 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted Settings page detection section UI into `frontend/src/components/SettingsDetectionPanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
 - 2026-03-05: Extracted desktop backend runtime wrappers (`startBackend`, `waitForPort`, `stopBackend`) from `desktop/main.js` into `desktop/backendRuntime.js`.
 - 2026-03-05: Extracted Settings page OCR section UI into `frontend/src/components/SettingsOcrPanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
+- 2026-03-05: Simplified `desktop/main.js` by wiring `assetPaths` resolvers directly (removed redundant local resolver wrappers).
+- 2026-03-05: Extracted Settings page capture section UI into `frontend/src/components/SettingsCapturePanel.jsx` and refactored `frontend/src/pages/Settings.jsx` to compose it.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.

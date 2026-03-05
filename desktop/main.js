@@ -57,12 +57,19 @@ const backendRuntime = createBackendRuntime({
   backendSupervisor,
 });
 
+const assetResolvers = createAssetResolvers({
+  fs,
+  path,
+  processObj: process,
+  baseDir: __dirname,
+});
+
 const windowManager = createWindowManager({
   BrowserWindow,
   fs,
   path,
   windowStatePath,
-  resolveWindowIconPath,
+  resolveWindowIconPath: assetResolvers.resolveWindowIconPath,
   host: HOST,
   port: PORT,
   backendSupervisor,
@@ -71,21 +78,6 @@ const windowManager = createWindowManager({
   setIsQuitting: (value) => {
     isQuitting = value;
   }
-});
-
-function resolveDesktopAssetPath(filename) {
-  return assetResolvers.resolveDesktopAssetPath(filename);
-}
-
-function resolveWindowIconPath() {
-  return assetResolvers.resolveWindowIconPath();
-}
-
-const assetResolvers = createAssetResolvers({
-  fs,
-  path,
-  processObj: process,
-  baseDir: __dirname,
 });
 
 
@@ -118,8 +110,8 @@ const splashScreenTools = createSplashScreenTools({
   app,
   BrowserWindow,
   fs,
-  resolveDesktopAssetPath,
-  resolveWindowIconPath,
+  resolveDesktopAssetPath: assetResolvers.resolveDesktopAssetPath,
+  resolveWindowIconPath: assetResolvers.resolveWindowIconPath,
   requestApiJson: backendApiClient.requestApiJson,
 });
 
