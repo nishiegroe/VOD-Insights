@@ -42,7 +42,7 @@ from app.clips.titles import (
     load_clip_titles,
     set_clip_title,
 )
-from app.twitch_jobs import (
+from app.twitch.jobs import (
     is_twitch_vod_url,
     list_twitch_jobs,
     read_twitch_job,
@@ -61,22 +61,22 @@ from app.vod.scan_files import (
     list_vod_session_files,
     resolve_bookmarks_context,
 )
-from app.vod_download_jobs import vod_downloader_as_twitch_jobs
+from app.twitch.vod_download_jobs import vod_downloader_as_twitch_jobs
 from app.gpu_ocr import (
     install_gpu_ocr_dependencies,
     ocr_gpu_diagnostics_payload,
     ocr_gpu_status_payload,
 )
-from app.twitch_import_runner import run_twitch_import
+from app.twitch.import_runner import run_twitch_import
 from app.vod.paths import resolve_vod_media_filename, resolve_vod_path as resolve_vod_path_in_dirs
-from app.config_update import update_config_from_payload
+from app.system.config_update import update_config_from_payload
 from app.vod.thumbnails import ensure_vod_thumbnail
-from app.replay_directory import choose_and_save_replay_dir
+from app.system.replay_directory import choose_and_save_replay_dir
 from app.vod.scan_runner import launch_vod_scan_process, terminate_process
 from app.vod.entries import build_vod_entries
 from app.vod.upload import save_uploaded_vod_file, start_vod_scan_for_path
-from app.file_explorer import reveal_file_in_explorer
-from app.media_access import get_allowed_media_dirs
+from app.system.file_explorer import reveal_file_in_explorer
+from app.system.media_access import get_allowed_media_dirs
 from app.clips.library import (
     build_clip_entry,
     iter_clip_files,
@@ -84,8 +84,8 @@ from app.clips.library import (
     resolve_clip_path,
     serialize_clip,
 )
-from app.backend_logs import get_backend_log_path, open_backend_log, tail_lines
-from app.http_cache import set_no_cache_headers
+from app.system.backend_logs import get_backend_log_path, open_backend_log, tail_lines
+from app.system.http_cache import set_no_cache_headers
 from app.vod_download_api import (
     progress_response as vod_download_progress_payload,
     start_download_response as vod_download_start_payload,
@@ -100,7 +100,7 @@ from app.clips.range import create_clip_range_payload
 from app.session_data import session_data_payload
 from app.split_bookmarks import BookmarkEvent, count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg, split_from_config
 from app.vod_download import TwitchVODDownloader
-from app.update_metadata import (
+from app.system.update_metadata import (
     fetch_latest_update_metadata as fetch_update_metadata,
     get_current_app_version,
     load_patch_notes,
@@ -122,7 +122,7 @@ from app.routes.vod_actions import VodActionsRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
 from app.routes.vod_thumbnail import VodThumbnailRouteDeps
 from app.routes.vods import VodsRouteDeps
-from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
+from app.system.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 from app.webui_app_shell import (
     choose_directory,
     cleanup_vod_scans_on_exit,

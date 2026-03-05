@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.path_policy import resolve_allowed_path, resolve_existing_allowed_path
+from app.system.path_policy import resolve_allowed_path, resolve_existing_allowed_path
 
 
 def test_resolve_allowed_path_allows_file_within_allowlisted_directory(tmp_path):

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from app.runtime_paths import build_mode_command, get_project_root, get_uploads_dir
-from app.twitch_jobs import sanitize_filename
+from app.twitch.jobs import sanitize_filename
 
 
 def save_uploaded_vod_file(vod_file: Any, config: Dict[str, Any]) -> Path:

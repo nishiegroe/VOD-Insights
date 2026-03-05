@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 from app.runtime_paths import build_mode_command, get_config_path, get_downloads_dir, get_project_root, resolve_tool
-from app.twitch_jobs import read_twitch_job, write_twitch_job
+from app.twitch.jobs import read_twitch_job, write_twitch_job
 
 
 CONFIG_PATH = get_config_path()
