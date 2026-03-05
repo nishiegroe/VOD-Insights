@@ -342,6 +342,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Split `VodViewer` clip creation UI into `frontend/src/components/VodClipControls.jsx`, reducing inline control/action complexity in `frontend/src/pages/VodViewer.jsx`.
 - 2026-03-05: Reduced `Settings` page structural duplication by adding `frontend/src/components/SettingsPanel.jsx` and `frontend/src/components/SettingsSectionNav.jsx` and refactoring `frontend/src/pages/Settings.jsx` to use them.
 - 2026-03-05: Extracted `VodViewer` bookmark panel UI into `frontend/src/components/VodBookmarkList.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use it.
+- 2026-03-05: Extracted `VodViewer` overview heatmap/timeline UI into `frontend/src/components/VodOverviewTimeline.jsx` and refactored `frontend/src/pages/VodViewer.jsx` to use it.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
