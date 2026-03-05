@@ -381,6 +381,7 @@ Turn this repository into a reusable, maintainable, and testable system with cle
 - 2026-03-05: Extracted GPU OCR internals (CUDA status/diagnostics payload construction and dependency installation flow) from `app/webui.py` into `app/gpu_ocr.py`, leaving route handlers as thin response wrappers.
 - 2026-03-05: Extracted Twitch import download+scan workflow from `app/webui.py` into `app/twitch_import_runner.py` (yt-dlp progress parsing, job state persistence, scan handoff).
 - 2026-03-05: Extracted VOD path resolution/allowlist helpers from `app/webui.py` into `app/vod_paths.py` and rewired VOD media + path resolution call sites.
+- 2026-03-05: Extracted settings payload-to-config mapping logic from `app/webui.py` into `app/config_update.py` and rewired system config update flow.
 
 ## Immediate Next Actions (Week 1)
 1. Create and approve Phase 0 parity checklist and endpoint inventory.
