@@ -42,7 +42,7 @@ def create_clip_range_payload(
         try:
             allowed = any(vod_file.is_relative_to(root) for root in allowed_dirs)
         except (AttributeError, ValueError):
-            allowed = any(str(vod_file).startswith(str(root)) for root in allowed_dirs)
+            allowed = any(vod_file == root or root in vod_file.parents for root in allowed_dirs)
         if not allowed:
             return {"ok": False, "error": "Invalid VOD path"}, 403
 

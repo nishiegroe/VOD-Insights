@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import re
 import shutil
 import subprocess
 import urllib.request
 import zipfile
-import hashlib
-import re
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlparse
@@ -81,10 +81,17 @@ def _extract_expected_checksum(raw_text: str, artifact_name: str) -> str:
 
     basename = artifact_name.strip().lower()
     checksum_re = re.compile(r"^([A-Fa-f0-9]{64})\s+[* ]?(.+)?$")
+    bsd_checksum_re = re.compile(r"^SHA256\s*\((.+)\)\s*=\s*([A-Fa-f0-9]{64})$", re.IGNORECASE)
 
     for line in cleaned_lines:
         match = checksum_re.match(line)
         if not match:
+            bsd_match = bsd_checksum_re.match(line)
+            if not bsd_match:
+                continue
+            candidate_name = (bsd_match.group(1) or "").strip().lower()
+            if candidate_name and candidate_name.endswith(basename):
+                return bsd_match.group(2).lower()
             continue
         candidate_name = (match.group(2) or "").strip().strip("*").lower()
         if candidate_name and candidate_name.endswith(basename):

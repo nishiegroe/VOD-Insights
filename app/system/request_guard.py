@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import hmac
 import threading
 import time
 from collections import deque
@@ -94,7 +95,7 @@ class RequestGuard:
         if not expected:
             return False
         actual = str(request.headers.get(self._token_header, ""))
-        return actual == expected
+        return hmac.compare_digest(actual, expected)
 
     def _has_trusted_origin(self, request: Request) -> bool:
         origin = str(request.headers.get("Origin", "")).strip()

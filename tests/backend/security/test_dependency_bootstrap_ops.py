@@ -84,6 +84,26 @@ def test_extract_expected_checksum_from_filename_match() -> None:
     assert value == good_hash
 
 
+def test_extract_expected_checksum_single_match_fallback() -> None:
+    only_hash = "e" * 64
+    text = f"{only_hash}  some-other-file.exe\n"
+    value = ops._extract_expected_checksum(text, "missing-target.exe")
+    assert value == only_hash
+
+
+def test_extract_expected_checksum_bsd_style_supported() -> None:
+    good_hash = "f" * 64
+    text = "SHA256 (yt-dlp.exe) = " + good_hash
+    value = ops._extract_expected_checksum(text, "yt-dlp.exe")
+    assert value == good_hash
+
+
+def test_extract_expected_checksum_no_matching_artifact_raises() -> None:
+    text = ("a" * 64) + "  alpha.bin\n" + ("b" * 64) + "  beta.bin\n"
+    with pytest.raises(RuntimeError, match="Could not find checksum"):
+        ops._extract_expected_checksum(text, "target.bin")
+
+
 def test_extract_expected_checksum_plain_single_line() -> None:
     good_hash = "c" * 64
     value = ops._extract_expected_checksum(good_hash, "anything.bin")
@@ -142,4 +162,3 @@ def test_verify_dependency_checksum_requires_checksum_url(tmp_path: Path) -> Non
             "",
             artifact,
         )
-
