@@ -9,12 +9,17 @@ import subprocess
 import json
 import logging
 import threading
-import re
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 import shutil
+
+from app.vod.download_utils import (
+    parse_progress_template,
+    sanitize_filename,
+    validate_twitch_vod_url,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -56,14 +61,7 @@ class TwitchVODDownloader:
         Returns:
             True if valid Twitch VOD URL, False otherwise
         """
-        if not url:
-            return False
-
-        # Match patterns like:
-        # https://twitch.tv/videos/123456789
-        # https://www.twitch.tv/videos/123456789
-        pattern = r"https?:\/\/(www\.)?twitch\.tv\/videos\/\d+"
-        return bool(re.match(pattern, url))
+        return validate_twitch_vod_url(url)
 
     def start_download(
         self,
@@ -88,7 +86,7 @@ class TwitchVODDownloader:
                 "eta": "unknown",
                 "error": None,
                 "output_file": None,
-                "started_at": datetime.utcnow().isoformat(),
+                "started_at": datetime.now(timezone.utc).isoformat(),
             }
 
         # Start download in background thread
@@ -211,10 +209,10 @@ class TwitchVODDownloader:
             if upload_date and len(upload_date) >= 8:
                 date_str = f"{upload_date[0:4]}-{upload_date[4:6]}-{upload_date[6:8]}"
             else:
-                date_str = datetime.utcnow().strftime("%Y-%m-%d")
+                date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
             return {
-                "streamer": self._sanitize_filename(uploader),
+                "streamer": sanitize_filename(uploader),
                 "date": date_str,
             }
         except Exception:
@@ -323,18 +321,11 @@ class TwitchVODDownloader:
             output: One line of output from yt-dlp
             progress_callback: Optional progress callback
         """
-        # yt-dlp outputs the template content only (no "download:" prefix —
-        # that part is the type selector, not literal text).
-        # Line format: "  84.7%|  30.37MiB/s|00:01"
-        template_re = re.compile(r"^\s*([\d.]+)%\s*\|(.*?)\|(.*?)\s*$")
-
-        match = template_re.search(output)
-        if not match:
+        parsed = parse_progress_template(output)
+        if not parsed:
             return
 
-        percentage = min(100.0, float(match.group(1)))
-        speed_str = match.group(2).strip()
-        eta_str = match.group(3).strip()
+        percentage, speed_str, eta_str = parsed
 
         print(f"[vod_download] parsed: {percentage:.1f}% speed={speed_str!r} eta={eta_str!r}", flush=True)
         with self._lock:
@@ -358,10 +349,4 @@ class TwitchVODDownloader:
         Returns:
             Sanitized filename
         """
-        # Remove or replace invalid filename characters
-        invalid_chars = r'[<>:"/\\|?*]'
-        sanitized = re.sub(invalid_chars, "_", filename)
-        # Remove leading/trailing spaces and dots
-        sanitized = sanitized.strip(". ")
-        # Limit length
-        return sanitized[:200]
+        return sanitize_filename(filename)

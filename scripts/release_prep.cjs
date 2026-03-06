@@ -37,5 +37,12 @@ function runNpmOrThrow(args) {
 }
 
 const extraArgs = process.argv.slice(2);
+
+if (extraArgs.includes('--dry-run')) {
+  console.log('[dry-run] Would run: npm run build -- --dry-run');
+  console.log('[dry-run] Would run: npm run release:assets -- --dry-run');
+  process.exit(0);
+}
+
 runNpmOrThrow(['run', 'build', '--', ...extraArgs]);
 runNpmOrThrow(['run', 'release:assets', '--', ...extraArgs]);

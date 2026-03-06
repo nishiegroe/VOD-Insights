@@ -121,20 +121,71 @@ function syncRuntimePaths(meta) {
 
 function syncDesktopMain(meta) {
   const filePath = path.join(root, "desktop", "main.js");
+  const appLifecyclePath = path.join(root, "desktop", "appLifecycle.js");
+  const splashFilePath = path.join(root, "desktop", "splashScreen.js");
   let content = fs.readFileSync(filePath, "utf8");
-  content = replaceOrThrow(content, /"backend", "[^"]+\.exe"/, `"backend", "${meta.internalName}.exe"`, "backend exe path");
-  content = replaceOrThrow(
-    content,
-    /dialog\.showErrorBox\(\r?\n\s*"[^\"]+",/g,
-    `dialog.showErrorBox(\n      "${meta.displayName}",`,
-    "dialog title"
-  );
-  content = replaceOrThrow(
-    content,
-    /<div class="app-name">[\s\S]*?<\/div>/,
-    '<div class="app-name">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : ""}<span>' + meta.displayName + '</span></div>',
-    "splash title"
-  );
+  const backendExePattern = /"backend", "[^"]+\.exe"/;
+  let backendPathUpdated = false;
+
+  if (backendExePattern.test(content)) {
+    content = content.replace(backendExePattern, `"backend", "${meta.internalName}.exe"`);
+    backendPathUpdated = true;
+  } else {
+    const supervisorPath = path.join(root, "desktop", "backendSupervisor.js");
+    if (fs.existsSync(supervisorPath)) {
+      let supervisorContent = fs.readFileSync(supervisorPath, "utf8");
+      if (backendExePattern.test(supervisorContent)) {
+        supervisorContent = supervisorContent.replace(backendExePattern, `"backend", "${meta.internalName}.exe"`);
+        writeText(supervisorPath, supervisorContent);
+        backendPathUpdated = true;
+      }
+    }
+  }
+
+  if (!backendPathUpdated) {
+    throw new Error("Could not find backend exe path");
+  }
+  const dialogTitlePattern = /dialog\.showErrorBox\(\r?\n\s*"[^\"]+",/g;
+  const dialogTitleReplacement = `dialog.showErrorBox(\n      "${meta.displayName}",`;
+  let dialogTitleUpdated = false;
+  if (dialogTitlePattern.test(content)) {
+    content = content.replace(dialogTitlePattern, dialogTitleReplacement);
+    dialogTitleUpdated = true;
+  } else if (fs.existsSync(appLifecyclePath)) {
+    let appLifecycleContent = fs.readFileSync(appLifecyclePath, "utf8");
+    if (dialogTitlePattern.test(appLifecycleContent)) {
+      appLifecycleContent = appLifecycleContent.replace(dialogTitlePattern, dialogTitleReplacement);
+      writeText(appLifecyclePath, appLifecycleContent);
+      dialogTitleUpdated = true;
+    }
+  }
+  if (!dialogTitleUpdated) {
+    throw new Error("Could not find dialog title");
+  }
+
+  const splashTitlePattern = /<div class="app-name">[\s\S]*?<\/div>/;
+  const splashTitleReplacement =
+    '<div class="app-name">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : ""}<span>' +
+    meta.displayName +
+    '</span></div>';
+
+  let splashUpdated = false;
+  if (splashTitlePattern.test(content)) {
+    content = content.replace(splashTitlePattern, splashTitleReplacement);
+    splashUpdated = true;
+  } else if (fs.existsSync(splashFilePath)) {
+    let splashContent = fs.readFileSync(splashFilePath, "utf8");
+    if (splashTitlePattern.test(splashContent)) {
+      splashContent = splashContent.replace(splashTitlePattern, splashTitleReplacement);
+      writeText(splashFilePath, splashContent);
+      splashUpdated = true;
+    }
+  }
+
+  if (!splashUpdated) {
+    throw new Error("Could not find splash title");
+  }
+
   writeText(filePath, content);
 }
 

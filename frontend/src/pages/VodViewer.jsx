@@ -1,90 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-
-const ZOOM_OPTIONS = [
-  { label: "±5m", halfSeconds: 5 * 60 },
-  { label: "±15m", halfSeconds: 15 * 60 },
-  { label: "±30m", halfSeconds: 30 * 60 },
-  { label: "Full", halfSeconds: null },
-];
-
-const DEFAULT_FILTERS = {};
-const MANUAL_FILTER_KEY = "__manual__";
-const OTHER_FILTER_KEY = "__other__";
-
-const SETTINGS_KEYS = {
-  zoom: "vodviewer.zoomHalfSeconds",
-  collapsed: "vodviewer.bookmarksCollapsed",
-  snap: "vodviewer.snapToEvent",
-  filters: "vodviewer.eventFilters",
-  volume: "vodviewer.volume",
-  muted: "vodviewer.muted",
-};
-
-function loadStored(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveStored(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Ignore persistence failures.
-  }
-}
-
-function keywordFilterKey(keyword) {
-  return `kw:${String(keyword || "").trim().toLowerCase()}`;
-}
-
-function classifyEventByKeywords(eventText, source, keywords) {
-  if (source === "manual") return MANUAL_FILTER_KEY;
-  const text = String(eventText || "").toLowerCase();
-  for (const keyword of keywords) {
-    const normalized = String(keyword || "").trim().toLowerCase();
-    if (!normalized) continue;
-    if (text.includes(normalized)) {
-      return keywordFilterKey(keyword);
-    }
-  }
-  return OTHER_FILTER_KEY;
-}
-
-function buildEventWindowMap(keywords, rawWindows, fallbackPre, fallbackPost) {
-  const normalized = {};
-  const source = rawWindows && typeof rawWindows === "object" ? rawWindows : {};
-  for (const keyword of keywords || []) {
-    const text = String(keyword || "").trim();
-    if (!text) continue;
-    const row = source[text] || source[text.toLowerCase()] || {};
-    const pre = Number(row.pre_seconds ?? fallbackPre);
-    const post = Number(row.post_seconds ?? fallbackPost);
-    normalized[keywordFilterKey(text)] = {
-      pre: Number.isFinite(pre) ? Math.max(0, pre) : Math.max(0, fallbackPre),
-      post: Number.isFinite(post) ? Math.max(0, post) : Math.max(0, fallbackPost),
-    };
-  }
-  return normalized;
-}
-
-function getEventColor(filterKey) {
-  if (filterKey === MANUAL_FILTER_KEY) return "#7dd3fc";
-  if (filterKey === OTHER_FILTER_KEY) return "#cbd5f5";
-  if (typeof filterKey === "string" && filterKey.startsWith("kw:")) {
-    const normalized = filterKey.replace("kw:", "");
-    let hash = 0;
-    for (let i = 0; i < normalized.length; i += 1) {
-      hash = (hash * 31 + normalized.charCodeAt(i)) % 360;
-    }
-    return `hsl(${hash}, 70%, 60%)`;
-  }
-  return "#ffb347";
-}
+import VodBookmarkList from "../components/VodBookmarkList";
+import VodClipControls from "../components/VodClipControls";
+import VodOverviewTimeline from "../components/VodOverviewTimeline";
+import VodPlaybackControlsPanel from "../components/VodPlaybackControlsPanel";
+import VodScrubTimeline from "../components/VodScrubTimeline";
+import VodVideoPlayer from "../components/VodVideoPlayer";
+import VodViewerHeader from "../components/VodViewerHeader";
+import useVodViewerData from "../hooks/useVodViewerData";
+import {
+  createClipRange,
+  deleteVod as deleteVodRequest,
+} from "../api/vodViewer";
+import {
+  ZOOM_OPTIONS,
+  DEFAULT_FILTERS,
+  MANUAL_FILTER_KEY,
+  OTHER_FILTER_KEY,
+  SETTINGS_KEYS,
+  loadStored,
+  saveStored,
+  keywordFilterKey,
+  classifyEventByKeywords,
+} from "../utils/vodViewer";
 
 export default function VodViewer() {
   const [searchParams] = useSearchParams();
@@ -97,18 +35,24 @@ export default function VodViewer() {
   const vodPath = searchParams.get("path");
   const sessionPath = searchParams.get("session");
 
-  const [bookmarks, setBookmarks] = useState([]);
-  const [vodMeta, setVodMeta] = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [selectedSession, setSelectedSession] = useState(sessionPath);
+  const {
+    bookmarks,
+    setBookmarks,
+    vodMeta,
+    sessions,
+    selectedSession,
+    setSelectedSession,
+    loading,
+    error,
+    setError,
+    detectionKeywords,
+    defaultPreRollSeconds,
+    defaultPostRollSeconds,
+    eventWindowMap,
+    overlayConfig,
+  } = useVodViewerData(vodPath, sessionPath);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [detectionKeywords, setDetectionKeywords] = useState([]);
-  const [defaultPreRollSeconds, setDefaultPreRollSeconds] = useState(0);
-  const [defaultPostRollSeconds, setDefaultPostRollSeconds] = useState(0);
-  const [eventWindowMap, setEventWindowMap] = useState({});
 
   const [clipStart, setClipStart] = useState(0);
   const [clipEnd, setClipEnd] = useState(0);
@@ -131,7 +75,6 @@ export default function VodViewer() {
   const [eventFilters, setEventFilters] = useState(() =>
     loadStored(SETTINGS_KEYS.filters, DEFAULT_FILTERS)
   );
-  const [overlayConfig, setOverlayConfig] = useState(null);
   const [videoContentRect, setVideoContentRect] = useState(null);
   const containerRef = useRef(null);
   const [manualMarkers, setManualMarkers] = useState([]);
@@ -174,6 +117,8 @@ export default function VodViewer() {
       ? duration || 0
       : Math.min(duration || 0, currentTime + scrubHalfSeconds);
   const scrubWindowSpan = Math.max(1, scrubWindowEnd - scrubWindowStart);
+  const windowClipStart = Math.max(scrubWindowStart, Math.min(scrubWindowEnd, clipStart));
+  const windowClipEnd = Math.max(windowClipStart, Math.min(scrubWindowEnd, clipEnd));
 
   const toWindowPercent = (time) => {
     const clamped = Math.max(scrubWindowStart, Math.min(scrubWindowEnd, time));
@@ -513,11 +458,7 @@ export default function VodViewer() {
     const confirmed = window.confirm(`Delete ${label}? This will remove the file from disk.`);
     if (!confirmed) return;
     try {
-      const response = await fetch("/api/vods/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: vodPath }),
-      });
+      const response = await deleteVodRequest(vodPath);
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.ok === false) {
         throw new Error(payload.error || "Failed to delete VOD");
@@ -566,6 +507,34 @@ export default function VodViewer() {
     addManualMarker();
   };
 
+  const handleCreateClip = async () => {
+    setClipStatus("working");
+    setClipResult(null);
+    try {
+      const resp = await createClipRange(vodPath, clipStart, clipEnd);
+      const text = await resp.text();
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {
+          ok: false,
+          error: "Clip API unavailable. Make sure the backend is running and restarted.",
+        };
+      }
+      if (data.ok) {
+        setClipStatus("done");
+        setClipResult(data.clip_path);
+      } else {
+        setClipStatus("error");
+        setClipResult(data.error || "Unknown error");
+      }
+    } catch (err) {
+      setClipStatus("error");
+      setClipResult(err.message || "Request failed");
+    }
+  };
+
   useEffect(() => {
     if (!bookmarkListRef.current || !activeBookmarkRef.current || bookmarksCollapsed) return;
 
@@ -581,107 +550,6 @@ export default function VodViewer() {
       container.scrollTo({ top: scrollTo, behavior: "smooth" });
     }
   }, [currentTime, filteredEvents, bookmarksCollapsed]);
-
-  useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const response = await fetch("/api/config");
-        const config = await response.json();
-        const keywords = config.detection?.keywords || [];
-        const fallbackPre = Number(config.split?.pre_seconds || 0);
-        const fallbackPost = Number(config.split?.post_seconds || 0);
-        setDetectionKeywords(keywords);
-        setDefaultPreRollSeconds(fallbackPre);
-        setDefaultPostRollSeconds(fallbackPost);
-        setEventWindowMap(
-          buildEventWindowMap(keywords, config.split?.event_windows || {}, fallbackPre, fallbackPost)
-        );
-        const uiConfig = config.ui || {};
-        if (uiConfig.overlay_image_path && uiConfig.overlay_enabled !== false) {
-          setOverlayConfig({
-            url: "/api/overlay/image",
-            x: Number.isFinite(Number(uiConfig.overlay_x)) ? Number(uiConfig.overlay_x) : 0.85,
-            y: Number.isFinite(Number(uiConfig.overlay_y)) ? Number(uiConfig.overlay_y) : 0.88,
-            width: Number.isFinite(Number(uiConfig.overlay_width)) ? Number(uiConfig.overlay_width) : 0.15,
-            opacity: Number.isFinite(Number(uiConfig.overlay_opacity)) ? Number(uiConfig.overlay_opacity) : 0.9,
-          });
-        } else {
-          setOverlayConfig(null);
-        }
-      } catch {
-        setDetectionKeywords([]);
-        setDefaultPreRollSeconds(0);
-        setDefaultPostRollSeconds(0);
-        setEventWindowMap({});
-      }
-    };
-
-    loadConfig();
-  }, []);
-
-  useEffect(() => {
-    if (!vodPath) {
-      setError("No VOD path provided");
-      setLoading(false);
-      return;
-    }
-
-    const loadVodData = async () => {
-      try {
-        const response = await fetch(`/api/vods/single?path=${encodeURIComponent(vodPath)}`);
-        const data = await response.json();
-
-        if (!data.ok || !data.vod) {
-          setError("VOD not found");
-          setVodMeta(null);
-          return;
-        }
-
-        const vod = data.vod;
-        setVodMeta(vod);
-        setSessions(vod.sessions || []);
-        if (!selectedSession && vod.sessions && vod.sessions.length > 0) {
-          setSelectedSession(vod.sessions[0].path);
-        }
-      } catch {
-        setError("Failed to load VOD data");
-      }
-    };
-
-    loadVodData();
-  }, [vodPath, selectedSession]);
-
-  useEffect(() => {
-    if (!selectedSession) {
-      setLoading(false);
-      return;
-    }
-
-    const loadBookmarks = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(
-          `/api/session-data?path=${encodeURIComponent(selectedSession)}`
-        );
-        const data = await response.json();
-
-        if (data.ok) {
-          setBookmarks(data.bookmarks || []);
-          setError(null);
-        } else {
-          setError(data.error || "Failed to load bookmarks");
-          setBookmarks([]);
-        }
-      } catch {
-        setError("Failed to fetch bookmark data");
-        setBookmarks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadBookmarks();
-  }, [selectedSession]);
 
   useEffect(() => {
     if (!markersStorageKey) return;
@@ -1045,6 +913,81 @@ export default function VodViewer() {
     seekToExact(pct * durationRef.current);
   };
 
+  const handleOverviewWindowPointerDown = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!durationRef.current) return;
+    const rect = event.currentTarget.parentElement?.getBoundingClientRect();
+    if (!rect) return;
+    const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const pointerTime = pct * durationRef.current;
+    overviewDragOffsetRef.current = pointerTime - scrubWindowStart;
+    overviewCursorOffsetRef.current = currentTimeRef.current - scrubWindowStart;
+    setOverviewDragging(true);
+  };
+
+  const handleRangeBarPointerDown = (event) => {
+    if (!showClipTools || !timelineRef.current) return;
+    event.preventDefault();
+    const rect = timelineRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const time = fromWindowPercent(pct);
+    rangeDragOffsetRef.current = time - clipStartRef.current;
+    setRangeDragging(true);
+  };
+
+  const handleScrubHandlePointerDown = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setScrubDragging(true);
+  };
+
+  const handleClipStartHandlePointerDown = (event) => {
+    event.preventDefault();
+    dragStateRef.current.handle = "start";
+    setDraggingHandle("start");
+  };
+
+  const handleClipEndHandlePointerDown = (event) => {
+    event.preventDefault();
+    dragStateRef.current.handle = "end";
+    setDraggingHandle("end");
+  };
+
+  const handleToggleZoomMenu = () => {
+    setShowZoomMenu((prev) => !prev);
+    setShowEventMenu(false);
+  };
+
+  const handleToggleEventMenu = () => {
+    setShowEventMenu((prev) => !prev);
+    setShowZoomMenu(false);
+  };
+
+  const handleToggleVolume = () => {
+    setShowVolume((prev) => !prev);
+  };
+
+  const handleSelectZoom = (halfSeconds) => {
+    setScrubHalfSeconds(halfSeconds);
+  };
+
+  const handleToggleEventFilter = (filterKey) => {
+    setEventFilters((prev) => ({
+      ...prev,
+      [filterKey]: !(prev[filterKey] ?? true),
+    }));
+  };
+
+  const handleVolumeChange = (event) => {
+    const next = Number(event.target.value);
+    setVolumeValue(next);
+    if (videoRef.current) {
+      videoRef.current.volume = next;
+      videoRef.current.muted = next === 0;
+    }
+  };
+
   if (error) {
     return (
       <section className="grid">
@@ -1070,714 +1013,128 @@ export default function VodViewer() {
   return (
     <section className="vod-viewer-page">
       <div className="vod-viewer">
-        <div className="vod-viewer-header">
-          <div className="vod-viewer-header-left">
-            <div className="vod-viewer-app-title">
-              <img src="/logo.png" alt="" className="brand-logo brand-logo-compact" aria-hidden="true" />
-              <span>VOD Insights</span>
-            </div>
-            <button onClick={() => navigate("/vods")} className="tertiary">
-              ← Back to VODs
-            </button>
-            <div className="vod-viewer-title-compact">{viewerTitle}</div>
-          </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <button className="secondary" onClick={() => setShowClipTools((prev) => !prev)}>
-              {showClipTools ? "Hide Clip" : "Clip"}
-            </button>
-            <button
-              className="secondary"
-              onClick={toggleManualMarker}
-              title={
-                nearbyManualMarker
-                  ? "Remove the nearest manual marker (within 10 seconds)"
-                  : "Add a manual event marker at the current timestamp"
-              }
-            >
-              {nearbyManualMarker ? "Remove Marker" : "Add Marker"}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setBookmarksCollapsed((prev) => !prev)}
-              title={bookmarksCollapsed ? "Expand bookmarks" : "Collapse bookmarks"}
-            >
-              {bookmarksCollapsed ? "Show Bookmarks" : "Hide Bookmarks"}
-            </button>
-            <button
-              type="button"
-              className="icon-button danger"
-              onClick={deleteVod}
-              title="Delete VOD"
-              aria-label="Delete VOD"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M3 6h18M9 6V4h6v2m-7 4v8m4-8v8m4-8v8"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M6 6l1 14h10l1-14"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+        <VodViewerHeader
+          viewerTitle={viewerTitle}
+          onBack={() => navigate("/vods")}
+          showClipTools={showClipTools}
+          onToggleClipTools={() => setShowClipTools((prev) => !prev)}
+          nearbyManualMarker={nearbyManualMarker}
+          onToggleManualMarker={toggleManualMarker}
+          bookmarksCollapsed={bookmarksCollapsed}
+          onToggleBookmarksCollapsed={() => setBookmarksCollapsed((prev) => !prev)}
+          onDeleteVod={deleteVod}
+        />
 
         <div className="vod-content-wrapper">
           <div className="vod-left-section">
-            <div ref={containerRef} className="video-player-container" style={{ position: "relative" }}>
-              <video
-                ref={videoRef}
-                className="vod-video"
-                src={vodMediaUrl}
-                autoPlay
-                onClick={togglePlayPause}
-                onLoadedMetadata={handleLoadedMetadata}
-                onTimeUpdate={handleTimeUpdate}
-                onError={() => setError("Unable to load this VOD in the viewer.")}
-              />
-              {overlayConfig && videoContentRect && (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: videoContentRect.left,
-                    top: videoContentRect.top,
-                    width: videoContentRect.width,
-                    height: videoContentRect.height,
-                    pointerEvents: "none",
-                    overflow: "hidden",
-                  }}
-                >
-                  <img
-                    src={overlayConfig.url}
-                    alt=""
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      left: `${overlayConfig.x * 100}%`,
-                      top: `${overlayConfig.y * 100}%`,
-                      transform: "translate(-50%, -50%)",
-                      width: `${overlayConfig.width * 100}%`,
-                      height: "auto",
-                      opacity: overlayConfig.opacity,
-                    }}
-                  />
-                </div>
-              )}
-              {loading && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "rgba(8, 15, 18, 0.55)",
-                    color: "var(--text)",
-                    fontSize: "14px",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  Loading bookmarks...
-                </div>
-              )}
-            </div>
+            <VodVideoPlayer
+              containerRef={containerRef}
+              videoRef={videoRef}
+              vodMediaUrl={vodMediaUrl}
+              togglePlayPause={togglePlayPause}
+              handleLoadedMetadata={handleLoadedMetadata}
+              handleTimeUpdate={handleTimeUpdate}
+              onVideoError={() => setError("Unable to load this VOD in the viewer.")}
+              overlayConfig={overlayConfig}
+              videoContentRect={videoContentRect}
+              loading={loading}
+            />
 
-            <div
-              style={{
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "8px",
-                marginTop: "8px",
-                minHeight: "36px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-start" }}>
-                <button
-                  className={showZoomMenu ? "primary" : "secondary"}
-                  onClick={() => {
-                    setShowZoomMenu((prev) => !prev);
-                    setShowEventMenu(false);
-                  }}
-                  title="Zoom controls"
-                >
-                  🔍 Zoom
-                </button>
+            <VodPlaybackControlsPanel
+              showZoomMenu={showZoomMenu}
+              showEventMenu={showEventMenu}
+              showVolume={showVolume}
+              onToggleZoomMenu={handleToggleZoomMenu}
+              onToggleEventMenu={handleToggleEventMenu}
+              jumpToAdjacentEvent={jumpToAdjacentEvent}
+              seekRelative={seekRelative}
+              togglePlayPause={togglePlayPause}
+              isPlaying={isPlaying}
+              onToggleVolume={handleToggleVolume}
+              isMuted={isMuted}
+              cyclePlaybackRate={cyclePlaybackRate}
+              playbackRate={playbackRate}
+              downloadVod={downloadVod}
+              scrubHalfSeconds={scrubHalfSeconds}
+              onSelectZoom={handleSelectZoom}
+              eventFilterOptions={eventFilterOptions}
+              eventFilters={eventFilters}
+              onToggleEventFilter={handleToggleEventFilter}
+              volumeValue={volumeValue}
+              onVolumeChange={handleVolumeChange}
+              toggleMute={toggleMute}
+            />
 
-                <button
-                  className={showEventMenu ? "primary" : "secondary"}
-                  onClick={() => {
-                    setShowEventMenu((prev) => !prev);
-                    setShowZoomMenu(false);
-                  }}
-                  title="Event filters"
-                >
-                  🔎 Events
-                </button>
-              </div>
-              <div
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                  justifyContent: "center",
-                }}
-              >
-                <button className="secondary" onClick={() => jumpToAdjacentEvent(-1)} title="Previous event ([)">
-                  Prev Event
-                </button>
-                <button className="tertiary" onClick={() => seekRelative(-300)}>−5m</button>
-                <button className="tertiary" onClick={() => seekRelative(-30)}>−30s</button>
-                <button
-                  className="primary"
-                  onClick={togglePlayPause}
-                  title={isPlaying ? "Pause" : "Play"}
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                >
-                  {isPlaying ? (
-                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                      <rect x="3" y="2" width="4" height="12" rx="1" fill="currentColor" />
-                      <rect x="9" y="2" width="4" height="12" rx="1" fill="currentColor" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                      <polygon points="3,2 13,8 3,14" fill="currentColor" />
-                    </svg>
-                  )}
-                </button>
-                <button className="tertiary" onClick={() => seekRelative(10)}>+10s</button>
-                <button className="tertiary" onClick={() => seekRelative(300)}>+5m</button>
-                <button className="secondary" onClick={() => jumpToAdjacentEvent(1)} title="Next event (])">
-                  Next Event
-                </button>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
-                <button
-                  className="tertiary"
-                  onClick={() => setShowVolume((prev) => !prev)}
-                  title={isMuted ? "Unmute" : "Volume"}
-                  aria-label={isMuted ? "Unmute" : "Volume"}
-                >
-                  {isMuted ? (
-                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M3 6v4h3l4 3V3L6 6H3z" fill="currentColor" />
-                      <path d="M12 5l3 3m0-3l-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                      <path d="M3 6v4h3l4 3V3L6 6H3z" fill="currentColor" />
-                      <path d="M12 4c1.5 1.5 1.5 6.5 0 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  )}
-                </button>
-                <button className="tertiary" onClick={cyclePlaybackRate} title="Playback speed">
-                  {playbackRate}x
-                </button>
-                <button className="tertiary" onClick={downloadVod} title="Download VOD" aria-label="Download VOD">
-                  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M8 2v7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                    <path d="M5 6l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M3 12h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </div>
-            </div>
+            <VodOverviewTimeline
+              duration={duration}
+              filteredEvents={filteredEvents}
+              heatmapActiveBinCount={heatmapActiveBinCount}
+              heatmapGradient={heatmapGradient}
+              handleOverviewPointerDown={handleOverviewPointerDown}
+              seekToExact={seekToExact}
+              formatTime={formatTime}
+              normalizeEvent={normalizeEvent}
+              nearbyEventIds={nearbyEventIds}
+              scrubWindowStart={scrubWindowStart}
+              scrubWindowEnd={scrubWindowEnd}
+              overviewDragging={overviewDragging}
+              handleOverviewWindowPointerDown={handleOverviewWindowPointerDown}
+              currentTime={currentTime}
+            />
 
-            {(showZoomMenu || showEventMenu || showVolume) && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  gap: "16px",
-                  marginTop: "6px",
-                  width: "100%",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: "1 1 360px" }}>
-                  {showZoomMenu && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      {ZOOM_OPTIONS.map((option) => (
-                        <button
-                          key={option.label}
-                          className={`zoom-button ${option.halfSeconds === scrubHalfSeconds ? "primary" : "secondary"}`}
-                          onClick={() => setScrubHalfSeconds(option.halfSeconds)}
-                          style={{ height: "32px" }}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+            <VodScrubTimeline
+              duration={duration}
+              scrubWindowStart={scrubWindowStart}
+              scrubWindowEnd={scrubWindowEnd}
+              formatTime={formatTime}
+              timelineRef={timelineRef}
+              handleZoomWheel={handleZoomWheel}
+              handleTimelinePointerDown={handleTimelinePointerDown}
+              windowEvents={windowEvents}
+              currentTime={currentTime}
+              nearbyEventIds={nearbyEventIds}
+              toWindowPercent={toWindowPercent}
+              seekToExact={seekToExact}
+              normalizeEvent={normalizeEvent}
+              showClipTools={showClipTools}
+              windowClipStart={windowClipStart}
+              windowClipEnd={windowClipEnd}
+              scrubWindowSpan={scrubWindowSpan}
+              draggingHandle={draggingHandle}
+              handleRangeBarPointerDown={handleRangeBarPointerDown}
+              handleScrubHandlePointerDown={handleScrubHandlePointerDown}
+              handleClipStartHandlePointerDown={handleClipStartHandlePointerDown}
+              handleClipEndHandlePointerDown={handleClipEndHandlePointerDown}
+            />
 
-                  {showEventMenu && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      {eventFilterOptions.map((option) => (
-                        <button
-                          key={option.key}
-                          className={eventFilters[option.key] !== false ? "primary" : "secondary"}
-                          onClick={() => setEventFilters((prev) => ({
-                            ...prev,
-                            [option.key]: !(prev[option.key] ?? true),
-                          }))}
-                          style={{ height: "30px", padding: "0 10px" }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-block",
-                              width: "8px",
-                              height: "8px",
-                              borderRadius: "999px",
-                              background: getEventColor(option.key),
-                              boxShadow: "0 0 4px rgba(0, 0, 0, 0.3)",
-                              marginRight: "6px",
-                              transform: "translateY(1px)",
-                            }}
-                          />
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {showVolume && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      justifyContent: "flex-end",
-                      flex: "0 0 auto",
-                    }}
-                  >
-                    <input
-                      type="range"
-                      min={0}
-                      max={1}
-                      step={0.01}
-                      value={volumeValue}
-                      onChange={(event) => {
-                        const next = Number(event.target.value);
-                        setVolumeValue(next);
-                        if (videoRef.current) {
-                          videoRef.current.volume = next;
-                          videoRef.current.muted = next === 0;
-                        }
-                      }}
-                      style={{ width: "180px" }}
-                    />
-                    <button
-                      className="tertiary"
-                      onClick={toggleMute}
-                      title={isMuted ? "Unmute" : "Mute"}
-                    >
-                      {isMuted ? "Unmute" : "Mute"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {duration > 0 && (
-              <div style={{ marginTop: "10px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", gap: "8px", flexWrap: "wrap" }}>
-                  <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-                    Overview heatmap: <strong style={{ color: "var(--text)" }}>event density over time</strong> (based on current event filters)
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--muted)" }}>
-                    {filteredEvents.length} events across {heatmapActiveBinCount} active zones
-                  </div>
-                </div>
-                <div
-                  data-overview-timeline="true"
-                  style={{
-                    position: "relative",
-                    height: "20px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border)",
-                    background: "rgba(12, 23, 27, 0.65)",
-                    overflow: "hidden",
-                    cursor: "pointer",
-                  }}
-                  onPointerDown={handleOverviewPointerDown}
-                  title="Overview timeline"
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      background: heatmapGradient,
-                    }}
-                  />
-                  {filteredEvents.map((entry) => (
-                    <button
-                      key={`overview-${entry.id}`}
-                      type="button"
-                      onPointerDown={(event) => {
-                        event.stopPropagation();
-                      }}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        seekToExact(entry.seconds);
-                      }}
-                      title={`${formatTime(entry.seconds)} - ${normalizeEvent(entry.event)}`}
-                      style={{
-                        position: "absolute",
-                        left: `${duration > 0 ? (entry.seconds / duration) * 100 : 0}%`,
-                        top: "50%",
-                        transform: "translate(-50%, -50%)",
-                        width: "7px",
-                        height: "7px",
-                        borderRadius: "999px",
-                        border: "1px solid rgba(8, 15, 18, 0.75)",
-                        background: getEventColor(entry.filterKey),
-                        boxShadow: nearbyEventIds.has(entry.id)
-                          ? "0 0 6px rgba(109, 255, 155, 0.75)"
-                          : "0 0 4px rgba(0, 0, 0, 0.2)",
-                        zIndex: 3,
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                    />
-                  ))}
-                  <div
-                    className="overview-window"
-                    style={{
-                      position: "absolute",
-                      left: `${duration > 0 ? (scrubWindowStart / duration) * 100 : 0}%`,
-                      width: `${duration > 0 ? ((scrubWindowEnd - scrubWindowStart) / Math.max(1, duration)) * 100 : 100}%`,
-                      top: 0,
-                      bottom: 0,
-                      border: "1px solid rgba(255, 214, 109, 0.9)",
-                      background: "rgba(255, 214, 109, 0.12)",
-                      pointerEvents: "auto",
-                      cursor: overviewDragging ? "grabbing" : "grab",
-                    }}
-                    onPointerDown={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      if (!durationRef.current) return;
-                      const rect = event.currentTarget.parentElement?.getBoundingClientRect();
-                      if (!rect) return;
-                      const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-                      const pointerTime = pct * durationRef.current;
-                      overviewDragOffsetRef.current = pointerTime - scrubWindowStart;
-                      overviewCursorOffsetRef.current = currentTimeRef.current - scrubWindowStart;
-                      setOverviewDragging(true);
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
-                      top: 0,
-                      bottom: 0,
-                      width: "2px",
-                      background: "#ffd46a",
-                      pointerEvents: "none",
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {duration > 0 && (
-              (() => {
-                const windowClipStart = Math.max(scrubWindowStart, Math.min(scrubWindowEnd, clipStart));
-                const windowClipEnd = Math.max(windowClipStart, Math.min(scrubWindowEnd, clipEnd));
-                return (
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "12px 0" }}>
-                    <div style={{ minWidth: "58px", textAlign: "right", fontSize: "12px", color: "var(--muted)" }}>
-                      {formatTime(scrubWindowStart)}
-                    </div>
-                    <div
-                      className="timeline-range-container"
-                      ref={timelineRef}
-                      onWheel={handleZoomWheel}
-                      onPointerDown={handleTimelinePointerDown}
-                      style={{ position: "relative", height: "32px", margin: 0, flex: 1 }}
-                    >
-                      <div
-                        className="timeline-scrub-line"
-                        style={{
-                          position: "absolute",
-                          left: 0,
-                          right: 0,
-                          top: "15px",
-                          height: "2px",
-                          background: "rgba(255, 255, 255, 0.2)",
-                          borderRadius: "2px",
-                          zIndex: 1,
-                        }}
-                      />
-
-                      {windowEvents.map((entry) => {
-                        const isNear = Math.abs(currentTime - entry.seconds) < 2;
-                        const isNearby = nearbyEventIds.has(entry.id);
-                        const markerColor = getEventColor(entry.filterKey);
-                        return (
-                          <div
-                            key={entry.id}
-                            className={`timeline-marker scrub-marker ${isNear ? "active" : ""} ${isNearby ? "nearby" : ""}`}
-                            style={{
-                              left: `${toWindowPercent(entry.seconds)}%`,
-                              top: "50%",
-                              transform: "translate(-50%, -50%)",
-                              zIndex: 4,
-                              background: markerColor,
-                            }}
-                            onClick={() => seekToExact(entry.seconds)}
-                            title={`${formatTime(entry.seconds)} - ${normalizeEvent(entry.event)}`}
-                          />
-                        );
-                      })}
-
-                      <div
-                        className="timeline-range-bar"
-                        hidden={!showClipTools}
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(windowClipStart)}%`,
-                          width: `${Math.max(0, ((windowClipEnd - windowClipStart) / scrubWindowSpan) * 100)}%`,
-                          top: "12px",
-                          height: "8px",
-                          background: "#e34b6c",
-                          borderRadius: "4px",
-                          zIndex: 2,
-                          cursor: "grab",
-                        }}
-                        onPointerDown={(e) => {
-                          if (!showClipTools || !timelineRef.current) return;
-                          e.preventDefault();
-                          const rect = timelineRef.current.getBoundingClientRect();
-                          const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                          const time = fromWindowPercent(pct);
-                          rangeDragOffsetRef.current = time - clipStartRef.current;
-                          setRangeDragging(true);
-                        }}
-                      />
-
-                      <div
-                        className="timeline-scrub-handle"
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(currentTime)}%`,
-                          top: "6px",
-                          width: "8px",
-                          height: "20px",
-                          background: "#ffd46a",
-                          borderRadius: "4px",
-                          transform: "translateX(-50%)",
-                          cursor: "ew-resize",
-                          zIndex: 5,
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setScrubDragging(true);
-                        }}
-                        title="Drag to scrub"
-                      />
-
-                      <div
-                        className="timeline-range-handle start"
-                        hidden={!showClipTools}
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(windowClipStart)}%`,
-                          top: "8px",
-                          width: "12px",
-                          height: "16px",
-                          background: draggingHandle === "start" ? "#e34b6c" : "#fff",
-                          border: "2px solid #e34b6c",
-                          borderRadius: "4px",
-                          cursor: "ew-resize",
-                          zIndex: 4,
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          dragStateRef.current.handle = "start";
-                          setDraggingHandle("start");
-                        }}
-                        title="Drag to set clip start"
-                      />
-
-                      <div
-                        className="timeline-range-handle end"
-                        hidden={!showClipTools}
-                        style={{
-                          position: "absolute",
-                          left: `${toWindowPercent(windowClipEnd)}%`,
-                          top: "8px",
-                          width: "12px",
-                          height: "16px",
-                          background: draggingHandle === "end" ? "#e34b6c" : "#fff",
-                          border: "2px solid #e34b6c",
-                          borderRadius: "4px",
-                          cursor: "ew-resize",
-                          zIndex: 4,
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          dragStateRef.current.handle = "end";
-                          setDraggingHandle("end");
-                        }}
-                        title="Drag to set clip end"
-                      />
-                    </div>
-                    <div style={{ minWidth: "58px", textAlign: "left", fontSize: "12px", color: "var(--muted)" }}>
-                      {formatTime(scrubWindowEnd)}
-                    </div>
-                  </div>
-                );
-              })()
-            )}
-
-            {duration > 0 && showClipTools && (
-              <div className="clip-controls" style={{ margin: "16px 0" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    Start
-                    <input
-                      type="text"
-                      value={formatTime(clipStart)}
-                      onChange={(e) => {
-                        const parts = e.target.value.split(":").map(Number);
-                        let seconds = 0;
-                        if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-                        else if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
-                        else if (parts.length === 1) seconds = parts[0];
-                        setClipStart(Math.max(scrubWindowStart, Math.min(seconds, clipEnd - 1, scrubWindowEnd)));
-                      }}
-                      style={{ width: "80px" }}
-                    />
-                  </label>
-
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    End
-                    <input
-                      type="text"
-                      value={formatTime(clipEnd)}
-                      onChange={(e) => {
-                        const parts = e.target.value.split(":").map(Number);
-                        let seconds = 0;
-                        if (parts.length === 3) seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-                        else if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
-                        else if (parts.length === 1) seconds = parts[0];
-                        setClipEnd(Math.min(scrubWindowEnd, Math.max(seconds, clipStart + 1, scrubWindowStart)));
-                      }}
-                      style={{ width: "80px" }}
-                    />
-                  </label>
-
-                  <button
-                    className="primary"
-                    disabled={clipEnd <= clipStart + 1 || clipStatus === "working"}
-                    title="Create clip from selected range"
-                    onClick={async () => {
-                      setClipStatus("working");
-                      setClipResult(null);
-                      try {
-                        const resp = await fetch("/api/clip-range", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ vod_path: vodPath, start: clipStart, end: clipEnd }),
-                        });
-                        const text = await resp.text();
-                        let data = null;
-                        try {
-                          data = JSON.parse(text);
-                        } catch {
-                          data = {
-                            ok: false,
-                            error: "Clip API unavailable. Make sure the backend is running and restarted.",
-                          };
-                        }
-                        if (data.ok) {
-                          setClipStatus("done");
-                          setClipResult(data.clip_path);
-                        } else {
-                          setClipStatus("error");
-                          setClipResult(data.error || "Unknown error");
-                        }
-                      } catch (err) {
-                        setClipStatus("error");
-                        setClipResult(err.message || "Request failed");
-                      }
-                    }}
-                  >
-                    {clipStatus === "working" ? "Creating..." : "Create Clip"}
-                  </button>
-                </div>
-
-                {clipStatus === "done" && clipResult && (
-                  <div style={{ marginTop: "12px", color: "#2e8b57" }}>
-                    Clip created! <a href="/clips">View clips</a>
-                  </div>
-                )}
-                {clipStatus === "error" && (
-                  <div style={{ marginTop: "12px", color: "#e34b6c" }}>
-                    Error: {clipResult}
-                  </div>
-                )}
-              </div>
-            )}
+            <VodClipControls
+              duration={duration}
+              showClipTools={showClipTools}
+              formatTime={formatTime}
+              clipStart={clipStart}
+              clipEnd={clipEnd}
+              scrubWindowStart={scrubWindowStart}
+              scrubWindowEnd={scrubWindowEnd}
+              setClipStart={setClipStart}
+              setClipEnd={setClipEnd}
+              clipStatus={clipStatus}
+              clipResult={clipResult}
+              onCreateClip={handleCreateClip}
+            />
           </div>
 
-          {!bookmarksCollapsed && (
-            <div className="bookmark-list-container expanded">
-              <div className="bookmark-panel-header">
-                <h3>Bookmarks ({filteredEvents.length})</h3>
-              </div>
-
-              {loading ? (
-                <p className="hint">Loading bookmarks...</p>
-              ) : filteredEvents.length === 0 ? (
-                <p className="hint">No events found with current filters.</p>
-              ) : (
-                <div className="bookmark-list" ref={bookmarkListRef}>
-                  {filteredEvents.map((entry) => {
-                    const isNear = Math.abs(currentTime - entry.seconds) < 2;
-                    const isNearby = nearbyEventIds.has(entry.id);
-
-                    return (
-                      <div
-                        key={entry.id}
-                        ref={isNear ? activeBookmarkRef : null}
-                        className={`bookmark-item ${isNear ? "active" : ""} ${isNearby ? "nearby" : ""}`}
-                        onClick={() => seekTo(entry)}
-                      >
-                        <div className="bookmark-time">{formatTime(entry.seconds)}</div>
-                        <div className="bookmark-content">
-                          <div className="bookmark-event">{normalizeEvent(entry.event)}</div>
-                          {entry.ocr ? <div className="bookmark-ocr">{entry.ocr}</div> : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+          <VodBookmarkList
+            bookmarksCollapsed={bookmarksCollapsed}
+            filteredEvents={filteredEvents}
+            loading={loading}
+            bookmarkListRef={bookmarkListRef}
+            currentTime={currentTime}
+            nearbyEventIds={nearbyEventIds}
+            activeBookmarkRef={activeBookmarkRef}
+            seekTo={seekTo}
+            formatTime={formatTime}
+            normalizeEvent={normalizeEvent}
+          />
         </div>
       </div>
     </section>

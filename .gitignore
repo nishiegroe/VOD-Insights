@@ -61,5 +61,5 @@ tools/
 easyocr_models/*.pth
 .venv-build/
 
-# --- Local Copilot agent artifacts ---
+# --- Agent workspace noise ---
 .github/agents/
