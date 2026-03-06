@@ -53,3 +53,12 @@ def test_resolve_existing_allowed_path_returns_file_when_allowed_and_present(tmp
     resolved = resolve_existing_allowed_path(str(file_path), [allowed_dir])
 
     assert resolved == file_path.resolve()
+
+
+def test_resolve_allowed_path_rejects_malformed_input(tmp_path):
+    allowed_dir = tmp_path / "allowed"
+    allowed_dir.mkdir()
+
+    resolved = resolve_allowed_path("\0bad-path", [allowed_dir])
+
+    assert resolved is None

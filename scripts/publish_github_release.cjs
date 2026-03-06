@@ -200,12 +200,6 @@ function formatNotes(meta, version) {
   return lines.join('\n');
 }
 
-function shellEscape(arg) {
-  if (!arg) return '""';
-  if (!/[\s"']/g.test(arg)) return arg;
-  return `"${arg.replace(/"/g, '\\"')}"`;
-}
-
 function main() {
   const root = path.resolve(__dirname, '..');
   const args = parseArgs(process.argv.slice(2));
@@ -280,7 +274,17 @@ function main() {
 
   if (args.dryRun) {
     console.log('Dry run: would execute');
-    console.log(`gh ${ghArgs.map(shellEscape).join(' ')}`);
+    console.log(
+      JSON.stringify(
+        {
+          command: 'gh',
+          args: ghArgs,
+          cwd: root,
+        },
+        null,
+        2,
+      ),
+    );
     console.log('');
     console.log('Notes preview:');
     console.log(notes);

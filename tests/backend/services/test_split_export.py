@@ -2,6 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from app.clips.split_export import export_clip_windows
+from app.system.path_policy import resolve_allowed_path
 
 
 def test_export_clip_windows_success(tmp_path: Path) -> None:
@@ -15,12 +16,15 @@ def test_export_clip_windows_success(tmp_path: Path) -> None:
 
     def run_ffmpeg_fn(in_file: Path, out_file: Path, start: float, duration: float) -> None:
         calls["run"] += 1
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_bytes(b"ok")
+        safe_out_file = resolve_allowed_path(str(out_file), [output_dir])
+        assert safe_out_file is not None
+        safe_out_file.parent.mkdir(parents=True, exist_ok=True)
+        safe_out_file.write_bytes(b"ok")
 
     def validate_clip_fn(out_file: Path) -> bool:
         calls["validate"] += 1
-        return out_file.exists()
+        safe_out_file = resolve_allowed_path(str(out_file), [output_dir])
+        return safe_out_file.exists() if safe_out_file is not None else False
 
     def count_events_fn(window_events):
         return {"kills": len(window_events), "assists": 0, "deaths": 0}
@@ -51,8 +55,10 @@ def test_export_clip_windows_validation_failure(tmp_path: Path) -> None:
     windows = [SimpleNamespace(start=1.0, end=2.0)]
 
     def run_ffmpeg_fn(in_file: Path, out_file: Path, start: float, duration: float) -> None:
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_bytes(b"bad")
+        safe_out_file = resolve_allowed_path(str(out_file), [output_dir])
+        assert safe_out_file is not None
+        safe_out_file.parent.mkdir(parents=True, exist_ok=True)
+        safe_out_file.write_bytes(b"bad")
 
     def validate_clip_fn(out_file: Path) -> bool:
         return False

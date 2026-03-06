@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict
 
@@ -61,14 +62,15 @@ def create_system_blueprint(deps: SystemRouteDeps) -> Blueprint:
 		current_version = deps.get_current_app_version()
 		try:
 			metadata = deps.fetch_latest_update_metadata()
-		except Exception as exc:
+		except Exception:
+			logging.exception("Failed to fetch latest update metadata")
 			return (
 				jsonify(
 					{
 						"ok": False,
 						"latest_version": "",
 						"current_version": current_version,
-						"error": str(exc),
+						"error": "Unable to fetch update metadata",
 					}
 				),
 				502,

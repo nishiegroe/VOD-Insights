@@ -6,15 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from app.runtime_paths import get_app_data_dir
-
-
-def _is_under_bookmarks(file_path: Path, bookmarks_dir: Path) -> bool:
-    candidate = file_path.resolve()
-    base = bookmarks_dir.resolve()
-    try:
-        return candidate.is_relative_to(base)
-    except (ValueError, AttributeError):
-        return candidate == base or base in candidate.parents
+from app.system.path_policy import normalize_allowed_dirs, resolve_allowed_path
 
 
 def _read_session_bookmarks(file_path: Path) -> List[Dict[str, Any]]:
@@ -55,17 +47,16 @@ def session_data_payload(session_path: str, config: Dict[str, Any]) -> Tuple[Dic
     if not session_path:
         return {"ok": False, "error": "Missing session path"}, 400
 
-    file_path = Path(session_path).resolve()
-    if not file_path.exists():
-        return {"ok": False, "error": "Session file not found"}, 404
-
     bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
     if not bookmarks_dir.is_absolute():
         bookmarks_dir = get_app_data_dir() / bookmarks_dir
-    bookmarks_dir = bookmarks_dir.resolve()
+    allowed_dirs = normalize_allowed_dirs([bookmarks_dir])
 
-    if not _is_under_bookmarks(file_path, bookmarks_dir):
+    file_path = resolve_allowed_path(session_path, allowed_dirs)
+    if file_path is None:
         return {"ok": False, "error": "Invalid session path"}, 403
+    if not file_path.exists() or not file_path.is_file():
+        return {"ok": False, "error": "Session file not found"}, 404
 
     try:
         bookmarks = _read_session_bookmarks(file_path)

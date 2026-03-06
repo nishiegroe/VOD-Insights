@@ -15,6 +15,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from app.config import load_config
 from app.runtime_paths import get_app_data_dir, get_config_path, resolve_log_path, resolve_tool, reset_log_file
 from app.clips.split_export import export_clip_windows
+from app.system.subprocess_policy import UnsafePathError, ffmpeg_argv, normalize_process_path
 
 
 @dataclass
@@ -30,12 +31,17 @@ class BookmarkEvent:
 
 
 def load_bookmarks(bookmark_path: Path) -> List[BookmarkEvent]:
-    if not bookmark_path.exists():
-        raise FileNotFoundError(f"Bookmarks file not found: {bookmark_path}")
+    try:
+        safe_bookmark_path = normalize_process_path(bookmark_path)
+    except UnsafePathError as exc:
+        raise FileNotFoundError(f"Bookmarks file not found: {bookmark_path}") from exc
 
-    if bookmark_path.suffix.lower() == ".jsonl":
+    if not safe_bookmark_path.exists():
+        raise FileNotFoundError(f"Bookmarks file not found: {safe_bookmark_path}")
+
+    if safe_bookmark_path.suffix.lower() == ".jsonl":
         events = []
-        with bookmark_path.open("r", encoding="utf-8") as handle:
+        with safe_bookmark_path.open("r", encoding="utf-8") as handle:
             for line in handle:
                 if not line.strip():
                     continue
@@ -49,7 +55,7 @@ def load_bookmarks(bookmark_path: Path) -> List[BookmarkEvent]:
         return events
 
     events = []
-    with bookmark_path.open("r", encoding="utf-8", newline="") as handle:
+    with safe_bookmark_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
             events.append(
@@ -112,9 +118,14 @@ def merge_windows(windows: List[ClipWindow], gap: float) -> List[ClipWindow]:
 
 
 def find_newest_recording(directory: Path, extensions: Iterable[str]) -> Optional[Path]:
+    try:
+        safe_directory = normalize_process_path(directory, expect_file=False)
+    except UnsafePathError:
+        return None
+
     files = [
         p
-        for p in directory.iterdir()
+        for p in safe_directory.iterdir()
         if p.is_file() and p.suffix.lower() in {ext.lower() for ext in extensions}
     ]
     if not files:
@@ -134,22 +145,22 @@ def validate_clip(output_file: Path) -> bool:
     if not ffprobe_path:
         return output_file.exists()
     try:
-        cmd = [
-            ffprobe_path,
+        normalized_output = normalize_process_path(output_file)
+        cmd = ffmpeg_argv(ffprobe_path, [
             "-v",
             "error",
             "-show_entries",
             "format=duration",
             "-of",
             "default=noprint_wrappers=1:nokey=1:nokey=1",
-            str(output_file),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            str(normalized_output),
+        ])
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5, shell=False)
         duration_str = result.stdout.strip()
         if duration_str and duration_str != "N/A":
             duration_val = float(duration_str)
             return duration_val > 0
-    except (subprocess.TimeoutExpired, ValueError, OSError):
+    except (subprocess.TimeoutExpired, ValueError, OSError, UnsafePathError):
         pass
     return output_file.exists()
 
@@ -158,13 +169,16 @@ def run_ffmpeg(input_file: Path, output_file: Path, start: float, duration: floa
     ffmpeg_path = resolve_tool("ffmpeg", ["ffmpeg.exe"])
     if not ffmpeg_path:
         raise RuntimeError("FFmpeg not found. Install it or bundle tools/ffmpeg.exe.")
-    cmd = [
-        ffmpeg_path,
+    normalized_input = normalize_process_path(input_file)
+    normalized_output = normalize_process_path(output_file, must_exist=False, expect_file=False)
+    normalized_output.parent.mkdir(parents=True, exist_ok=True)
+
+    cmd = ffmpeg_argv(ffmpeg_path, [
         "-y",
         "-ss",
         f"{start:.3f}",
         "-i",
-        str(input_file),
+        str(normalized_input),
         "-t",
         f"{duration:.3f}",
         "-c:v",
@@ -177,9 +191,9 @@ def run_ffmpeg(input_file: Path, output_file: Path, start: float, duration: floa
         "aac",
         "-b:a",
         "128k",
-        str(output_file),
-    ]
-    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        str(normalized_output),
+    ])
+    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
 
 
 def count_events(events: Iterable[BookmarkEvent]) -> dict[str, int]:
@@ -240,6 +254,12 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
         logging.error("Recording file not found.")
         return
 
+    try:
+        input_file = normalize_process_path(input_file)
+    except UnsafePathError as exc:
+        logging.error("Recording path is invalid: %s", exc)
+        return
+
     windows = build_windows(
         events,
         config.split.pre_seconds,
@@ -255,6 +275,11 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
         output_dir = vod_dir / "clips"
     elif not output_dir.is_absolute():
         output_dir = vod_dir / output_dir
+    try:
+        output_dir = normalize_process_path(output_dir, must_exist=False, expect_file=False)
+    except UnsafePathError as exc:
+        logging.error("Output directory path is invalid: %s", exc)
+        return
     output_dir.mkdir(parents=True, exist_ok=True)
     vod_start = parse_vod_start_time(input_file)
     if vod_start is None:

@@ -14,7 +14,7 @@ CLIP_TITLES_PATH = get_app_data_dir() / "clip_titles.json"
 
 
 def normalize_clip_path(path: Path) -> str:
-    return os.path.normcase(str(path.resolve()))
+    return os.path.normcase(str(path.absolute()))
 
 
 def load_clip_titles() -> Dict[str, str]:
