@@ -47,10 +47,13 @@ yarn-error.log*
 pnpm-debug.log*
 
 # --- App generated data ---
+bookmarks.csv
 bookmarks/*.csv
 bookmarks/*.jsonl
 vod_scan_monitor.csv
 app/downloads/
+*_monitor.csv
+release_*.log
 
 # --- Frontend outputs ---
 frontend/dist/

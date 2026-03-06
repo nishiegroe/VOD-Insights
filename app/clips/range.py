@@ -29,7 +29,7 @@ def create_clip_range_payload(
     if end <= start:
         return {"ok": False, "error": "End must be after start"}, 400
 
-    vod_file = Path(vod_path)
+    vod_file = Path(vod_path).resolve()
     if not vod_file.exists() or not vod_file.is_file():
         return {"ok": False, "error": "VOD not found"}, 404
 
@@ -37,7 +37,7 @@ def create_clip_range_payload(
     if extensions and vod_file.suffix.lower() not in extensions:
         return {"ok": False, "error": "Unsupported VOD type"}, 400
 
-    allowed_dirs = [path for path in get_vod_dirs(config) if str(path)]
+    allowed_dirs = [path.resolve() for path in get_vod_dirs(config) if str(path)]
     if allowed_dirs:
         try:
             allowed = any(vod_file.is_relative_to(root) for root in allowed_dirs)

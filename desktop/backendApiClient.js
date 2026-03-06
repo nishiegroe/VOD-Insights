@@ -1,4 +1,4 @@
-function createBackendApiClient({ host, port, timeoutMs }) {
+function createBackendApiClient({ host, port, timeoutMs, defaultHeaders = {} }) {
   function httpRequest(options, callback) {
     return require("http").request(options, callback);
   }
@@ -12,12 +12,15 @@ function createBackendApiClient({ host, port, timeoutMs }) {
           port,
           path: pathName,
           method,
-          headers: body
-            ? {
-                "Content-Type": "application/json",
-                "Content-Length": Buffer.byteLength(body),
-              }
-            : undefined,
+          headers: {
+            ...defaultHeaders,
+            ...(body
+              ? {
+                  "Content-Type": "application/json",
+                  "Content-Length": Buffer.byteLength(body),
+                }
+              : {}),
+          },
         },
         (res) => {
           const { statusCode = 0 } = res;

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, session } = require("electron");
+const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
 const net = require("net");
@@ -26,6 +27,32 @@ const updaterDownloadDir = path.join(userDataDir, "updates");
 const HOST = "127.0.0.1";
 const PORT = parseInt(process.env.APEX_WEBUI_PORT || "5170", 10);
 const updaterConfig = createUpdaterConfig({ processObj: process });
+const backendApiToken = crypto.randomBytes(32).toString("hex");
+
+function registerLocalApiTokenHeaderInjection() {
+  const targetSession = session.defaultSession;
+  if (!targetSession) {
+    return;
+  }
+  targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    try {
+      const url = new URL(details.url);
+      const host = (url.hostname || "").toLowerCase();
+      if (host === HOST || host === "localhost" || host === "127.0.0.1") {
+        details.requestHeaders["X-AET-API-Token"] = backendApiToken;
+      }
+    } catch (error) {
+      // Ignore malformed URLs and continue the request unchanged.
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+}
+
+if (session.defaultSession) {
+  registerLocalApiTokenHeaderInjection();
+} else {
+  app.once("ready", registerLocalApiTokenHeaderInjection);
+}
 
 app.disableHardwareAcceleration();
 
@@ -44,7 +71,8 @@ const backendSupervisor = createBackendSupervisor({
   PORT,
   userDataDir,
   backendLogPath,
-  pyiTempDir
+  pyiTempDir,
+  apiToken: backendApiToken,
 });
 
 const backendRuntime = createBackendRuntime({
@@ -79,6 +107,9 @@ const backendApiClient = createBackendApiClient({
   host: HOST,
   port: PORT,
   timeoutMs: updaterConfig.updateRequestTimeoutMs,
+  defaultHeaders: {
+    "X-AET-API-Token": backendApiToken,
+  },
 });
 
 const updaterManager = createUpdaterManager({

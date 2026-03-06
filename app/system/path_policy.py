@@ -9,11 +9,12 @@ def resolve_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[
         return None
     candidate = Path(path_value).resolve()
     for base in allowed_dirs:
+        base_resolved = base.resolve()
         try:
-            if candidate.is_relative_to(base):
+            if candidate.is_relative_to(base_resolved):
                 return candidate
         except AttributeError:
-            if str(candidate).lower().startswith(str(base).lower()):
+            if candidate == base_resolved or base_resolved in candidate.parents:
                 return candidate
     return None
 

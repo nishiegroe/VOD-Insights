@@ -13,7 +13,8 @@ function createBackendSupervisor({
   PORT,
   userDataDir,
   backendLogPath,
-  pyiTempDir
+  pyiTempDir,
+  apiToken,
 }) {
   let backendProcess = null;
   let isQuitting = false;
@@ -150,6 +151,8 @@ function createBackendSupervisor({
         APEX_WEBUI_PORT: String(PORT),
         AET_APPDATA_DIR: userDataDir,
         AET_INSTALL_DIR: installDir,
+        AET_REQUIRE_API_TOKEN: "1",
+        AET_API_TOKEN: String(apiToken || ""),
         PYINSTALLER_TMPDIR: pyiTempDir,
         TEMP: pyiTempDir,
         TMP: pyiTempDir
