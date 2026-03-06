@@ -71,6 +71,13 @@ def resolve_existing_allowed_path(path_value: str, allowed_dirs: List[Path]) -> 
     return file_path
 
 
+def resolve_existing_allowed_file_path(path_value: str, allowed_dirs: List[Path]) -> Optional[Path]:
+    file_path = resolve_existing_allowed_path(path_value, allowed_dirs)
+    if file_path is None or not file_path.is_file():
+        return None
+    return file_path
+
+
 def resolve_allowed_child_path(name: str, allowed_dirs: List[Path]) -> Optional[Path]:
     if not _is_simple_child_name(name):
         return None
