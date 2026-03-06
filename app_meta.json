@@ -1,10 +1,17 @@
 {
   "internalName": "VODInsights",
   "displayName": "VOD Insights",
-  "version": "1.0.10",
+  "version": "1.1.1",
   "appId": "com.vod.insights",
   "publisher": "VODInsights",
   "patchNotes": [
+    {
+      "version": "1.1.1",
+      "items": [
+        "Hardened GitHub release publishing flow with strict preflight checks and clearer rollback guidance.",
+        "Added reusable release documentation for both human operators and CI/CD agents."
+      ]
+    },
     {
       "version": "1.0.10",
       "items": [

@@ -169,7 +169,9 @@ npm install
 npm run dev
 ```
 
-See [CLAUDE.md](CLAUDE.md) for full architecture docs, build instructions, and release workflow.
+See [CLAUDE.md](CLAUDE.md) for full architecture docs and build instructions.
+For release publishing, use the canonical runbook: [docs/release-github-runbook.md](docs/release-github-runbook.md).
+Agent operators should use: [.github/Skills/release-github-publishing.md](.github/Skills/release-github-publishing.md).
 
 ---
 
