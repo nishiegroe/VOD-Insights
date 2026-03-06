@@ -48,11 +48,9 @@ function registerLocalApiTokenHeaderInjection() {
   });
 }
 
-if (session.defaultSession) {
-  registerLocalApiTokenHeaderInjection();
-} else {
-  app.once("ready", registerLocalApiTokenHeaderInjection);
-}
+app.whenReady().then(registerLocalApiTokenHeaderInjection).catch(() => {
+  // Ignore readiness failures during shutdown/early-exit flows.
+});
 
 app.disableHardwareAcceleration();
 
