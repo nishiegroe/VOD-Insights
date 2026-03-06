@@ -42,7 +42,7 @@ $newPatchNote = @{
 # Prepend the new patch note so the most recent version appears first
 $meta.patchNotes = @($newPatchNote) + $meta.patchNotes
 
-$meta | ConvertTo-Json -Depth 10 | Set-Content .\app_meta.json
+$meta | ConvertTo-Json -Depth 10 | Set-Content .\app_meta.json -Encoding UTF8
 ```
 
 ### Step 2: Sync All Package Versions
@@ -140,8 +140,6 @@ Now that version files are committed, proceed with preflight and publish (see se
 Run these checks before any release command.
 
 ```powershell
-Set-Location "e:\Apex event tracker"
-
 # 1) Clean repo state
 git status --short
 
@@ -160,8 +158,10 @@ $version = (Get-Content .\app_meta.json -Raw | ConvertFrom-Json).version
 $tag = "v$version"
 git tag --list $tag
 git ls-remote --tags origin "refs/tags/$tag"
-gh release view $tag --repo nishiegroe/VOD-Insights
+gh release view $tag
 ```
+
+`gh release view $tag` uses the authenticated/default repository context. If needed, override with `--repo <owner>/<repo>`.
 
 Interpretation:
 
@@ -182,7 +182,7 @@ npm run release:github -- --dry-run
 Dry run with optional overrides:
 
 ```powershell
-npm run release:github -- --dry-run --owner nishiegroe --repo VOD-Insights --output-dir dist-desktop/inno --remote origin
+npm run release:github -- --dry-run --owner <owner> --repo <repo> --output-dir dist-desktop/inno --remote origin
 ```
 
 What dry run validates:
@@ -202,7 +202,7 @@ npm run release:github
 Publish with optional overrides:
 
 ```powershell
-npm run release:github -- --owner nishiegroe --repo VOD-Insights --output-dir dist-desktop/inno --remote origin
+npm run release:github -- --owner <owner> --repo <repo> --output-dir dist-desktop/inno --remote origin
 ```
 
 What the command does:
@@ -239,12 +239,14 @@ Useful commands:
 ```powershell
 $version = (Get-Content .\app_meta.json -Raw | ConvertFrom-Json).version
 $tag = "v$version"
-gh release view $tag --repo nishiegroe/VOD-Insights
-gh release view $tag --repo nishiegroe/VOD-Insights --json url,assets
+gh release view $tag
+gh release view $tag --json url,assets
 git rev-list -n 1 $tag
 git ls-remote --tags origin "refs/tags/$tag"
 git log origin/main --oneline -n 5  # Verify commit is on main
 ```
+
+To target a specific repository explicitly, add `--repo <owner>/<repo>` to the `gh release view` commands.
 
 ## Troubleshooting
 
