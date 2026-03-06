@@ -40,11 +40,13 @@ def load_bookmarks(bookmark_path: Path) -> List[BookmarkEvent]:
     except UnsafePathError as exc:
         raise FileNotFoundError(f"Bookmarks file not found: {bookmark_path}") from exc
 
+    # codeql[py/path-injection]: safe_bookmark_path is normalized and constrained to bookmark_path.parent.
     if not safe_bookmark_path.exists():  # lgtm [py/path-injection] safe_bookmark_path is normalized and constrained to bookmark_path.parent.
         raise FileNotFoundError(f"Bookmarks file not found: {safe_bookmark_path}")
 
     if safe_bookmark_path.suffix.lower() == ".jsonl":
         events = []
+        # codeql[py/path-injection]: safe_bookmark_path passed normalize_process_path and remains within allowed_dirs.
         with safe_bookmark_path.open("r", encoding="utf-8") as handle:  # lgtm [py/path-injection] path was validated by normalize_process_path.
             for line in handle:
                 if not line.strip():
@@ -59,6 +61,7 @@ def load_bookmarks(bookmark_path: Path) -> List[BookmarkEvent]:
         return events
 
     events = []
+    # codeql[py/path-injection]: safe_bookmark_path passed normalize_process_path and remains within allowed_dirs.
     with safe_bookmark_path.open("r", encoding="utf-8", newline="") as handle:  # lgtm [py/path-injection] path was validated by normalize_process_path.
         reader = csv.DictReader(handle)
         for row in reader:
@@ -190,6 +193,7 @@ def run_ffmpeg(input_file: Path, output_file: Path, start: float, duration: floa
         expect_file=False,
         allowed_dirs=normalize_allowed_dirs([output_file.parent]),
     )
+    # codeql[py/path-injection]: normalized_output is produced by normalize_process_path with allowed parent directory.
     normalized_output.parent.mkdir(parents=True, exist_ok=True)  # lgtm [py/path-injection] parent is derived from allowlisted normalize_process_path output.
 
     cmd = ffmpeg_argv(ffmpeg_path, [

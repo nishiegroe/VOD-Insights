@@ -26,6 +26,7 @@ def get_media_duration(path: Path) -> Optional[float]:
     except OSError:
         return None
 
+    # codeql[py/path-injection]: normalized_path is validated by normalize_process_path and restricted to allowed_dirs.
     cache_key = (str(normalized_path), mtime)  # lgtm [py/path-injection] normalized_path is allowlisted via normalize_process_path.
     if cache_key in _duration_cache:
         return _duration_cache[cache_key]

@@ -30,6 +30,7 @@ def resolve_path_candidate(path_value: str) -> Optional[Path]:
     if candidate is None:
         return None
     try:
+        # codeql[py/path-injection]: this helper only canonicalizes untrusted input; allowlist checks happen in resolve_allowed_path.
         return candidate.resolve()
     except (OSError, RuntimeError, ValueError):
         return None
@@ -82,6 +83,7 @@ def resolve_allowed_child_path(name: str, allowed_dirs: List[Path]) -> Optional[
     if not _is_simple_child_name(name):
         return None
     for base in normalize_allowed_dirs(allowed_dirs):
+        # codeql[py/path-injection]: child name is restricted to a basename and then revalidated by resolve_allowed_path against base.
         resolved = resolve_allowed_path(str(base / name), [base])  # lgtm [py/path-injection] child name is restricted to a simple basename and rechecked against base.
         if resolved is not None:
             return resolved

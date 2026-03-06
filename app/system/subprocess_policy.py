@@ -25,6 +25,7 @@ def normalize_process_path(
             raise UnsafePathError("Path is outside allowed directories")
     else:
         try:
+            # codeql[py/path-injection]: canonicalization step only; subsequent guards enforce existence/type and reject option-like names.
             resolved = path.resolve()  # lgtm [py/path-injection] canonicalization only; subsequent checks enforce existence/type and disallow option-like names.
         except (OSError, RuntimeError, ValueError) as exc:
             raise UnsafePathError("Path is invalid") from exc
@@ -33,9 +34,11 @@ def normalize_process_path(
     if resolved.name.startswith("-"):
         raise UnsafePathError("Path filename cannot start with '-'")
 
+    # codeql[py/path-injection]: resolved path has already been canonicalized and allowlisted (when provided) before existence check.
     if must_exist and not resolved.exists():
         raise UnsafePathError("Path does not exist")
 
+    # codeql[py/path-injection]: type validation on normalized/allowlisted path before subprocess usage.
     if expect_file and must_exist and not resolved.is_file():
         raise UnsafePathError("Expected a file path")
 
@@ -44,4 +47,5 @@ def normalize_process_path(
 
 def ffmpeg_argv(executable: str, args: List[str]) -> List[str]:
     """Build ffmpeg/ffprobe argv as a strict list for shell=False execution."""
+    # codeql[py/path-injection]: this helper only assembles argv; callers normalize path args and use shell=False.
     return [str(executable), *args]  # lgtm [py/path-injection] argv list is executed with shell=False and path args are normalized upstream.

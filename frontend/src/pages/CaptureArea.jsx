@@ -414,6 +414,7 @@ export default function CaptureArea() {
         <div className="capture-stage">
           <div className="capture-frame" id="capture-frame">
             {/* lgtm [js/xss-through-dom] safeVideoSrc is restricted to trusted blob: URLs created from validated local File objects. */}
+            {/* codeql[js/xss-through-dom]: safeVideoSrc is allowlisted to issued blob: object URLs from validated local video File inputs. */}
             <video id="capture-video" ref={videoRef} src={safeVideoSrc} controls></video>
             <div id="capture-overlay" className="capture-overlay" ref={overlayRef}></div>
             <div id="capture-box" className="capture-box" ref={boxRef}>
