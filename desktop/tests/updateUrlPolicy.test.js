@@ -1,6 +1,55 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isAllowedUpdateHost, validateInstallerDownloadUrl } = require("../updateUrlPolicy");
+const {
+  resolveBackendOrigin,
+  shouldInjectApiTokenHeader,
+  isLoopbackHost,
+  isAllowedUpdateHost,
+  validateInstallerDownloadUrl,
+} = require("../updateUrlPolicy");
+
+test("resolveBackendOrigin returns canonical origin for valid backend config", () => {
+  assert.equal(
+    resolveBackendOrigin({ protocol: "http:", host: "127.0.0.1", port: 5170 }),
+    "http://127.0.0.1:5170"
+  );
+});
+
+test("resolveBackendOrigin rejects malformed backend config", () => {
+  assert.equal(resolveBackendOrigin({ protocol: "ftp:", host: "127.0.0.1", port: 5170 }), null);
+  assert.equal(resolveBackendOrigin({ protocol: "http:", host: "", port: 5170 }), null);
+  assert.equal(resolveBackendOrigin({ protocol: "http:", host: "127.0.0.1", port: "nope" }), null);
+  assert.equal(resolveBackendOrigin({ protocol: "http:", host: "127.0.0.1", port: 70000 }), null);
+});
+
+test("shouldInjectApiTokenHeader only allows exact backend origin", () => {
+  const backendOrigin = "http://127.0.0.1:5170";
+  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api/status", backendOrigin), true);
+  assert.equal(shouldInjectApiTokenHeader("http://localhost:5170/api/status", backendOrigin), false);
+  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5171/api/status", backendOrigin), false);
+  assert.equal(shouldInjectApiTokenHeader("https://127.0.0.1:5170/api/status", backendOrigin), false);
+});
+
+test("shouldInjectApiTokenHeader rejects unknown/malformed request and backend URLs", () => {
+  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api", null), false);
+  assert.equal(shouldInjectApiTokenHeader("not-a-url", "http://127.0.0.1:5170"), false);
+  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api", "not-a-url"), false);
+});
+
+test("shouldInjectApiTokenHeader rejects non-loopback backend origins", () => {
+  assert.equal(
+    shouldInjectApiTokenHeader("https://example.com/api/status", "https://example.com"),
+    false
+  );
+});
+
+test("isLoopbackHost accepts only expected loopback hostnames", () => {
+  assert.equal(isLoopbackHost("127.0.0.1"), true);
+  assert.equal(isLoopbackHost("localhost"), true);
+  assert.equal(isLoopbackHost("::1"), true);
+  assert.equal(isLoopbackHost("0.0.0.0"), false);
+  assert.equal(isLoopbackHost("example.com"), false);
+});
 
 test("isAllowedUpdateHost allows expected GitHub hosts", () => {
   assert.equal(isAllowedUpdateHost("github.com"), true);

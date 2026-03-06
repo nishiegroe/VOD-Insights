@@ -13,7 +13,11 @@ const { createBackendRuntime } = require("./backendRuntime");
 const { createSplashScreenTools } = require("./splashScreen");
 const { createUpdaterConfig } = require("./updaterConfig");
 const { createUpdaterManager } = require("./updaterManager");
-const { validateInstallerDownloadUrl } = require("./updateUrlPolicy");
+const {
+  resolveBackendOrigin,
+  shouldInjectApiTokenHeader,
+  validateInstallerDownloadUrl,
+} = require("./updateUrlPolicy");
 const { compareVersions } = require("./versionUtils");
 const { createWindowManager } = require("./windowManager");
 
@@ -26,23 +30,19 @@ const updaterDownloadDir = path.join(userDataDir, "updates");
 
 const HOST = "127.0.0.1";
 const PORT = parseInt(process.env.APEX_WEBUI_PORT || "5170", 10);
+const BACKEND_ORIGIN = resolveBackendOrigin({ protocol: "http:", host: HOST, port: PORT });
 const updaterConfig = createUpdaterConfig({ processObj: process });
 const backendApiToken = crypto.randomBytes(32).toString("hex");
 
 function registerLocalApiTokenHeaderInjection() {
   const targetSession = session.defaultSession;
-  if (!targetSession) {
+  if (!targetSession || !BACKEND_ORIGIN) {
     return;
   }
+
   targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    try {
-      const url = new URL(details.url);
-      const host = (url.hostname || "").toLowerCase();
-      if (host === HOST || host === "localhost" || host === "127.0.0.1") {
-        details.requestHeaders["X-AET-API-Token"] = backendApiToken;
-      }
-    } catch (error) {
-      // Ignore malformed URLs and continue the request unchanged.
+    if (shouldInjectApiTokenHeader(details.url, BACKEND_ORIGIN)) {
+      details.requestHeaders["X-AET-API-Token"] = backendApiToken;
     }
     callback({ requestHeaders: details.requestHeaders });
   });

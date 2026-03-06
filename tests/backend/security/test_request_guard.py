@@ -28,6 +28,8 @@ def _guard(**overrides):
         default_limit_window_seconds=60,
         heavy_limit_count=2,
         heavy_limit_window_seconds=60,
+        rate_state_max_keys=128,
+        rate_state_idle_ttl_seconds=300,
     )
     config = RequestGuardConfig(**{**config.__dict__, **overrides})
     return RequestGuard(config)
@@ -69,6 +71,44 @@ def test_token_mode_allows_with_token() -> None:
     assert (allowed, message, status) == (True, "", 200)
 
 
+def test_token_mode_default_protects_api_routes() -> None:
+    guard = _guard(require_api_token=True, api_token="secret-token")
+
+    blocked = guard.validate(_request("/api/vods", "GET"))
+    assert blocked == (False, "Missing or invalid API token.", 401)
+
+    allowed = guard.validate(
+        _request("/api/vods", "GET", headers={"X-AET-API-Token": "secret-token"})
+    )
+    assert allowed == (True, "", 200)
+
+
+def test_token_mode_protects_vod_read_routes() -> None:
+    guard = _guard(require_api_token=True, api_token="secret-token")
+
+    for path in ("/api/vods", "/api/vods/single", "/api/vods/stream"):
+        blocked = guard.validate(_request(path, "GET"))
+        assert blocked == (False, "Missing or invalid API token.", 401)
+
+        allowed = guard.validate(
+            _request(path, "GET", headers={"X-AET-API-Token": "secret-token"})
+        )
+        assert allowed == (True, "", 200)
+
+
+def test_token_mode_protects_media_get_prefixes() -> None:
+    guard = _guard(require_api_token=True, api_token="secret-token")
+
+    for path in ("/media/example.mp4", "/vod-media/example.mp4", "/download/example.mp4"):
+        blocked = guard.validate(_request(path, "GET"))
+        assert blocked == (False, "Missing or invalid API token.", 401)
+
+        allowed = guard.validate(
+            _request(path, "GET", headers={"X-AET-API-Token": "secret-token"})
+        )
+        assert allowed == (True, "", 200)
+
+
 def test_rate_limit_applies_to_heavy_mutations() -> None:
     guard = _guard()
     headers = {"Origin": "http://localhost:5173"}
@@ -93,3 +133,28 @@ def test_rate_limit_can_be_disabled() -> None:
 
     assert first == (True, "", 200)
     assert second == (True, "", 200)
+
+
+def test_rate_state_evicts_oldest_when_over_max_keys() -> None:
+    guard = _guard(rate_state_max_keys=2, rate_state_idle_ttl_seconds=3600)
+    headers_a = {"Origin": "http://localhost:5173", "X-AET-API-Token": "a-token"}
+    headers_b = {"Origin": "http://localhost:5173", "X-AET-API-Token": "b-token"}
+    headers_c = {"Origin": "http://localhost:5173", "X-AET-API-Token": "c-token"}
+
+    guard.validate(_request("/api/vod/download", "POST", headers=headers_a))
+    guard.validate(_request("/api/vod/download", "POST", headers=headers_b))
+    guard.validate(_request("/api/vod/download", "POST", headers=headers_c))
+
+    assert len(guard._rate_state) == 2
+    assert all("a-token" not in key for key in guard._rate_state.keys())
+
+
+def test_rate_state_evicts_idle_keys() -> None:
+    guard = _guard(rate_state_max_keys=8, rate_state_idle_ttl_seconds=2)
+    headers = {"Origin": "http://localhost:5173", "X-AET-API-Token": "idle-token"}
+
+    guard.validate(_request("/api/vod/download", "POST", headers=headers))
+    only_key = next(iter(guard._rate_state.keys()))
+    guard._evict_rate_state(guard._rate_state[only_key][-1] + 3.0)
+
+    assert not guard._rate_state
