@@ -2,12 +2,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from app.clips.split_export import export_clip_windows
+from app.system.path_policy import normalize_allowed_dirs, resolve_allowed_path
 
 
 def test_export_clip_windows_success(tmp_path: Path) -> None:
     input_file = tmp_path / "input.mp4"
     input_file.write_bytes(b"input")
     output_dir = tmp_path / "clips"
+    allowed_output_dirs = normalize_allowed_dirs([output_dir])
     windows = [SimpleNamespace(start=1.0, end=3.0)]
     events = [SimpleNamespace(time=1.5, event="kill")]
 
@@ -15,12 +17,18 @@ def test_export_clip_windows_success(tmp_path: Path) -> None:
 
     def run_ffmpeg_fn(in_file: Path, out_file: Path, start: float, duration: float) -> None:
         calls["run"] += 1
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_bytes(b"ok")
+        safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
+        assert safe_out_file is not None
+        # codeql[py/path-injection]: out_file is revalidated via resolve_allowed_path before writing test artifacts.
+        safe_out_file.parent.mkdir(parents=True, exist_ok=True)  # lgtm [py/path-injection] out_file is constrained via resolve_allowed_path before filesystem writes.
+        # codeql[py/path-injection]: write uses safe_out_file that is constrained to allowed_output_dirs.
+        safe_out_file.write_bytes(b"ok")  # lgtm [py/path-injection] write target is the allowlisted safe_out_file path.
 
     def validate_clip_fn(out_file: Path) -> bool:
         calls["validate"] += 1
-        return out_file.exists()
+        safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
+        # codeql[py/path-injection]: exists() is executed only on revalidated safe_out_file.
+        return safe_out_file.exists() if safe_out_file is not None else False  # lgtm [py/path-injection] existence check is performed only on allowlisted safe_out_file.
 
     def count_events_fn(window_events):
         return {"kills": len(window_events), "assists": 0, "deaths": 0}
@@ -48,11 +56,16 @@ def test_export_clip_windows_validation_failure(tmp_path: Path) -> None:
     input_file = tmp_path / "input.mp4"
     input_file.write_bytes(b"input")
     output_dir = tmp_path / "clips"
+    allowed_output_dirs = normalize_allowed_dirs([output_dir])
     windows = [SimpleNamespace(start=1.0, end=2.0)]
 
     def run_ffmpeg_fn(in_file: Path, out_file: Path, start: float, duration: float) -> None:
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_bytes(b"bad")
+        safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
+        assert safe_out_file is not None
+        # codeql[py/path-injection]: out_file is revalidated via resolve_allowed_path before writing test artifacts.
+        safe_out_file.parent.mkdir(parents=True, exist_ok=True)  # lgtm [py/path-injection] out_file is constrained via resolve_allowed_path before filesystem writes.
+        # codeql[py/path-injection]: write uses safe_out_file that is constrained to allowed_output_dirs.
+        safe_out_file.write_bytes(b"bad")  # lgtm [py/path-injection] write target is the allowlisted safe_out_file path.
 
     def validate_clip_fn(out_file: Path) -> bool:
         return False

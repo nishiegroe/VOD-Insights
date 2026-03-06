@@ -1,23 +1,25 @@
 from __future__ import annotations
 
 import subprocess
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
 from app.runtime_paths import get_app_data_dir
 from app.split_bookmarks import count_events, load_bookmarks, parse_vod_start_time, run_ffmpeg
+from app.system.path_policy import normalize_allowed_dirs, resolve_allowed_path
 from app.vod.catalog import get_vod_dirs, list_sessions_for_vod
 
 
 def create_clip_range_payload(
     config: Dict[str, Any],
-    vod_path: str,
+    vod_path: Any,
     start_value: Any,
     end_value: Any,
 ) -> Tuple[Dict[str, Any], int]:
-    vod_path = str(vod_path or "").strip()
-    if not vod_path:
+    path_value = str(vod_path or "").strip()
+    if not path_value:
         return {"ok": False, "error": "Missing VOD path"}, 400
 
     try:
@@ -29,22 +31,16 @@ def create_clip_range_payload(
     if end <= start:
         return {"ok": False, "error": "End must be after start"}, 400
 
-    vod_file = Path(vod_path).resolve()
+    allowed_dirs = normalize_allowed_dirs([path for path in get_vod_dirs(config) if str(path)])
+    vod_file = resolve_allowed_path(path_value, allowed_dirs)
+    if vod_file is None:
+        return {"ok": False, "error": "Invalid VOD path"}, 403
     if not vod_file.exists() or not vod_file.is_file():
         return {"ok": False, "error": "VOD not found"}, 404
 
     extensions = {ext.lower() for ext in config.get("split", {}).get("extensions", [])}
     if extensions and vod_file.suffix.lower() not in extensions:
         return {"ok": False, "error": "Unsupported VOD type"}, 400
-
-    allowed_dirs = [path.resolve() for path in get_vod_dirs(config) if str(path)]
-    if allowed_dirs:
-        try:
-            allowed = any(vod_file.is_relative_to(root) for root in allowed_dirs)
-        except (AttributeError, ValueError):
-            allowed = any(vod_file == root or root in vod_file.parents for root in allowed_dirs)
-        if not allowed:
-            return {"ok": False, "error": "Invalid VOD path"}, 403
 
     split_cfg = config.get("split", {})
     output_dir = Path(split_cfg.get("output_dir", ""))
@@ -86,7 +82,8 @@ def create_clip_range_payload(
 
     try:
         run_ffmpeg(vod_file, output_file, start, duration)
-    except (subprocess.CalledProcessError, RuntimeError) as exc:
-        return {"ok": False, "error": f"FFmpeg failed: {exc}"}, 500
+    except (subprocess.CalledProcessError, RuntimeError):
+        logging.exception("Failed to create clip range with FFmpeg")
+        return {"ok": False, "error": "Failed to create clip"}, 500
 
     return {"ok": True, "clip_path": str(output_file)}, 200

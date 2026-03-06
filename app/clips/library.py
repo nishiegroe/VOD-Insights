@@ -16,6 +16,7 @@ from app.clips.insights import (
 )
 from app.clips.titles import CLIP_NAME_PATTERN, get_clip_title, load_clip_titles
 from app.media_duration import get_media_duration
+from app.system.path_policy import resolve_allowed_path
 from app.vod.catalog import get_clips_dir
 
 
@@ -123,15 +124,5 @@ def serialize_clip(clip: Dict[str, Any]) -> Dict[str, Any]:
 def resolve_clip_path(path_value: str, config: Dict[str, Any]) -> Optional[Path]:
     if not path_value:
         return None
-    candidate = Path(path_value).resolve()
-    for base in get_clip_dirs(config):
-        if not base:
-            continue
-        base = base.resolve()
-        try:
-            if candidate.is_relative_to(base):
-                return candidate
-        except AttributeError:
-            if candidate == base or base in candidate.parents:
-                return candidate
-    return None
+    allowed_dirs = [base for base in get_clip_dirs(config) if base]
+    return resolve_allowed_path(path_value, allowed_dirs)

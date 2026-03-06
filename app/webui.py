@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import atexit
 import json
+import logging
 import os
 import re
 import signal
@@ -67,7 +68,7 @@ from app.ocr_pipeline.gpu_ocr import (
     ocr_gpu_status_payload,
 )
 from app.twitch.import_runner import run_twitch_import
-from app.vod.paths import resolve_vod_media_filename, resolve_vod_path as resolve_vod_path_in_dirs
+from app.vod.paths import resolve_vod_media_filename
 from app.system.config_update import update_config_from_payload
 from app.vod.thumbnails import ensure_vod_thumbnail
 from app.system.replay_directory import choose_and_save_replay_dir
@@ -122,7 +123,13 @@ from app.routes.vod_actions import VodActionsRouteDeps
 from app.routes.vod_download import VodDownloadRouteDeps
 from app.routes.vod_thumbnail import VodThumbnailRouteDeps
 from app.routes.vods import VodsRouteDeps
-from app.system.path_policy import resolve_allowed_path, resolve_existing_allowed_path
+from app.system.path_policy import (
+    normalize_allowed_dirs,
+    resolve_allowed_path,
+    resolve_existing_allowed_file_path,
+    resolve_existing_allowed_child_path,
+    resolve_existing_allowed_path,
+)
 from app.webui_app_shell import (
     choose_directory,
     cleanup_vod_scans_on_exit,
@@ -331,6 +338,7 @@ def start_bookmark_process() -> None:
             cwd=str(get_project_root()),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            shell=False,
         )
 
 
@@ -465,8 +473,8 @@ def capture_area_save_response() -> Any:
 
 def media_file_response(filename: str) -> Any:
     config = load_config()
-    clips_dir = get_clips_dir(config).resolve()
-    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    clip_dirs = normalize_allowed_dirs([get_clips_dir(config)])
+    file_path = resolve_existing_allowed_child_path(filename, clip_dirs)
     if file_path is None:
         abort(404)
     return send_file(file_path)
@@ -474,7 +482,7 @@ def media_file_response(filename: str) -> Any:
 
 def vod_media_file_response(filename: str) -> Any:
     config = load_config()
-    allowed_dirs = [p.resolve() for p in get_vod_dirs(config) if p]
+    allowed_dirs = normalize_allowed_dirs([p for p in get_vod_dirs(config) if p])
     file_path = resolve_vod_media_filename(filename, allowed_dirs)
     if file_path is None or not file_path.exists():
         abort(404)
@@ -482,9 +490,26 @@ def vod_media_file_response(filename: str) -> Any:
 
 
 def resolve_vod_path(vod_path: str) -> Optional[Path]:
+    if not vod_path:
+        return None
     config = load_config()
-    allowed_dirs = [p.resolve() for p in get_vod_dirs(config) if p]
-    return resolve_vod_path_in_dirs(vod_path, allowed_dirs)
+    allowed_dirs = normalize_allowed_dirs([p for p in get_vod_dirs(config) if p])
+    return resolve_allowed_path(vod_path, allowed_dirs)
+
+
+def resolve_existing_vod_file_path(vod_path: str) -> Optional[Path]:
+    if not vod_path:
+        return None
+    config = load_config()
+    allowed_dirs = normalize_allowed_dirs([p for p in get_vod_dirs(config) if p])
+    return resolve_existing_allowed_file_path(vod_path, allowed_dirs)
+
+
+def resolve_existing_session_file_path(session_path: str, config: Dict[str, Any]) -> Optional[Path]:
+    if not session_path:
+        return None
+    bookmarks_dir, _ = resolve_bookmarks_context(config)
+    return resolve_existing_allowed_file_path(session_path, normalize_allowed_dirs([bookmarks_dir]))
 
 
 def vod_thumbnail_response() -> Any:
@@ -495,14 +520,14 @@ def vod_thumbnail_response() -> Any:
     except (TypeError, ValueError):
         abort(404)
 
-    file_path = resolve_vod_path(vod_path)
-    if file_path is None or not file_path.exists():
+    file_path = resolve_existing_vod_file_path(vod_path)
+    if file_path is None:
         abort(404)
 
     try:
         thumb_path = ensure_vod_thumbnail(file_path, seconds)
     except Exception as exc:
-        print(f"Error generating thumbnail: {exc}")
+        logging.error("Failed to generate VOD thumbnail: %s", exc)
         abort(404)
 
     return send_file(thumb_path)
@@ -510,8 +535,8 @@ def vod_thumbnail_response() -> Any:
 
 def download_file_response(filename: str) -> Any:
     config = load_config()
-    clips_dir = get_clips_dir(config).resolve()
-    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    clip_dirs = normalize_allowed_dirs([get_clips_dir(config)])
+    file_path = resolve_existing_allowed_child_path(filename, clip_dirs)
     if file_path is None:
         abort(404)
     display_name = get_clip_title(file_path)
@@ -524,8 +549,8 @@ def download_file_response(filename: str) -> Any:
 
 def open_folder_response(filename: str) -> Any:
     config = load_config()
-    clips_dir = get_clips_dir(config).resolve()
-    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    clip_dirs = normalize_allowed_dirs([get_clips_dir(config)])
+    file_path = resolve_existing_allowed_child_path(filename, clip_dirs)
     if file_path is None:
         abort(404)
     reveal_file_in_explorer(file_path)
@@ -534,8 +559,8 @@ def open_folder_response(filename: str) -> Any:
 
 def delete_file_response(filename: str) -> Any:
     config = load_config()
-    clips_dir = get_clips_dir(config).resolve()
-    file_path = resolve_existing_allowed_path(str(clips_dir / filename), [clips_dir])
+    clip_dirs = normalize_allowed_dirs([get_clips_dir(config)])
+    file_path = resolve_existing_allowed_child_path(filename, clip_dirs)
     if file_path is None:
         abort(404)
     file_path.unlink(missing_ok=True)
@@ -570,7 +595,30 @@ def split_selected() -> str:
         if request.headers.get("X-Requested-With") == "fetch":
             return jsonify({"ok": False, "error": "Missing VOD or session"}), 400
         return redirect("/vods")
-    split_from_config(CONFIG_PATH, bookmarks_override=Path(session_path), input_override=Path(vod_path))
+
+    config = load_config()
+    if resolve_vod_path(vod_path) is None:
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
+        return redirect("/vods")
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify({"ok": False, "error": "VOD not found"}), 404
+        return redirect("/vods")
+
+    resolved_session_path = resolve_existing_session_file_path(session_path, config)
+    if resolved_session_path is None:
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify({"ok": False, "error": "Invalid session path"}), 403
+        return redirect("/vods")
+
+    split_from_config(
+        CONFIG_PATH,
+        bookmarks_override=resolved_session_path,
+        input_override=resolved_vod_path,
+    )
     if request.headers.get("X-Requested-With") == "fetch":
         return jsonify({"ok": True, "redirect": "/clips"})
     return redirect("/clips")
@@ -582,7 +630,24 @@ def api_split_selected() -> Any:
     session_path = payload.get("session_path", "")
     if not vod_path or not session_path:
         return jsonify({"ok": False, "error": "Missing VOD or session"}), 400
-    split_from_config(CONFIG_PATH, bookmarks_override=Path(session_path), input_override=Path(vod_path))
+
+    config = load_config()
+    if resolve_vod_path(vod_path) is None:
+        return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        return jsonify({"ok": False, "error": "VOD not found"}), 404
+
+    resolved_session_path = resolve_existing_session_file_path(session_path, config)
+    if resolved_session_path is None:
+        return jsonify({"ok": False, "error": "Invalid session path"}), 403
+
+    split_from_config(
+        CONFIG_PATH,
+        bookmarks_override=resolved_session_path,
+        input_override=resolved_vod_path,
+    )
     return jsonify({"ok": True})
 
 
@@ -590,8 +655,13 @@ def vod_ocr_run() -> str:
     vod_path = request.form.get("vod_path", "")
     if not vod_path:
         return redirect("/vods")
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        return redirect("/vods")
+
     config = load_config()
-    launch_vod_scan_process(CONFIG_PATH, config, vod_path)
+    launch_vod_scan_process(CONFIG_PATH, config, str(resolved_vod_path))
     return redirect("/vods")
 
 
@@ -601,10 +671,19 @@ def vod_ocr_run_response() -> Any:
     vod_path = payload.get("vod_path", "")
     if not vod_path:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
+
+    if resolve_vod_path(vod_path) is None:
+        return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        return jsonify({"ok": False, "error": "VOD not found"}), 404
+
     config = load_config()
+    vod_key = str(resolved_vod_path)
     with _process_lock:
-        proc = launch_vod_scan_process(CONFIG_PATH, config, vod_path)
-        _vod_ocr_processes[vod_path] = proc
+        proc = launch_vod_scan_process(CONFIG_PATH, config, vod_key)
+        _vod_ocr_processes[vod_key] = proc
     return jsonify({"ok": True})
 
 
@@ -614,28 +693,37 @@ def stop_vod_ocr_response() -> Any:
     vod_path = payload.get("vod_path", "")
     if not vod_path:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
+
+    if resolve_vod_path(vod_path) is None:
+        return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        return jsonify({"ok": False, "error": "VOD not found"}), 404
+
+    vod_key = str(resolved_vod_path)
     try:
         with _process_lock:
-            proc = _vod_ocr_processes.get(vod_path)
+            proc = _vod_ocr_processes.get(vod_key)
             if proc is not None:
                 terminate_process(proc, timeout_seconds=5)
                 # Remove from tracking dict
-                if vod_path in _vod_ocr_processes:
-                    del _vod_ocr_processes[vod_path]
+                if vod_key in _vod_ocr_processes:
+                    del _vod_ocr_processes[vod_key]
         
         # Clean up the .scanning and .paused marker files
         config = load_config()
         bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
-        scanning_marker, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
+        scanning_marker, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_key)
         if scanning_marker.exists():
             scanning_marker.unlink()
         if paused_marker.exists():
             paused_marker.unlink()
         
         return jsonify({"ok": True})
-    except Exception as e:
-        print(f"Error stopping VOD OCR: {e}")
-        return jsonify({"ok": False, "error": str(e)}), 500
+    except Exception as exc:
+        logging.error("Failed to stop VOD OCR: %s", exc)
+        return jsonify({"ok": False, "error": "Failed to stop VOD OCR"}), 500
 
 
 def pause_vod_ocr_response() -> Any:
@@ -644,18 +732,27 @@ def pause_vod_ocr_response() -> Any:
     vod_path = payload.get("vod_path", "")
     if not vod_path:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
+
+    if resolve_vod_path(vod_path) is None:
+        return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        return jsonify({"ok": False, "error": "VOD not found"}), 404
+
+    vod_key = str(resolved_vod_path)
     try:
         config = load_config()
         bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
-        _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
+        _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_key)
         
         # Create the paused marker - the scanning process will detect it and save state
         paused_marker.write_text(json.dumps({"paused": True}), encoding="utf-8")
         
         return jsonify({"ok": True})
-    except Exception as e:
-        print(f"Error pausing VOD OCR: {e}")
-        return jsonify({"ok": False, "error": str(e)}), 500
+    except Exception as exc:
+        logging.error("Failed to pause VOD OCR: %s", exc)
+        return jsonify({"ok": False, "error": "Failed to pause VOD OCR"}), 500
 
 
 def resume_vod_ocr_response() -> Any:
@@ -665,22 +762,31 @@ def resume_vod_ocr_response() -> Any:
     vod_path = payload.get("vod_path", "")
     if not vod_path:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
+
+    if resolve_vod_path(vod_path) is None:
+        return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        return jsonify({"ok": False, "error": "VOD not found"}), 404
+
+    vod_key = str(resolved_vod_path)
     try:
         config = load_config()
         bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
-        _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_path)
+        _, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_key)
         
         if not paused_marker.exists():
             return jsonify({"ok": False, "error": "No paused scan found"}), 400
         
         with _process_lock:
-            proc = launch_vod_scan_process(CONFIG_PATH, config, vod_path, resume=True)
-            _vod_ocr_processes[vod_path] = proc
+            proc = launch_vod_scan_process(CONFIG_PATH, config, vod_key, resume=True)
+            _vod_ocr_processes[vod_key] = proc
         
         return jsonify({"ok": True})
-    except Exception as e:
-        print(f"Error resuming VOD OCR: {e}")
-        return jsonify({"ok": False, "error": str(e)}), 500
+    except Exception as exc:
+        logging.error("Failed to resume VOD OCR: %s", exc)
+        return jsonify({"ok": False, "error": "Failed to resume VOD OCR"}), 500
 
 
 def delete_sessions_response() -> Any:
@@ -688,16 +794,25 @@ def delete_sessions_response() -> Any:
     vod_path = payload.get("vod_path", "")
     if not vod_path:
         return jsonify({"ok": False, "error": "Missing VOD"}), 400
+
+    if resolve_vod_path(vod_path) is None:
+        return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
+
+    resolved_vod_path = resolve_existing_vod_file_path(vod_path)
+    if resolved_vod_path is None:
+        return jsonify({"ok": False, "error": "VOD not found"}), 404
+
+    vod_key = str(resolved_vod_path)
     try:
         config = load_config()
         bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
-        files = list_vod_session_files(bookmarks_dir, session_prefix, vod_path)
+        files = list_vod_session_files(bookmarks_dir, session_prefix, vod_key)
         for file in files:
             file.unlink()
         return jsonify({"ok": True})
-    except Exception as e:
-        print(f"Error deleting sessions: {e}")
-        return jsonify({"ok": False, "error": str(e)}), 500
+    except Exception as exc:
+        logging.error("Failed to delete VOD sessions: %s", exc)
+        return jsonify({"ok": False, "error": "Failed to delete VOD sessions"}), 500
 
 
 def control_start_response() -> str:
@@ -856,7 +971,8 @@ def delete_vod_response() -> Any:
             thumb.unlink(missing_ok=True)
         return jsonify({"ok": True})
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        logging.error("Failed to delete VOD and session artifacts: %s", exc)
+        return jsonify({"ok": False, "error": "Failed to delete VOD"}), 500
 
 
 def vods_stream_response() -> Response:
@@ -1019,8 +1135,9 @@ def vod_download_start_response() -> Any:
             request.get_json(silent=True),
         )
         return jsonify(payload), status_code
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    except Exception as exc:
+        logging.error("Unhandled error while starting VOD download: %s", exc)
+        return jsonify({"error": "Failed to start VOD download"}), 500
 
 
 def vod_download_progress_response(job_id: str) -> Any:

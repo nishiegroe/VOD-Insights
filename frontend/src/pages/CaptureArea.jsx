@@ -2,8 +2,35 @@ import React, { useEffect, useRef, useState } from "react";
 import { fetchCaptureConfig, saveCaptureArea } from "../api/captureArea";
 
 const MIN_SIZE_PX = 20;
+const SAFE_VIDEO_MIME_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+  "video/quicktime",
+  "video/x-msvideo",
+  "video/x-matroska",
+  "video/mpeg",
+]);
+const VIDEO_FILE_ACCEPT_ATTR = Array.from(SAFE_VIDEO_MIME_TYPES).join(",");
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const isValidFileObject = (file) => {
+  if (!file || typeof file !== "object") {
+    return false;
+  }
+  if (typeof File !== "undefined" && !(file instanceof File)) {
+    return false;
+  }
+  return (
+    typeof file.type === "string" &&
+    typeof file.size === "number" &&
+    typeof file.name === "string" &&
+    file.size >= 0
+  );
+};
+
+const isSafeVideoFile = (file) => isValidFileObject(file) && SAFE_VIDEO_MIME_TYPES.has(file.type);
 
 export default function CaptureArea() {
   const videoRef = useRef(null);
@@ -11,6 +38,7 @@ export default function CaptureArea() {
   const boxRef = useRef(null);
   const fileRef = useRef(null);
   const objectUrlRef = useRef(null);
+  const issuedObjectUrlsRef = useRef(new Set());
   const stateRef = useRef({
     norm: { x: 0.4, y: 0.4, w: 0.2, h: 0.2 },
     drag: null,
@@ -28,7 +56,25 @@ export default function CaptureArea() {
   const [values, setValues] = useState({ left: 0, top: 0, width: 0, height: 0 });
   const [targetWidth, setTargetWidth] = useState(0);
   const [targetHeight, setTargetHeight] = useState(0);
+  const [videoSrc, setVideoSrc] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+
+  const isTrustedObjectUrl = (url) => {
+    if (typeof url !== "string" || !url) {
+      return false;
+    }
+    if (!issuedObjectUrlsRef.current.has(url)) {
+      return false;
+    }
+    try {
+      const parsed = new URL(url, window.location.href);
+      return parsed.protocol === "blob:";
+    } catch {
+      return false;
+    }
+  };
+
+  const safeVideoSrc = isTrustedObjectUrl(videoSrc) ? videoSrc : "";
 
   useEffect(() => {
     const load = async () => {
@@ -52,12 +98,25 @@ export default function CaptureArea() {
 
   useEffect(() => {
     return () => {
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
+      const activeUrl = objectUrlRef.current;
+      if (activeUrl) {
+        URL.revokeObjectURL(activeUrl);
+        issuedObjectUrlsRef.current.delete(activeUrl);
         objectUrlRef.current = null;
       }
+      issuedObjectUrlsRef.current.forEach((issuedUrl) => {
+        URL.revokeObjectURL(issuedUrl);
+      });
+      issuedObjectUrlsRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    if (!videoRef.current || !safeVideoSrc) {
+      return;
+    }
+    videoRef.current.load();
+  }, [safeVideoSrc]);
 
   // Initialize box position from config on page load
   useEffect(() => {
@@ -293,15 +352,25 @@ export default function CaptureArea() {
   }, [configDefaults]);
 
   const handleFileChange = (event) => {
-    const file = event.target.files && event.target.files[0];
-    if (!file || !videoRef.current) return;
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
+    const files = event?.target?.files;
+    const file = files && typeof files.length === "number" && files.length > 0 ? files[0] : null;
+    if (!isSafeVideoFile(file)) {
+      if (event?.target) {
+        event.target.value = "";
+      }
+      return;
     }
+
+    const previousUrl = objectUrlRef.current;
     const url = URL.createObjectURL(file);
+    issuedObjectUrlsRef.current.add(url);
     objectUrlRef.current = url;
-    videoRef.current.src = url;
-    videoRef.current.load();
+    setVideoSrc(url);
+
+    if (previousUrl && previousUrl !== url) {
+      URL.revokeObjectURL(previousUrl);
+      issuedObjectUrlsRef.current.delete(previousUrl);
+    }
   };
 
   const handleSave = async () => {
@@ -326,7 +395,13 @@ export default function CaptureArea() {
       <section className="card">
         <h2>Load VOD</h2>
         <div className="input-row">
-          <input ref={fileRef} id="vod-file" type="file" accept="video/*" onChange={handleFileChange} />
+          <input
+            ref={fileRef}
+            id="vod-file"
+            type="file"
+            accept={VIDEO_FILE_ACCEPT_ATTR}
+            onChange={handleFileChange}
+          />
           <button type="button" className="secondary" id="reset-selection">
             Reset Box
           </button>
@@ -338,7 +413,9 @@ export default function CaptureArea() {
         <h2>Selection</h2>
         <div className="capture-stage">
           <div className="capture-frame" id="capture-frame">
-            <video id="capture-video" ref={videoRef} controls></video>
+            {/* lgtm [js/xss-through-dom] safeVideoSrc is restricted to trusted blob: URLs created from validated local File objects. */}
+            {/* codeql[js/xss-through-dom]: safeVideoSrc is allowlisted to issued blob: object URLs from validated local video File inputs. */}
+            <video id="capture-video" ref={videoRef} src={safeVideoSrc} controls></video>
             <div id="capture-overlay" className="capture-overlay" ref={overlayRef}></div>
             <div id="capture-box" className="capture-box" ref={boxRef}>
               <span className="handle nw" data-handle="nw"></span>

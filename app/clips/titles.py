@@ -14,6 +14,10 @@ CLIP_TITLES_PATH = get_app_data_dir() / "clip_titles.json"
 
 
 def normalize_clip_path(path: Path) -> str:
+    return os.path.normcase(str(path.absolute()))
+
+
+def legacy_normalize_clip_path(path: Path) -> str:
     return os.path.normcase(str(path.resolve()))
 
 
@@ -50,18 +54,28 @@ def clean_clip_title(value: str) -> str:
 def set_clip_title(path: Path, title: str) -> str:
     titles = load_clip_titles()
     key = normalize_clip_path(path)
+    legacy_key = legacy_normalize_clip_path(path)
     cleaned = clean_clip_title(title)
     if cleaned:
         titles[key] = cleaned
+        if legacy_key != key:
+            titles.pop(legacy_key, None)
     else:
         titles.pop(key, None)
+        if legacy_key != key:
+            titles.pop(legacy_key, None)
     save_clip_titles(titles)
     return cleaned
 
 
 def get_clip_title(path: Path, titles: Optional[Dict[str, str]] = None) -> str:
     source = titles if titles is not None else load_clip_titles()
-    return source.get(normalize_clip_path(path), "")
+    key = normalize_clip_path(path)
+    value = source.get(key)
+    if value:
+        return value
+    legacy_key = legacy_normalize_clip_path(path)
+    return source.get(legacy_key, "")
 
 
 def build_download_name(display_name: str, file_path: Path) -> str:
