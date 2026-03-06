@@ -16,6 +16,7 @@ from app.config import load_config
 from app.runtime_paths import get_app_data_dir, get_config_path, resolve_log_path, resolve_tool, reset_log_file
 from app.clips.split_export import export_clip_windows
 from app.system.subprocess_policy import UnsafePathError, ffmpeg_argv, normalize_process_path
+from app.system.path_policy import normalize_allowed_dirs
 
 
 @dataclass
@@ -32,7 +33,10 @@ class BookmarkEvent:
 
 def load_bookmarks(bookmark_path: Path) -> List[BookmarkEvent]:
     try:
-        safe_bookmark_path = normalize_process_path(bookmark_path)
+        safe_bookmark_path = normalize_process_path(
+            bookmark_path,
+            allowed_dirs=normalize_allowed_dirs([bookmark_path.parent]),
+        )
     except UnsafePathError as exc:
         raise FileNotFoundError(f"Bookmarks file not found: {bookmark_path}") from exc
 
@@ -119,7 +123,11 @@ def merge_windows(windows: List[ClipWindow], gap: float) -> List[ClipWindow]:
 
 def find_newest_recording(directory: Path, extensions: Iterable[str]) -> Optional[Path]:
     try:
-        safe_directory = normalize_process_path(directory, expect_file=False)
+        safe_directory = normalize_process_path(
+            directory,
+            expect_file=False,
+            allowed_dirs=normalize_allowed_dirs([directory]),
+        )
     except UnsafePathError:
         return None
 
@@ -145,7 +153,10 @@ def validate_clip(output_file: Path) -> bool:
     if not ffprobe_path:
         return output_file.exists()
     try:
-        normalized_output = normalize_process_path(output_file)
+        normalized_output = normalize_process_path(
+            output_file,
+            allowed_dirs=normalize_allowed_dirs([output_file.parent]),
+        )
         cmd = ffmpeg_argv(ffprobe_path, [
             "-v",
             "error",
@@ -169,8 +180,16 @@ def run_ffmpeg(input_file: Path, output_file: Path, start: float, duration: floa
     ffmpeg_path = resolve_tool("ffmpeg", ["ffmpeg.exe"])
     if not ffmpeg_path:
         raise RuntimeError("FFmpeg not found. Install it or bundle tools/ffmpeg.exe.")
-    normalized_input = normalize_process_path(input_file)
-    normalized_output = normalize_process_path(output_file, must_exist=False, expect_file=False)
+    normalized_input = normalize_process_path(
+        input_file,
+        allowed_dirs=normalize_allowed_dirs([input_file.parent]),
+    )
+    normalized_output = normalize_process_path(
+        output_file,
+        must_exist=False,
+        expect_file=False,
+        allowed_dirs=normalize_allowed_dirs([output_file.parent]),
+    )
     normalized_output.parent.mkdir(parents=True, exist_ok=True)
 
     cmd = ffmpeg_argv(ffmpeg_path, [
@@ -255,7 +274,10 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
         return
 
     try:
-        input_file = normalize_process_path(input_file)
+        input_file = normalize_process_path(
+            input_file,
+            allowed_dirs=normalize_allowed_dirs([input_file.parent]),
+        )
     except UnsafePathError as exc:
         logging.error("Recording path is invalid: %s", exc)
         return
@@ -276,7 +298,12 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
     elif not output_dir.is_absolute():
         output_dir = vod_dir / output_dir
     try:
-        output_dir = normalize_process_path(output_dir, must_exist=False, expect_file=False)
+        output_dir = normalize_process_path(
+            output_dir,
+            must_exist=False,
+            expect_file=False,
+            allowed_dirs=normalize_allowed_dirs([output_dir]),
+        )
     except UnsafePathError as exc:
         logging.error("Output directory path is invalid: %s", exc)
         return

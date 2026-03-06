@@ -1,16 +1,33 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
+from typing import Iterable, List, Optional
+
+from app.system.path_policy import normalize_allowed_dirs, resolve_allowed_path
 
 
 class UnsafePathError(ValueError):
     """Raised when a path is unsafe to pass to external processes."""
 
 
-def normalize_process_path(path: Path, *, must_exist: bool = True, expect_file: bool = True) -> Path:
+def normalize_process_path(
+    path: Path,
+    *,
+    must_exist: bool = True,
+    expect_file: bool = True,
+    allowed_dirs: Optional[Iterable[Path]] = None,
+) -> Path:
     """Resolve and validate a filesystem path used in subprocess arguments."""
-    resolved = path.resolve()
+    resolved: Optional[Path]
+    if allowed_dirs is not None:
+        resolved = resolve_allowed_path(str(path), normalize_allowed_dirs(allowed_dirs))
+        if resolved is None:
+            raise UnsafePathError("Path is outside allowed directories")
+    else:
+        try:
+            resolved = path.resolve()
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise UnsafePathError("Path is invalid") from exc
 
     # Guard against option-style argv confusion in tools like ffmpeg.
     if resolved.name.startswith("-"):

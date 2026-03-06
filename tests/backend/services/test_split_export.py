@@ -2,13 +2,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from app.clips.split_export import export_clip_windows
-from app.system.path_policy import resolve_allowed_path
+from app.system.path_policy import normalize_allowed_dirs, resolve_allowed_path
 
 
 def test_export_clip_windows_success(tmp_path: Path) -> None:
     input_file = tmp_path / "input.mp4"
     input_file.write_bytes(b"input")
     output_dir = tmp_path / "clips"
+    allowed_output_dirs = normalize_allowed_dirs([output_dir])
     windows = [SimpleNamespace(start=1.0, end=3.0)]
     events = [SimpleNamespace(time=1.5, event="kill")]
 
@@ -16,14 +17,14 @@ def test_export_clip_windows_success(tmp_path: Path) -> None:
 
     def run_ffmpeg_fn(in_file: Path, out_file: Path, start: float, duration: float) -> None:
         calls["run"] += 1
-        safe_out_file = resolve_allowed_path(str(out_file), [output_dir])
+        safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
         assert safe_out_file is not None
         safe_out_file.parent.mkdir(parents=True, exist_ok=True)
         safe_out_file.write_bytes(b"ok")
 
     def validate_clip_fn(out_file: Path) -> bool:
         calls["validate"] += 1
-        safe_out_file = resolve_allowed_path(str(out_file), [output_dir])
+        safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
         return safe_out_file.exists() if safe_out_file is not None else False
 
     def count_events_fn(window_events):
@@ -52,10 +53,11 @@ def test_export_clip_windows_validation_failure(tmp_path: Path) -> None:
     input_file = tmp_path / "input.mp4"
     input_file.write_bytes(b"input")
     output_dir = tmp_path / "clips"
+    allowed_output_dirs = normalize_allowed_dirs([output_dir])
     windows = [SimpleNamespace(start=1.0, end=2.0)]
 
     def run_ffmpeg_fn(in_file: Path, out_file: Path, start: float, duration: float) -> None:
-        safe_out_file = resolve_allowed_path(str(out_file), [output_dir])
+        safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
         assert safe_out_file is not None
         safe_out_file.parent.mkdir(parents=True, exist_ok=True)
         safe_out_file.write_bytes(b"bad")

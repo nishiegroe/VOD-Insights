@@ -6,6 +6,7 @@ from typing import Dict, Optional
 
 from app.runtime_paths import resolve_tool
 from app.system.subprocess_policy import UnsafePathError, ffmpeg_argv, normalize_process_path
+from app.system.path_policy import normalize_allowed_dirs
 
 
 _duration_cache: Dict[tuple, Optional[float]] = {}
@@ -13,7 +14,10 @@ _duration_cache: Dict[tuple, Optional[float]] = {}
 
 def get_media_duration(path: Path) -> Optional[float]:
     try:
-        normalized_path = normalize_process_path(path)
+        normalized_path = normalize_process_path(
+            path,
+            allowed_dirs=normalize_allowed_dirs([path.parent]),
+        )
     except UnsafePathError:
         return None
 

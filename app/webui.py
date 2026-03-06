@@ -68,7 +68,7 @@ from app.ocr_pipeline.gpu_ocr import (
     ocr_gpu_status_payload,
 )
 from app.twitch.import_runner import run_twitch_import
-from app.vod.paths import resolve_vod_media_filename, resolve_vod_path as resolve_vod_path_in_dirs
+from app.vod.paths import resolve_vod_media_filename
 from app.system.config_update import update_config_from_payload
 from app.vod.thumbnails import ensure_vod_thumbnail
 from app.system.replay_directory import choose_and_save_replay_dir
@@ -489,9 +489,11 @@ def vod_media_file_response(filename: str) -> Any:
 
 
 def resolve_vod_path(vod_path: str) -> Optional[Path]:
+    if not vod_path:
+        return None
     config = load_config()
     allowed_dirs = normalize_allowed_dirs([p for p in get_vod_dirs(config) if p])
-    return resolve_vod_path_in_dirs(vod_path, allowed_dirs)
+    return resolve_allowed_path(vod_path, allowed_dirs)
 
 
 def vod_thumbnail_response() -> Any:

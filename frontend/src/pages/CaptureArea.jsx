@@ -38,6 +38,7 @@ export default function CaptureArea() {
   const boxRef = useRef(null);
   const fileRef = useRef(null);
   const objectUrlRef = useRef(null);
+  const issuedObjectUrlsRef = useRef(new Set());
   const stateRef = useRef({
     norm: { x: 0.4, y: 0.4, w: 0.2, h: 0.2 },
     drag: null,
@@ -57,6 +58,23 @@ export default function CaptureArea() {
   const [targetHeight, setTargetHeight] = useState(0);
   const [videoSrc, setVideoSrc] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+
+  const isTrustedObjectUrl = (url) => {
+    if (typeof url !== "string" || !url) {
+      return false;
+    }
+    if (!issuedObjectUrlsRef.current.has(url)) {
+      return false;
+    }
+    try {
+      const parsed = new URL(url, window.location.href);
+      return parsed.protocol === "blob:";
+    } catch {
+      return false;
+    }
+  };
+
+  const safeVideoSrc = isTrustedObjectUrl(videoSrc) ? videoSrc : "";
 
   useEffect(() => {
     const load = async () => {
@@ -80,19 +98,25 @@ export default function CaptureArea() {
 
   useEffect(() => {
     return () => {
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
+      const activeUrl = objectUrlRef.current;
+      if (activeUrl) {
+        URL.revokeObjectURL(activeUrl);
+        issuedObjectUrlsRef.current.delete(activeUrl);
         objectUrlRef.current = null;
       }
+      issuedObjectUrlsRef.current.forEach((issuedUrl) => {
+        URL.revokeObjectURL(issuedUrl);
+      });
+      issuedObjectUrlsRef.current.clear();
     };
   }, []);
 
   useEffect(() => {
-    if (!videoRef.current || !videoSrc) {
+    if (!videoRef.current || !safeVideoSrc) {
       return;
     }
     videoRef.current.load();
-  }, [videoSrc]);
+  }, [safeVideoSrc]);
 
   // Initialize box position from config on page load
   useEffect(() => {
@@ -339,11 +363,13 @@ export default function CaptureArea() {
 
     const previousUrl = objectUrlRef.current;
     const url = URL.createObjectURL(file);
+    issuedObjectUrlsRef.current.add(url);
     objectUrlRef.current = url;
     setVideoSrc(url);
 
     if (previousUrl && previousUrl !== url) {
       URL.revokeObjectURL(previousUrl);
+      issuedObjectUrlsRef.current.delete(previousUrl);
     }
   };
 
@@ -387,7 +413,7 @@ export default function CaptureArea() {
         <h2>Selection</h2>
         <div className="capture-stage">
           <div className="capture-frame" id="capture-frame">
-            <video id="capture-video" ref={videoRef} src={videoSrc} controls></video>
+            <video id="capture-video" ref={videoRef} src={safeVideoSrc} controls></video>
             <div id="capture-overlay" className="capture-overlay" ref={overlayRef}></div>
             <div id="capture-box" className="capture-box" ref={boxRef}>
               <span className="handle nw" data-handle="nw"></span>

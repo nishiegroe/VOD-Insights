@@ -16,6 +16,36 @@ def normalize_allowed_dirs(allowed_dirs: Iterable[Path]) -> List[Path]:
     return normalized
 
 
+def parse_path_value(path_value: str) -> Optional[Path]:
+    if not path_value:
+        return None
+    try:
+        return Path(path_value)
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
+def resolve_path_candidate(path_value: str) -> Optional[Path]:
+    candidate = parse_path_value(path_value)
+    if candidate is None:
+        return None
+    try:
+        return candidate.resolve()
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
+def is_path_within_allowed_dirs(candidate: Path, allowed_dirs: Iterable[Path]) -> bool:
+    for base_resolved in normalize_allowed_dirs(allowed_dirs):
+        try:
+            if candidate.is_relative_to(base_resolved):
+                return True
+        except AttributeError:
+            if candidate == base_resolved or base_resolved in candidate.parents:
+                return True
+    return False
+
+
 def _is_simple_child_name(name: str) -> bool:
     if not name:
         return False
@@ -28,20 +58,10 @@ def _is_simple_child_name(name: str) -> bool:
 
 
 def resolve_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[Path]:
-    if not path_value:
+    candidate = resolve_path_candidate(path_value)
+    if candidate is None:
         return None
-    try:
-        candidate = Path(path_value).resolve()
-    except (OSError, RuntimeError, ValueError):
-        return None
-    for base_resolved in normalize_allowed_dirs(allowed_dirs):
-        try:
-            if candidate.is_relative_to(base_resolved):
-                return candidate
-        except AttributeError:
-            if candidate == base_resolved or base_resolved in candidate.parents:
-                return candidate
-    return None
+    return candidate if is_path_within_allowed_dirs(candidate, allowed_dirs) else None
 
 
 def resolve_existing_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[Path]:

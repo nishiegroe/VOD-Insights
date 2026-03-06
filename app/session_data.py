@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from app.runtime_paths import get_app_data_dir
-from app.system.path_policy import normalize_allowed_dirs, resolve_allowed_path
+from app.system.path_policy import normalize_allowed_dirs, resolve_allowed_path, resolve_existing_allowed_path
 
 
 def _read_session_bookmarks(file_path: Path) -> List[Dict[str, Any]]:
@@ -52,10 +52,12 @@ def session_data_payload(session_path: str, config: Dict[str, Any]) -> Tuple[Dic
         bookmarks_dir = get_app_data_dir() / bookmarks_dir
     allowed_dirs = normalize_allowed_dirs([bookmarks_dir])
 
-    file_path = resolve_allowed_path(session_path, allowed_dirs)
-    if file_path is None:
+    candidate_path = resolve_allowed_path(session_path, allowed_dirs)
+    if candidate_path is None:
         return {"ok": False, "error": "Invalid session path"}, 403
-    if not file_path.exists() or not file_path.is_file():
+
+    file_path = resolve_existing_allowed_path(str(candidate_path), allowed_dirs)
+    if file_path is None or not file_path.is_file():
         return {"ok": False, "error": "Session file not found"}, 404
 
     try:
