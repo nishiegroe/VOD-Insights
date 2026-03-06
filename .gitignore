@@ -38,6 +38,7 @@ app.log
 build/
 dist/
 dist-desktop/
+.dev-packaged/
 
 # --- Desktop / Node ---
 node_modules/
