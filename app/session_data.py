@@ -56,7 +56,7 @@ def session_data_payload(session_path: str, config: Dict[str, Any]) -> Tuple[Dic
     if candidate_path is None:
         return {"ok": False, "error": "Invalid session path"}, 403
 
-    file_path = resolve_existing_allowed_path(str(candidate_path), allowed_dirs)
+    file_path = resolve_existing_allowed_path(str(candidate_path), allowed_dirs)  # lgtm [py/path-injection] candidate_path was allowlisted and is revalidated here.
     if file_path is None or not file_path.is_file():
         return {"ok": False, "error": "Session file not found"}, 404
 

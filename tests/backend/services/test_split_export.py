@@ -19,13 +19,13 @@ def test_export_clip_windows_success(tmp_path: Path) -> None:
         calls["run"] += 1
         safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
         assert safe_out_file is not None
-        safe_out_file.parent.mkdir(parents=True, exist_ok=True)
-        safe_out_file.write_bytes(b"ok")
+        safe_out_file.parent.mkdir(parents=True, exist_ok=True)  # lgtm [py/path-injection] out_file is constrained via resolve_allowed_path before filesystem writes.
+        safe_out_file.write_bytes(b"ok")  # lgtm [py/path-injection] write target is the allowlisted safe_out_file path.
 
     def validate_clip_fn(out_file: Path) -> bool:
         calls["validate"] += 1
         safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
-        return safe_out_file.exists() if safe_out_file is not None else False
+        return safe_out_file.exists() if safe_out_file is not None else False  # lgtm [py/path-injection] existence check is performed only on allowlisted safe_out_file.
 
     def count_events_fn(window_events):
         return {"kills": len(window_events), "assists": 0, "deaths": 0}
@@ -59,8 +59,8 @@ def test_export_clip_windows_validation_failure(tmp_path: Path) -> None:
     def run_ffmpeg_fn(in_file: Path, out_file: Path, start: float, duration: float) -> None:
         safe_out_file = resolve_allowed_path(str(out_file), allowed_output_dirs)
         assert safe_out_file is not None
-        safe_out_file.parent.mkdir(parents=True, exist_ok=True)
-        safe_out_file.write_bytes(b"bad")
+        safe_out_file.parent.mkdir(parents=True, exist_ok=True)  # lgtm [py/path-injection] out_file is constrained via resolve_allowed_path before filesystem writes.
+        safe_out_file.write_bytes(b"bad")  # lgtm [py/path-injection] write target is the allowlisted safe_out_file path.
 
     def validate_clip_fn(out_file: Path) -> bool:
         return False

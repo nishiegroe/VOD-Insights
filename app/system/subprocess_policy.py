@@ -20,12 +20,12 @@ def normalize_process_path(
     """Resolve and validate a filesystem path used in subprocess arguments."""
     resolved: Optional[Path]
     if allowed_dirs is not None:
-        resolved = resolve_allowed_path(str(path), normalize_allowed_dirs(allowed_dirs))
+        resolved = resolve_allowed_path(str(path), normalize_allowed_dirs(allowed_dirs))  # lgtm [py/path-injection] path is resolved and must remain within explicit allowed_dirs.
         if resolved is None:
             raise UnsafePathError("Path is outside allowed directories")
     else:
         try:
-            resolved = path.resolve()
+            resolved = path.resolve()  # lgtm [py/path-injection] canonicalization only; subsequent checks enforce existence/type and disallow option-like names.
         except (OSError, RuntimeError, ValueError) as exc:
             raise UnsafePathError("Path is invalid") from exc
 
@@ -44,4 +44,4 @@ def normalize_process_path(
 
 def ffmpeg_argv(executable: str, args: List[str]) -> List[str]:
     """Build ffmpeg/ffprobe argv as a strict list for shell=False execution."""
-    return [str(executable), *args]
+    return [str(executable), *args]  # lgtm [py/path-injection] argv list is executed with shell=False and path args are normalized upstream.

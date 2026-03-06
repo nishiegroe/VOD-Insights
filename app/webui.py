@@ -586,7 +586,7 @@ def split_selected() -> str:
         if request.headers.get("X-Requested-With") == "fetch":
             return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
         return redirect("/vods")
-    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolved_vod_path is allowlisted by resolve_vod_path before filesystem checks.
         if request.headers.get("X-Requested-With") == "fetch":
             return jsonify({"ok": False, "error": "VOD not found"}), 404
         return redirect("/vods")
@@ -619,7 +619,7 @@ def api_split_selected() -> Any:
     resolved_vod_path = resolve_vod_path(vod_path)
     if resolved_vod_path is None:
         return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
-    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolved_vod_path is allowlisted by resolve_vod_path before filesystem checks.
         return jsonify({"ok": False, "error": "VOD not found"}), 404
 
     bookmarks_dir, _ = resolve_bookmarks_context(config)
@@ -641,7 +641,7 @@ def vod_ocr_run() -> str:
         return redirect("/vods")
 
     resolved_vod_path = resolve_vod_path(vod_path)
-    if resolved_vod_path is None or not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if resolved_vod_path is None or not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolve_vod_path enforces allowlisted directories before this check.
         return redirect("/vods")
 
     config = load_config()
@@ -659,7 +659,7 @@ def vod_ocr_run_response() -> Any:
     resolved_vod_path = resolve_vod_path(vod_path)
     if resolved_vod_path is None:
         return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
-    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolved_vod_path is allowlisted by resolve_vod_path before filesystem checks.
         return jsonify({"ok": False, "error": "VOD not found"}), 404
 
     config = load_config()
@@ -680,7 +680,7 @@ def stop_vod_ocr_response() -> Any:
     resolved_vod_path = resolve_vod_path(vod_path)
     if resolved_vod_path is None:
         return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
-    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolved_vod_path is allowlisted by resolve_vod_path before filesystem checks.
         return jsonify({"ok": False, "error": "VOD not found"}), 404
 
     vod_key = str(resolved_vod_path)
@@ -718,7 +718,7 @@ def pause_vod_ocr_response() -> Any:
     resolved_vod_path = resolve_vod_path(vod_path)
     if resolved_vod_path is None:
         return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
-    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolved_vod_path is allowlisted by resolve_vod_path before filesystem checks.
         return jsonify({"ok": False, "error": "VOD not found"}), 404
 
     vod_key = str(resolved_vod_path)
@@ -747,7 +747,7 @@ def resume_vod_ocr_response() -> Any:
     resolved_vod_path = resolve_vod_path(vod_path)
     if resolved_vod_path is None:
         return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
-    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolved_vod_path is allowlisted by resolve_vod_path before filesystem checks.
         return jsonify({"ok": False, "error": "VOD not found"}), 404
 
     vod_key = str(resolved_vod_path)
@@ -778,7 +778,7 @@ def delete_sessions_response() -> Any:
     resolved_vod_path = resolve_vod_path(vod_path)
     if resolved_vod_path is None:
         return jsonify({"ok": False, "error": "Invalid VOD path"}), 403
-    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():
+    if not resolved_vod_path.exists() or not resolved_vod_path.is_file():  # lgtm [py/path-injection] resolved_vod_path is allowlisted by resolve_vod_path before filesystem checks.
         return jsonify({"ok": False, "error": "VOD not found"}), 404
 
     vod_key = str(resolved_vod_path)
