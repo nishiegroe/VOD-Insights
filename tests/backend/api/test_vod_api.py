@@ -24,6 +24,7 @@ def test_api_endpoints():
 
     # Create test client
     with app.test_client() as client:
+        trusted_headers = {"Origin": "http://127.0.0.1:5173"}
         # Initialize the downloader for tests
         with tempfile.TemporaryDirectory() as tmpdir:
             webui_module._vod_downloader = TwitchVODDownloader(Path(tmpdir))
@@ -46,7 +47,8 @@ def test_api_endpoints():
             response = client.post(
                 "/api/vod/download",
                 json={"url": "https://youtube.com/watch?v=123"},
-                content_type="application/json"
+                content_type="application/json",
+                headers=trusted_headers,
             )
             print(f"Status: {response.status_code}")
             data = response.get_json()
@@ -59,7 +61,8 @@ def test_api_endpoints():
             response = client.post(
                 "/api/vod/download",
                 json={},
-                content_type="application/json"
+                content_type="application/json",
+                headers=trusted_headers,
             )
             print(f"Status: {response.status_code}")
             data = response.get_json()
@@ -74,7 +77,8 @@ def test_api_endpoints():
                 response = client.post(
                     "/api/vod/download",
                     json={"url": "https://twitch.tv/videos/123456789"},
-                    content_type="application/json"
+                    content_type="application/json",
+                    headers=trusted_headers,
                 )
                 print(f"Status: {response.status_code}")
                 data = response.get_json()
@@ -110,7 +114,7 @@ def test_api_endpoints():
 
             # Test 7: Missing JSON body
             print("\n[TEST 7] POST /api/vod/download (no JSON)")
-            response = client.post("/api/vod/download")
+            response = client.post("/api/vod/download", headers=trusted_headers)
             print(f"Status: {response.status_code}")
             data = response.get_json()
             print(f"Response: {json.dumps(data, indent=2)}")

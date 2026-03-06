@@ -7,11 +7,12 @@ from typing import List, Optional
 def resolve_path_within_dirs(candidate: Path, allowed_dirs: List[Path]) -> Optional[Path]:
     resolved = candidate.resolve()
     for base in allowed_dirs:
+        base_resolved = base.resolve()
         try:
-            if resolved.is_relative_to(base):
+            if resolved.is_relative_to(base_resolved):
                 return resolved
         except AttributeError:
-            if str(resolved).lower().startswith(str(base).lower()):
+            if resolved == base_resolved or base_resolved in resolved.parents:
                 return resolved
     return None
 

@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from app.runtime_paths import get_downloads_dir
 
@@ -18,7 +19,19 @@ def sanitize_filename(filename: str) -> str:
 
 
 def is_twitch_vod_url(url: str) -> bool:
-    return bool(re.search(r"twitch\.tv/videos/\d+", url))
+    value = str(url or "").strip()
+    if not value:
+        return False
+    try:
+        parsed = urlparse(value)
+    except Exception:
+        return False
+    host = (parsed.hostname or "").lower()
+    if host not in {"twitch.tv", "www.twitch.tv"}:
+        return False
+    if parsed.scheme != "https":
+        return False
+    return bool(re.fullmatch(r"/videos/\d+/?", parsed.path or ""))
 
 
 def write_twitch_job(job_id: str, payload: Dict[str, Any]) -> None:

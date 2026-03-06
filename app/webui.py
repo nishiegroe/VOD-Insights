@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 import atexit
 import json
 import os
@@ -11,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -86,6 +85,7 @@ from app.clips.library import (
 )
 from app.system.backend_logs import get_backend_log_path, open_backend_log, tail_lines
 from app.system.http_cache import set_no_cache_headers
+from app.system.request_guard import load_request_guard_from_env
 from app.vod.download_api import (
     progress_response as vod_download_progress_payload,
     start_download_response as vod_download_start_payload,
@@ -146,9 +146,31 @@ DEFAULT_UPDATE_FEED_URL = (
 UPDATE_FEED_URL = os.environ.get("AET_UPDATE_FEED_URL", DEFAULT_UPDATE_FEED_URL)
 
 app = Flask(__name__)
+_request_guard = load_request_guard_from_env()
+
+
+def _resolve_max_upload_bytes() -> int:
+    raw = os.environ.get("AET_MAX_UPLOAD_MB", "4096").strip()
+    try:
+        size_mb = max(1, int(raw))
+    except ValueError:
+        size_mb = 4096
+    return size_mb * 1024 * 1024
 
 
 def create_app() -> Flask:
+    app.config["MAX_CONTENT_LENGTH"] = _resolve_max_upload_bytes()
+
+    if not app.config.get("_aet_request_guard_registered"):
+        @app.before_request
+        def _guard_sensitive_requests() -> Any:
+            allowed, message, status_code = _request_guard.validate(request)
+            if not allowed:
+                return jsonify({"ok": False, "error": message}), status_code
+            return None
+
+        app.config["_aet_request_guard_registered"] = True
+
     register_blueprints(
         app,
         capture_area_deps=CaptureAreaRouteDeps(

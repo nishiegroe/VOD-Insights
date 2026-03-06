@@ -9,10 +9,12 @@ from app.runtime_paths import get_app_data_dir
 
 
 def _is_under_bookmarks(file_path: Path, bookmarks_dir: Path) -> bool:
+    candidate = file_path.resolve()
+    base = bookmarks_dir.resolve()
     try:
-        return file_path.is_relative_to(bookmarks_dir)
+        return candidate.is_relative_to(base)
     except (ValueError, AttributeError):
-        return str(file_path).startswith(str(bookmarks_dir))
+        return candidate == base or base in candidate.parents
 
 
 def _read_session_bookmarks(file_path: Path) -> List[Dict[str, Any]]:
@@ -53,13 +55,14 @@ def session_data_payload(session_path: str, config: Dict[str, Any]) -> Tuple[Dic
     if not session_path:
         return {"ok": False, "error": "Missing session path"}, 400
 
-    file_path = Path(session_path)
+    file_path = Path(session_path).resolve()
     if not file_path.exists():
         return {"ok": False, "error": "Session file not found"}, 404
 
     bookmarks_dir = Path(config.get("bookmarks", {}).get("directory", ""))
     if not bookmarks_dir.is_absolute():
         bookmarks_dir = get_app_data_dir() / bookmarks_dir
+    bookmarks_dir = bookmarks_dir.resolve()
 
     if not _is_under_bookmarks(file_path, bookmarks_dir):
         return {"ok": False, "error": "Invalid session path"}, 403

@@ -16,6 +16,7 @@ from app.bootstrap.dependency_bootstrap_ops import (
     install_python_package,
     is_python_package_installed,
     validate_dependency_host,
+    verify_dependency_checksum,
 )
 
 
@@ -28,6 +29,9 @@ class DependencySpec:
     url: str
     kind: str  # "zip", "file", "pip" (Python package)
     required: bool
+    checksum_url: str = ""
+    pip_requirement: str = ""
+    import_name: str = ""
 
 
 # Required tools that block startup
@@ -37,12 +41,14 @@ DEPENDENCIES: tuple[DependencySpec, ...] = (
         url="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
         kind="zip",
         required=True,
+        checksum_url="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip.sha256",
     ),
     DependencySpec(
         name="yt-dlp",
         url="https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe",
         kind="file",
         required=True,
+        checksum_url="https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS",
     ),
 )
 
@@ -53,24 +59,32 @@ GPU_OCR_DEPENDENCIES: tuple[DependencySpec, ...] = (
         url="",  # Installed via pip
         kind="pip",
         required=False,
+        pip_requirement="torch==2.5.1",
+        import_name="torch",
     ),
     DependencySpec(
         name="torchvision",
         url="",
         kind="pip",
         required=False,
+        pip_requirement="torchvision==0.20.1",
+        import_name="torchvision",
     ),
     DependencySpec(
         name="torchaudio",
         url="",
         kind="pip",
         required=False,
+        pip_requirement="torchaudio==2.5.1",
+        import_name="torchaudio",
     ),
     DependencySpec(
         name="easyocr",
         url="",
         kind="pip",
         required=False,
+        pip_requirement="easyocr==1.7.1",
+        import_name="easyocr",
     ),
 )
 
@@ -214,6 +228,7 @@ class DependencyBootstrapManager:
     def _download(self, spec: DependencySpec, destination: Path) -> None:
         self._validate_host(spec.url)
         download_dependency(spec.name, spec.url, destination, self._set_state)
+        verify_dependency_checksum(spec.name, spec.url, spec.checksum_url, destination)
 
     def _install_file(self, spec: DependencySpec, archive_path: Path) -> None:
         install_dependency_file(spec.name, self._tool_path(spec), archive_path)
@@ -270,7 +285,8 @@ class DependencyBootstrapManager:
             # This is done in the background after required tools are ready
             for spec in GPU_OCR_DEPENDENCIES:
                 try:
-                    if self._is_python_package_installed(spec.name):
+                    import_name = spec.import_name or spec.name
+                    if self._is_python_package_installed(import_name):
                         self._set_state(
                             phase="checking",
                             dependency=spec.name,
@@ -279,7 +295,8 @@ class DependencyBootstrapManager:
                         )
                         continue
                     
-                    self._install_python_package(spec.name)
+                    package_spec = spec.pip_requirement or spec.name
+                    self._install_python_package(package_spec)
                     self._set_state(
                         phase="installing",
                         dependency=spec.name,

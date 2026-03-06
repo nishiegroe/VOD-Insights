@@ -1,4 +1,5 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, session } = require("electron");
+const crypto = require("crypto");
 const { spawn, spawnSync } = require("child_process");
 const fs = require("fs");
 const net = require("net");
@@ -12,7 +13,11 @@ const { createBackendRuntime } = require("./backendRuntime");
 const { createSplashScreenTools } = require("./splashScreen");
 const { createUpdaterConfig } = require("./updaterConfig");
 const { createUpdaterManager } = require("./updaterManager");
-const { validateInstallerDownloadUrl } = require("./updateUrlPolicy");
+const {
+  resolveBackendOrigin,
+  shouldInjectApiTokenHeader,
+  validateInstallerDownloadUrl,
+} = require("./updateUrlPolicy");
 const { compareVersions } = require("./versionUtils");
 const { createWindowManager } = require("./windowManager");
 
@@ -25,7 +30,28 @@ const updaterDownloadDir = path.join(userDataDir, "updates");
 
 const HOST = "127.0.0.1";
 const PORT = parseInt(process.env.APEX_WEBUI_PORT || "5170", 10);
+const BACKEND_ORIGIN = resolveBackendOrigin({ protocol: "http:", host: HOST, port: PORT });
 const updaterConfig = createUpdaterConfig({ processObj: process });
+const backendApiToken = crypto.randomBytes(32).toString("hex");
+
+function registerLocalApiTokenHeaderInjection() {
+  const targetSession = session.defaultSession;
+  if (!targetSession || !BACKEND_ORIGIN) {
+    return;
+  }
+
+  targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const refererHeader = details.requestHeaders?.Referer || details.requestHeaders?.referer || "";
+    if (shouldInjectApiTokenHeader(details.url, BACKEND_ORIGIN, details.initiator, details.referrer || refererHeader)) {
+      details.requestHeaders["X-AET-API-Token"] = backendApiToken;
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+}
+
+app.whenReady().then(registerLocalApiTokenHeaderInjection).catch(() => {
+  // Ignore readiness failures during shutdown/early-exit flows.
+});
 
 app.disableHardwareAcceleration();
 
@@ -44,7 +70,8 @@ const backendSupervisor = createBackendSupervisor({
   PORT,
   userDataDir,
   backendLogPath,
-  pyiTempDir
+  pyiTempDir,
+  apiToken: backendApiToken,
 });
 
 const backendRuntime = createBackendRuntime({
@@ -79,6 +106,9 @@ const backendApiClient = createBackendApiClient({
   host: HOST,
   port: PORT,
   timeoutMs: updaterConfig.updateRequestTimeoutMs,
+  defaultHeaders: {
+    "X-AET-API-Token": backendApiToken,
+  },
 });
 
 const updaterManager = createUpdaterManager({

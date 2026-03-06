@@ -132,6 +132,6 @@ def resolve_clip_path(path_value: str, config: Dict[str, Any]) -> Optional[Path]
             if candidate.is_relative_to(base):
                 return candidate
         except AttributeError:
-            if str(candidate).lower().startswith(str(base).lower()):
+            if candidate == base or base in candidate.parents:
                 return candidate
     return None
