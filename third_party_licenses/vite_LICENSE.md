@@ -31,7 +31,7 @@ BSD-2-Clause, CC0-1.0, ISC, MIT
 ## @jridgewell/gen-mapping, @jridgewell/remapping, @jridgewell/sourcemap-codec, @jridgewell/trace-mapping
 License: MIT
 By: Justin Ridgewell
-Repositories: https://github.com/jridgewell/sourcemaps, https://github.com/jridgewell/sourcemaps, https://github.com/jridgewell/sourcemaps, https://github.com/jridgewell/sourcemaps
+Repositories: https://github.com/jridgewell/sourcemaps
 
 > Copyright 2024 Justin Ridgewell <justin@ridgewell.name>
 > 

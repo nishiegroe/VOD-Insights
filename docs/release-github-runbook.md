@@ -4,7 +4,7 @@ Canonical guide for publishing a GitHub release from this repository.
 
 ## Prerequisites
 
-- Windows PowerShell in repo root: `e:\Apex event tracker`
+- Windows PowerShell in repo root (any checkout location)
 - Node.js and npm installed
 - GitHub CLI installed and authenticated: `gh auth status`
 - Permissions to push tags and create releases in the target repo
@@ -28,10 +28,20 @@ Edit `app_meta.json` to set the new version:
 ```powershell
 $meta = Get-Content .\app_meta.json -Raw | ConvertFrom-Json
 $meta.version = "1.1.1"  # Update this to your target version
-$meta.patchNotes = @(@{
+
+# Ensure patchNotes is an array so we can safely add a new entry
+if (-not $meta.patchNotes) {
+  $meta.patchNotes = @()
+}
+
+$newPatchNote = @{
   version = "1.1.1"
-  items = @("Feature X", "Fix Y")
-})
+  items   = @("Feature X", "Fix Y")
+}
+
+# Prepend the new patch note so the most recent version appears first
+$meta.patchNotes = @($newPatchNote) + $meta.patchNotes
+
 $meta | ConvertTo-Json -Depth 10 | Set-Content .\app_meta.json
 ```
 
@@ -48,6 +58,18 @@ This updates:
 - `frontend/package.json`
 - `desktop/package.json`
 - `inno/VODInsights.iss` (version string in installer definition)
+
+### Step 2a: Sync Package Lock Files
+
+After `npm run sync:meta`, update the package lock files to match the version bump:
+
+```powershell
+npm install --package-lock-only
+npm --prefix frontend install --package-lock-only
+npm --prefix desktop install --package-lock-only
+```
+
+This prevents lockfile version mismatches and ensures consistent dependency metadata across releases.
 
 ### Step 3: Review Changes
 
