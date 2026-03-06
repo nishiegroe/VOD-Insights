@@ -29,7 +29,7 @@ function resolveBackendOrigin({ protocol = "http:", host, port }) {
   }
 }
 
-function shouldInjectApiTokenHeader(requestUrl, backendOrigin) {
+function shouldInjectApiTokenHeader(requestUrl, backendOrigin, initiatorUrl, referrerUrl) {
   if (!backendOrigin) {
     return false;
   }
@@ -47,11 +47,28 @@ function shouldInjectApiTokenHeader(requestUrl, backendOrigin) {
     return false;
   }
 
-  return (
+  const sameBackendTarget = (
     request.protocol === backend.protocol
     && request.hostname === backend.hostname
     && request.port === backend.port
   );
+  if (!sameBackendTarget) {
+    return false;
+  }
+
+  const matchesBackendOrigin = (candidate) => {
+    if (!candidate) {
+      return false;
+    }
+    try {
+      const parsed = new URL(String(candidate));
+      return parsed.origin === backend.origin;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  return matchesBackendOrigin(initiatorUrl) || matchesBackendOrigin(referrerUrl);
 }
 
 function isAllowedUpdateHost(hostname) {

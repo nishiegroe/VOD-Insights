@@ -83,6 +83,18 @@ def test_token_mode_default_protects_api_routes() -> None:
     assert allowed == (True, "", 200)
 
 
+def test_token_mode_only_allows_exact_public_health_paths() -> None:
+    guard = _guard(require_api_token=True, api_token="secret-token")
+
+    assert guard.validate(_request("/api/health", "GET")) == (True, "", 200)
+    assert guard.validate(_request("/api/healthz", "GET")) == (True, "", 200)
+    assert guard.validate(_request("/api/health/details", "GET")) == (
+        False,
+        "Missing or invalid API token.",
+        401,
+    )
+
+
 def test_token_mode_protects_vod_read_routes() -> None:
     guard = _guard(require_api_token=True, api_token="secret-token")
 

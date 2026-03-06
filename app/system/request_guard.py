@@ -80,8 +80,7 @@ class RequestGuard:
         )
 
     def _is_public_safe_api_path(self, path: str) -> bool:
-        # Allow exact public endpoints and nested resource paths under them.
-        return any(path == value or path.startswith(f"{value}/") for value in self._public_safe_api_paths)
+        return path in self._public_safe_api_paths
 
     def _is_sensitive_path(self, path: str, method: str) -> bool:
         if method in self._mutating_methods:

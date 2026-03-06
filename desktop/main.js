@@ -41,7 +41,8 @@ function registerLocalApiTokenHeaderInjection() {
   }
 
   targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    if (shouldInjectApiTokenHeader(details.url, BACKEND_ORIGIN)) {
+    const refererHeader = details.requestHeaders?.Referer || details.requestHeaders?.referer || "";
+    if (shouldInjectApiTokenHeader(details.url, BACKEND_ORIGIN, details.initiator, details.referrer || refererHeader)) {
       details.requestHeaders["X-AET-API-Token"] = backendApiToken;
     }
     callback({ requestHeaders: details.requestHeaders });

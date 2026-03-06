@@ -24,21 +24,77 @@ test("resolveBackendOrigin rejects malformed backend config", () => {
 
 test("shouldInjectApiTokenHeader only allows exact backend origin", () => {
   const backendOrigin = "http://127.0.0.1:5170";
-  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api/status", backendOrigin), true);
-  assert.equal(shouldInjectApiTokenHeader("http://localhost:5170/api/status", backendOrigin), false);
-  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5171/api/status", backendOrigin), false);
-  assert.equal(shouldInjectApiTokenHeader("https://127.0.0.1:5170/api/status", backendOrigin), false);
+  assert.equal(
+    shouldInjectApiTokenHeader(
+      "http://127.0.0.1:5170/api/status",
+      backendOrigin,
+      "http://127.0.0.1:5170/home"
+    ),
+    true
+  );
+  assert.equal(
+    shouldInjectApiTokenHeader(
+      "http://localhost:5170/api/status",
+      backendOrigin,
+      "http://127.0.0.1:5170/home"
+    ),
+    false
+  );
+  assert.equal(
+    shouldInjectApiTokenHeader(
+      "http://127.0.0.1:5171/api/status",
+      backendOrigin,
+      "http://127.0.0.1:5170/home"
+    ),
+    false
+  );
+  assert.equal(
+    shouldInjectApiTokenHeader(
+      "https://127.0.0.1:5170/api/status",
+      backendOrigin,
+      "http://127.0.0.1:5170/home"
+    ),
+    false
+  );
 });
 
 test("shouldInjectApiTokenHeader rejects unknown/malformed request and backend URLs", () => {
-  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api", null), false);
-  assert.equal(shouldInjectApiTokenHeader("not-a-url", "http://127.0.0.1:5170"), false);
-  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api", "not-a-url"), false);
+  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api", null, "http://127.0.0.1:5170"), false);
+  assert.equal(shouldInjectApiTokenHeader("not-a-url", "http://127.0.0.1:5170", "http://127.0.0.1:5170"), false);
+  assert.equal(shouldInjectApiTokenHeader("http://127.0.0.1:5170/api", "not-a-url", "http://127.0.0.1:5170"), false);
 });
 
 test("shouldInjectApiTokenHeader rejects non-loopback backend origins", () => {
   assert.equal(
-    shouldInjectApiTokenHeader("https://example.com/api/status", "https://example.com"),
+    shouldInjectApiTokenHeader("https://example.com/api/status", "https://example.com", "https://example.com/home"),
+    false
+  );
+});
+
+test("shouldInjectApiTokenHeader requires trusted backend initiator or referrer", () => {
+  const backendOrigin = "http://127.0.0.1:5170";
+  assert.equal(
+    shouldInjectApiTokenHeader(
+      "http://127.0.0.1:5170/api/status",
+      backendOrigin,
+      "http://evil.example"
+    ),
+    false
+  );
+  assert.equal(
+    shouldInjectApiTokenHeader(
+      "http://127.0.0.1:5170/api/status",
+      backendOrigin,
+      "",
+      "http://127.0.0.1:5170/settings"
+    ),
+    true
+  );
+  assert.equal(
+    shouldInjectApiTokenHeader(
+      "http://127.0.0.1:5170/api/status",
+      backendOrigin
+    ),
     false
   );
 });

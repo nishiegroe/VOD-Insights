@@ -84,11 +84,18 @@ def test_extract_expected_checksum_from_filename_match() -> None:
     assert value == good_hash
 
 
-def test_extract_expected_checksum_single_match_fallback() -> None:
+def test_extract_expected_checksum_single_match_without_name_match_raises() -> None:
     only_hash = "e" * 64
     text = f"{only_hash}  some-other-file.exe\n"
-    value = ops._extract_expected_checksum(text, "missing-target.exe")
-    assert value == only_hash
+    with pytest.raises(RuntimeError, match="Could not find checksum"):
+        ops._extract_expected_checksum(text, "missing-target.exe")
+
+
+def test_extract_expected_checksum_accepts_nested_path_with_matching_basename() -> None:
+    good_hash = "9" * 64
+    text = f"{good_hash}  releases/windows/yt-dlp.exe\n"
+    value = ops._extract_expected_checksum(text, "yt-dlp.exe")
+    assert value == good_hash
 
 
 def test_extract_expected_checksum_bsd_style_supported() -> None:

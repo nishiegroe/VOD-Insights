@@ -79,7 +79,7 @@ def _extract_expected_checksum(raw_text: str, artifact_name: str) -> str:
     if not cleaned_lines:
         raise RuntimeError("Checksum source returned no data.")
 
-    basename = artifact_name.strip().lower()
+    basename = Path(artifact_name).name.strip().lower()
     checksum_re = re.compile(r"^([A-Fa-f0-9]{64})\s+[* ]?(.+)?$")
     bsd_checksum_re = re.compile(r"^SHA256\s*\((.+)\)\s*=\s*([A-Fa-f0-9]{64})$", re.IGNORECASE)
 
@@ -89,23 +89,17 @@ def _extract_expected_checksum(raw_text: str, artifact_name: str) -> str:
             bsd_match = bsd_checksum_re.match(line)
             if not bsd_match:
                 continue
-            candidate_name = (bsd_match.group(1) or "").strip().lower()
-            if candidate_name and candidate_name.endswith(basename):
+            candidate_name = Path((bsd_match.group(1) or "").strip().replace("\\", "/")).name.lower()
+            if candidate_name and candidate_name == basename:
                 return bsd_match.group(2).lower()
             continue
-        candidate_name = (match.group(2) or "").strip().strip("*").lower()
-        if candidate_name and candidate_name.endswith(basename):
+        candidate_name = Path((match.group(2) or "").strip().strip("*").replace("\\", "/")).name.lower()
+        if candidate_name and candidate_name == basename:
             return match.group(1).lower()
 
     # Support plain single-line checksum files.
     if len(cleaned_lines) == 1 and re.fullmatch(r"[A-Fa-f0-9]{64}", cleaned_lines[0]):
         return cleaned_lines[0].lower()
-
-    # If line contains only hash + filename but no direct match, keep compatibility
-    # with providers that expose a single artifact in the checksum file.
-    hash_only_matches = [m.group(1).lower() for line in cleaned_lines if (m := checksum_re.match(line))]
-    if len(hash_only_matches) == 1:
-        return hash_only_matches[0]
 
     raise RuntimeError(f"Could not find checksum for artifact: {artifact_name}")
 
