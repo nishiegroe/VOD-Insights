@@ -62,4 +62,6 @@ easyocr_models/*.pth
 .venv-build/
 
 # --- Agent workspace noise ---
-.github/agents/
+.github/Agents
+.github/Skills
+.github/AGENTS.md

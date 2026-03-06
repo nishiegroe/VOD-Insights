@@ -18,10 +18,11 @@
 - Install Python deps: `pip install -r requirements.txt`
 - Install JS deps (root + subprojects): `npm install`, `npm --prefix frontend install`, `npm --prefix desktop install`
 - Root workflows: `npm run sync:meta`, `npm run dev`, `npm run build`, `npm run build:desktop`, `npm run build:desktop:portable` ([package.json](package.json)).
+- Release publishing workflow: `docs/release-github-runbook.md`.
+- Agent release skill: `.github/Skills/release-github-publishing.md`.
 - Python entrypoints: `python -m app.main`, `python -m app.bookmark_main`, `python -m app.split_bookmarks`, `python -m app.vod_ocr --vod <file>`, `python -m app.webui`, `python -m app.launcher --mode <mode>` ([README.md](README.md)).
 - Packaging helpers: `scripts\build_inno.ps1`, `scripts\download_tools.ps1` ([README.md](README.md), [scripts/build_inno.ps1](scripts/build_inno.ps1)).
-- CI is packaging-focused (installer build), not test-focused: [.github/workflows/build-installer.yml](.github/workflows/build-installer.yml).
-- There is no first-party automated test suite configured yet; do targeted runtime/build checks for changed areas.
+- CI validates tests, coverage, and quality checks in `.github/workflows/ci.yml`; packaging/release remains script-driven.
 
 ## Project Conventions
 - Treat `app_meta.json` as single-source metadata; run `npm run sync:meta` after app name/version changes: [scripts/sync_app_meta.cjs](scripts/sync_app_meta.cjs), [README.md](README.md).

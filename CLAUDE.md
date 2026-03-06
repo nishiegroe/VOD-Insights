@@ -65,6 +65,9 @@ npm run release:github                  # full flow: build + tag + gh release cr
 npm run release:github -- --dry-run    # preview without publishing
 ```
 
+Canonical release guide: `docs/release-github-runbook.md`
+Agent release skill: `.github/Skills/release-github-publishing.md`
+
 ## Architecture
 
 ### Python backend (`app/`)
