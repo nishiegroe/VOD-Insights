@@ -84,15 +84,26 @@ def load_patch_notes() -> List[Any]:
 
 
 def get_current_app_version() -> str:
-    meta_path = get_project_root() / "app_meta.json"
-    if not meta_path.exists():
-        return ""
-    try:
-        payload = json.loads(meta_path.read_text(encoding="utf-8"))
-    except Exception:
-        return ""
-    value = payload.get("version")
-    return str(value).strip() if isinstance(value, str) else ""
+    env_version = str(os.environ.get("AET_APP_VERSION", "")).strip()
+    if env_version:
+        return env_version
+
+    meta_candidates = [
+        get_project_root() / "app_meta.json",
+        Path(os.environ.get("AET_INSTALL_DIR", "")) / "app_meta.json" if os.environ.get("AET_INSTALL_DIR") else None,
+    ]
+    for meta_path in meta_candidates:
+        if not meta_path or not meta_path.exists():
+            continue
+        try:
+            payload = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        value = payload.get("version")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    return ""
 
 
 def fetch_latest_update_metadata() -> Dict[str, Any]:

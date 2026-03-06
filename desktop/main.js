@@ -734,6 +734,7 @@ function startBackend() {
       ...process.env,
       APEX_WEBUI_WATCH: "0",
       APEX_WEBUI_PORT: String(PORT),
+      AET_APP_VERSION: app.getVersion(),
       AET_APPDATA_DIR: userDataDir,
       AET_INSTALL_DIR: installDir,
       PYINSTALLER_TMPDIR: pyiTempDir,
