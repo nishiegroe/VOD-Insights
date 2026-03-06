@@ -1,5 +1,6 @@
 import pytest
 import zipfile
+import hashlib
 from pathlib import Path
 
 import app.bootstrap.dependency_bootstrap_ops as ops
@@ -71,4 +72,74 @@ def test_install_python_package_invokes_pip(monkeypatch) -> None:
     ops.install_python_package("example", lambda **fields: events.append(fields))
 
     assert any("Installing Python package" in evt.get("message", "") for evt in events)
+
+
+def test_extract_expected_checksum_from_filename_match() -> None:
+    good_hash = "a" * 64
+    other_hash = "b" * 64
+    text = f"{other_hash}  other.exe\n{good_hash}  yt-dlp.exe\n"
+
+    value = ops._extract_expected_checksum(text, "yt-dlp.exe")
+
+    assert value == good_hash
+
+
+def test_extract_expected_checksum_plain_single_line() -> None:
+    good_hash = "c" * 64
+    value = ops._extract_expected_checksum(good_hash, "anything.bin")
+    assert value == good_hash
+
+
+def test_extract_expected_checksum_raises_for_empty_source() -> None:
+    with pytest.raises(RuntimeError, match="no data"):
+        ops._extract_expected_checksum("\n\n", "file.bin")
+
+
+def test_verify_dependency_checksum_success(monkeypatch, tmp_path: Path) -> None:
+    artifact = tmp_path / "yt-dlp.exe.part"
+    artifact.write_bytes(b"hello checksum")
+    digest = hashlib.sha256(b"hello checksum").hexdigest()
+
+    def fake_download_text(_: str) -> str:
+        return f"{digest}  yt-dlp.exe\n"
+
+    monkeypatch.setattr(ops, "_download_text", fake_download_text)
+
+    ops.verify_dependency_checksum(
+        "yt-dlp",
+        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe",
+        "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS",
+        artifact,
+    )
+
+
+def test_verify_dependency_checksum_raises_on_mismatch(monkeypatch, tmp_path: Path) -> None:
+    artifact = tmp_path / "tool.bin"
+    artifact.write_bytes(b"real-bytes")
+
+    def fake_download_text(_: str) -> str:
+        return f"{'d' * 64}  tool.bin\n"
+
+    monkeypatch.setattr(ops, "_download_text", fake_download_text)
+
+    with pytest.raises(RuntimeError, match="Checksum verification failed"):
+        ops.verify_dependency_checksum(
+            "tool",
+            "https://objects.githubusercontent.com/tool.bin",
+            "https://objects.githubusercontent.com/tool.bin.sha256",
+            artifact,
+        )
+
+
+def test_verify_dependency_checksum_requires_checksum_url(tmp_path: Path) -> None:
+    artifact = tmp_path / "tool.bin"
+    artifact.write_bytes(b"bytes")
+
+    with pytest.raises(RuntimeError, match="Missing checksum URL"):
+        ops.verify_dependency_checksum(
+            "tool",
+            "https://objects.githubusercontent.com/tool.bin",
+            "",
+            artifact,
+        )
 
