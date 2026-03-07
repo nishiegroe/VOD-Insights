@@ -26,6 +26,7 @@ export default function Vods({ status }) {
     handleUpload,
     isLastWizardStep,
     loadingAll,
+    loadingVods,
     navigate,
     recordingDir,
     remaining,
@@ -47,8 +48,15 @@ export default function Vods({ status }) {
     wizardVisible,
   } = useVodsPage();
 
+<<<<<<< Updated upstream
   if (!configLoaded) {
     return null; // Don't render anything until config is loaded
+=======
+  const showVodsSkeleton = !configLoaded || (recordingDir && loadingVods && vods.length === 0);
+
+  if (showVodsSkeleton) {
+    return <VodsPageSkeleton />;
+>>>>>>> Stashed changes
   }
 
   return (

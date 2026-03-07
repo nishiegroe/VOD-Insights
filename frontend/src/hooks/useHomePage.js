@@ -16,6 +16,7 @@ export default function useHomePage() {
   const [clips, setClips] = useState([]);
   const [recordingDir, setRecordingDir] = useState(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [loadingHomeFeed, setLoadingHomeFeed] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -25,11 +26,16 @@ export default function useHomePage() {
       setConfigLoaded(true);
 
       if (replayDir) {
-        const vodPayload = await fetchRecentVods();
-        setVods(vodPayload.vods || []);
+        setLoadingHomeFeed(true);
+        try {
+          const vodPayload = await fetchRecentVods();
+          setVods(vodPayload.vods || []);
 
-        const clipsPayload = await fetchRecentClips();
-        setClips(clipsPayload.clips || []);
+          const clipsPayload = await fetchRecentClips();
+          setClips(clipsPayload.clips || []);
+        } finally {
+          setLoadingHomeFeed(false);
+        }
       }
     };
 
@@ -65,6 +71,7 @@ export default function useHomePage() {
     configLoaded,
     handleConfigureDirectory,
     handleVodClick,
+    loadingHomeFeed,
     navigate,
     recordingDir,
     showSessionRecorder,

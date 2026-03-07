@@ -11,6 +11,7 @@ export default function Home({ status }) {
     configLoaded,
     handleConfigureDirectory,
     handleVodClick,
+    loadingHomeFeed,
     navigate,
     recordingDir,
     showSessionRecorder,
@@ -21,8 +22,15 @@ export default function Home({ status }) {
 
   const obsConnected = status?.obs_connected ?? false;
 
+<<<<<<< Updated upstream
   if (!configLoaded) {
     return null; // Don't render anything until config is loaded
+=======
+  const showHomeSkeleton = !configLoaded || (recordingDir && loadingHomeFeed && vods.length === 0 && clips.length === 0);
+
+  if (showHomeSkeleton) {
+    return <HomePageSkeleton />;
+>>>>>>> Stashed changes
   }
 
   return (

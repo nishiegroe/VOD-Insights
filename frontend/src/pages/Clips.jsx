@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { chooseReplayDir, fetchClipDays as fetchClipDaysApi, fetchClipsByDay } from "../api/clips";
+<<<<<<< Updated upstream
+=======
+import { ClipsPageSkeleton, TileSkeleton } from "../components/PageSkeletons";
+>>>>>>> Stashed changes
 import { formatDuration } from "../utils/formatDuration";
 
 const INITIAL_CLIPS_PER_DAY = 6;
@@ -139,8 +143,15 @@ export default function Clips() {
     [clipDays]
   );
 
+<<<<<<< Updated upstream
   if (!configLoaded) {
     return null; // Don't render anything until config is loaded
+=======
+  const showClipsSkeleton = !configLoaded || (recordingDir && loading && clipDays.length === 0);
+
+  if (showClipsSkeleton) {
+    return <ClipsPageSkeleton />;
+>>>>>>> Stashed changes
   }
 
   return (
@@ -222,7 +233,11 @@ export default function Clips() {
                   {isOpen ? (
                     <div className="clips-day-body" id={`clips-day-${dayKey}`}>
                       {dayLoading[dayKey] ? (
-                        <div className="clip-load-more">Loading clips...</div>
+                        <div className="clip-group-grid clips-grid skeleton-clips-grid" aria-label="Loading clips">
+                          <TileSkeleton />
+                          <TileSkeleton />
+                          <TileSkeleton />
+                        </div>
                       ) : (
                         <div className="clip-group-grid clips-grid">
                           {clips.map((clip) => (
