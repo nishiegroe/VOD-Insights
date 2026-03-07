@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import SectionHeader from "../components/SectionHeader";
 import WelcomeSetupCard from "../components/WelcomeSetupCard";
+import { HomePageSkeleton } from "../components/PageSkeletons";
 import useHomePage from "../hooks/useHomePage";
 import { formatDuration } from "../utils/formatDuration";
 
@@ -22,7 +23,7 @@ export default function Home({ status }) {
   const obsConnected = status?.obs_connected ?? false;
 
   if (!configLoaded) {
-    return null; // Don't render anything until config is loaded
+    return <HomePageSkeleton />;
   }
 
   return (

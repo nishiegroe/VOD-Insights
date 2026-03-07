@@ -7,6 +7,7 @@
   --text: #f4f7f8;
   --muted: #9fb0b7;
   --border: #1f3640;
+  --app-bg-gradient: radial-gradient(circle at 20% 20%, #1b3037 0%, #13242a 55%, #0f1b1f 100%);
 }
 
 * {
@@ -16,8 +17,19 @@
 
 body {
   margin: 0;
-  background: radial-gradient(circle at 20% 20%, #1b3037, #0f1b1f 60%);
+  min-height: 100%;
+  background-color: var(--bg);
+  background-image: var(--app-bg-gradient);
   color: var(--text);
+}
+
+html {
+  /* Keep layout width stable when routes toggle page scrolling */
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  min-height: 100%;
+  background-color: var(--bg);
+  background-image: var(--app-bg-gradient);
 }
 
 /* Custom Scrollbar */
@@ -55,6 +67,162 @@ a {
   color: inherit;
 }
 
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-page {
+  display: grid;
+  gap: 20px;
+}
+
+.skeleton-card {
+  overflow: hidden;
+}
+
+.skeleton-block,
+.skeleton-line {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 999px;
+}
+
+.skeleton-block {
+  border-radius: 10px;
+}
+
+.skeleton-block::after,
+.skeleton-line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+
+.skeleton-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.skeleton-pill {
+  border-radius: 999px;
+}
+
+.skeleton-tile {
+  pointer-events: none;
+}
+
+.skeleton-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 10px;
+}
+
+.skeleton-vod-item {
+  pointer-events: none;
+}
+
+.clip-viewer .skeleton-clips-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 1400px) {
+  .clip-viewer .skeleton-clips-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  .clip-viewer .skeleton-clips-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 840px) {
+  .clip-viewer .skeleton-clips-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .clip-viewer .skeleton-clips-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.skeleton-vod-preview {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 16 / 9;
+}
+
+.skeleton-panel {
+  pointer-events: none;
+}
+
+.skeleton-settings-layout {
+  gap: 26px;
+  align-items: start;
+}
+
+.skeleton-settings-content {
+  gap: 22px;
+}
+
+.skeleton-settings-content .skeleton-panel {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.skeleton-settings-layout .settings-nav {
+  gap: 12px;
+}
+
+.skeleton-viewer-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.skeleton-viewer-header {
+  height: 54px;
+  border-radius: 10px;
+}
+
+.skeleton-viewer-content {
+  min-height: 540px;
+}
+
+.skeleton-video {
+  height: min(52vh, 520px);
+  border-radius: 12px;
+}
+
+.skeleton-controls {
+  height: 52px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
 .app {
   max-width: 95vw;
   margin: 24px auto 64px;
@@ -63,7 +231,7 @@ a {
 
 .app.app-settings {
   max-width: 95vw;
-  padding: 0 12px;
+  padding: 0 14px;
 }
 
 .app.app-overlay-tool {
@@ -993,7 +1161,7 @@ button.danger {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 0 20px;
+  padding: 0;
 }
 
 .settings-header-row h2 {

@@ -206,6 +206,77 @@ function createUpdaterManager({
     });
   }
 
+  function clearDownloadedInstallers() {
+    try {
+      if (!fs.existsSync(updaterDownloadDir)) {
+        return;
+      }
+
+      const entries = fs.readdirSync(updaterDownloadDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(updaterDownloadDir, entry.name);
+        fs.rmSync(entryPath, { recursive: true, force: true });
+      }
+    } catch (error) {
+      // Ignore cache cleanup failures; updater can still function.
+    }
+  }
+
+  function clearLegacyPythonPackages() {
+    try {
+      const userDataDir = path.dirname(updaterDownloadDir);
+      const legacyPackagesDir = path.join(userDataDir, "python_packages");
+      if (!fs.existsSync(legacyPackagesDir)) {
+        return;
+      }
+      fs.rmSync(legacyPackagesDir, { recursive: true, force: true });
+    } catch (error) {
+      // Ignore cleanup failures; this folder is not required by current runtime.
+    }
+  }
+
+  function clearUserDataCaches() {
+    try {
+      const userDataDir = path.dirname(updaterDownloadDir);
+      const cacheDirs = [
+        "Cache",
+        "Code Cache",
+        "GPUCache",
+        "DawnCache",
+        "DawnGraphiteCache",
+        "DawnWebGPUCache",
+      ];
+
+      for (const name of cacheDirs) {
+        const dirPath = path.join(userDataDir, name);
+        if (!fs.existsSync(dirPath)) {
+          continue;
+        }
+        fs.rmSync(dirPath, { recursive: true, force: true });
+      }
+    } catch (error) {
+      // Ignore cache cleanup failures; these folders are recreated by Electron.
+    }
+  }
+
+  function clearBootstrapDownloadCache() {
+    try {
+      const userDataDir = path.dirname(updaterDownloadDir);
+      const bootstrapDir = path.join(userDataDir, "downloads", "bootstrap");
+      if (!fs.existsSync(bootstrapDir)) {
+        return;
+      }
+
+      const entries = fs.readdirSync(bootstrapDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(bootstrapDir, entry.name);
+        fs.rmSync(entryPath, { recursive: true, force: true });
+      }
+    } catch (error) {
+      // Ignore cleanup failures; bootstrap can redownload if needed.
+    }
+  }
+
   async function launchInstallerAndQuit(installerPath) {
     isInstallingUpdate = true;
     backendSupervisor.markQuitting();
@@ -345,6 +416,10 @@ function createUpdaterManager({
     maybeCheckForUpdates,
     handleUpdateAppRequest,
     saveUpdaterState,
+    clearDownloadedInstallers,
+    clearLegacyPythonPackages,
+    clearUserDataCaches,
+    clearBootstrapDownloadCache,
     isInstallingUpdate: () => isInstallingUpdate,
   };
 }

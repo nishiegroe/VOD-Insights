@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { fetchCaptureConfig, saveCaptureArea } from "../api/captureArea";
+import { CaptureAreaPageSkeleton } from "../components/PageSkeletons";
 
 const MIN_SIZE_PX = 20;
 const SAFE_VIDEO_MIME_TYPES = new Set([
@@ -58,6 +59,7 @@ export default function CaptureArea() {
   const [targetHeight, setTargetHeight] = useState(0);
   const [videoSrc, setVideoSrc] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+  const [loadingConfig, setLoadingConfig] = useState(true);
 
   const isTrustedObjectUrl = (url) => {
     if (typeof url !== "string" || !url) {
@@ -78,23 +80,31 @@ export default function CaptureArea() {
 
   useEffect(() => {
     const load = async () => {
-      const payload = await fetchCaptureConfig();
-      const capture = payload.capture || {};
-      const nextDefaults = {
-        left: capture.left || 0,
-        top: capture.top || 0,
-        width: capture.width || 0,
-        height: capture.height || 0,
-        targetWidth: capture.target_width || 0,
-        targetHeight: capture.target_height || 0,
-      };
-      setConfigDefaults(nextDefaults);
-      setTargetWidth(nextDefaults.targetWidth || 0);
-      setTargetHeight(nextDefaults.targetHeight || 0);
+      try {
+        const payload = await fetchCaptureConfig();
+        const capture = payload.capture || {};
+        const nextDefaults = {
+          left: capture.left || 0,
+          top: capture.top || 0,
+          width: capture.width || 0,
+          height: capture.height || 0,
+          targetWidth: capture.target_width || 0,
+          targetHeight: capture.target_height || 0,
+        };
+        setConfigDefaults(nextDefaults);
+        setTargetWidth(nextDefaults.targetWidth || 0);
+        setTargetHeight(nextDefaults.targetHeight || 0);
+      } finally {
+        setLoadingConfig(false);
+      }
     };
 
     load().catch(() => {});
   }, []);
+
+  if (loadingConfig) {
+    return <CaptureAreaPageSkeleton />;
+  }
 
   useEffect(() => {
     return () => {

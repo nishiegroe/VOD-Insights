@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api/client";
+import { TwitchImportPageSkeleton } from "../components/PageSkeletons";
 
 const isActive = (job) => ["queued", "downloading", "scanning"].includes(job.status);
 
@@ -8,6 +9,7 @@ export default function TwitchImport() {
   const [jobs, setJobs] = useState([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [jobsLoading, setJobsLoading] = useState(true);
 
   const hasActive = useMemo(() => jobs.some(isActive), [jobs]);
 
@@ -23,6 +25,8 @@ export default function TwitchImport() {
       }
     } catch (error) {
       // Keep existing jobs on errors.
+    } finally {
+      setJobsLoading(false);
     }
   };
 
@@ -59,6 +63,10 @@ export default function TwitchImport() {
       loadJobs().catch(() => {});
     }
   };
+
+  if (jobsLoading) {
+    return <TwitchImportPageSkeleton />;
+  }
 
   return (
     <section className="card">

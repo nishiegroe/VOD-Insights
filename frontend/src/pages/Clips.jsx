@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { chooseReplayDir, fetchClipDays as fetchClipDaysApi, fetchClipsByDay } from "../api/clips";
+import { ClipsPageSkeleton } from "../components/PageSkeletons";
 import { formatDuration } from "../utils/formatDuration";
 
 const INITIAL_CLIPS_PER_DAY = 6;
@@ -140,7 +141,7 @@ export default function Clips() {
   );
 
   if (!configLoaded) {
-    return null; // Don't render anything until config is loaded
+    return <ClipsPageSkeleton />;
   }
 
   return (

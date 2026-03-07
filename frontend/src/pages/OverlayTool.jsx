@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { fetchOverlayToolConfig, saveOverlayToolConfig } from "../api/overlayTool";
+import { OverlayToolPageSkeleton } from "../components/PageSkeletons";
 
 export default function OverlayTool() {
   const previewRef = useRef(null);
@@ -18,6 +19,7 @@ export default function OverlayTool() {
   const [bgSrc, setBgSrc] = useState(null);
   const [saveStatus, setSaveStatus] = useState("");
   const [overlayError, setOverlayError] = useState(false);
+  const [loadingConfig, setLoadingConfig] = useState(true);
 
   useEffect(() => {
     fetchOverlayToolConfig()
@@ -31,8 +33,13 @@ export default function OverlayTool() {
           opacity: Number.isFinite(Number(ui.overlay_opacity)) ? Number(ui.overlay_opacity) : 0.9,
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingConfig(false));
   }, []);
+
+  if (loadingConfig) {
+    return <OverlayToolPageSkeleton />;
+  }
 
   useEffect(() => {
     return () => {

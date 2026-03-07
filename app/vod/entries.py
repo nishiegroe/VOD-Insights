@@ -66,10 +66,13 @@ def build_vod_entries(
             session_path = Path(sessions[0].get("path", ""))
             if session_path.exists():
                 thumbnail_time = get_hottest_event_time(session_path, duration)
-        thumbnail_url = None
-        if thumbnail_time is not None:
-            encoded_path = quote(str(path))
-            thumbnail_url = f"/vod-thumbnail?path={encoded_path}&t={thumbnail_time:.3f}"
+
+        # Prefer event-driven thumbnails when scan data exists.
+        # Fall back to a standard preview frame at 10% into the VOD.
+        fallback_time = (float(duration) * 0.1) if duration else 0.0
+        preview_time = thumbnail_time if thumbnail_time is not None else fallback_time
+        encoded_path = quote(str(path))
+        thumbnail_url = f"/vod-thumbnail?path={encoded_path}&t={preview_time:.3f}"
         result.append(
             {
                 "name": path.name,

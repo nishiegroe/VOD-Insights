@@ -8,6 +8,7 @@ import SettingsRecordingControlsPanel from "../components/SettingsRecordingContr
 import SettingsSectionNav from "../components/SettingsSectionNav";
 import SettingsSessionRecorderCard from "../components/SettingsSessionRecorderCard";
 import SettingsUpdatesPanel from "../components/SettingsUpdatesPanel";
+import { SettingsPageSkeleton } from "../components/PageSkeletons";
 import useSettingsPage from "../hooks/useSettingsPage";
 
 export default function Settings({ status }) {
@@ -55,7 +56,7 @@ export default function Settings({ status }) {
   } = useSettingsPage();
 
   if (!form) {
-    return <p className="hint">Loading settings...</p>;
+    return <SettingsPageSkeleton />;
   }
 
   return (
