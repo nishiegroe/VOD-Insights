@@ -47,7 +47,7 @@ export default function SettingsUpdatesPanel({
   const updateStateText = checkingLatest
     ? "Checking for updates..."
     : isDevPreview
-      ? "Dev preview build"
+      ? "Release Preview"
       : showUpdateAvailable
         ? "Update available"
         : "Up to date";

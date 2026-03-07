@@ -9,9 +9,11 @@ import {
   renameClip,
 } from "../api/clipsViewer";
 import ClipViewerHeader from "../components/ClipViewerHeader";
+import ViewerClipControls from "../components/ViewerClipControls";
 import ViewerPlaybackControlsPanel from "../components/ViewerPlaybackControlsPanel";
 import ViewerScrubTimeline from "../components/ViewerScrubTimeline";
 import ViewerVideoPlayer from "../components/ViewerVideoPlayer";
+import { createClipRange } from "../api/vodViewer";
 import { ZOOM_OPTIONS } from "../utils/vodViewer";
 
 export default function ClipsViewer() {
@@ -52,6 +54,8 @@ export default function ClipsViewer() {
   const [showClipTools, setShowClipTools] = useState(false);
   const [clipStart, setClipStart] = useState(0);
   const [clipEnd, setClipEnd] = useState(0);
+  const [clipStatus, setClipStatus] = useState("");
+  const [clipResult, setClipResult] = useState(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
   const [scrubDragging, setScrubDragging] = useState(false);
   const [rangeDragging, setRangeDragging] = useState(false);
@@ -542,6 +546,37 @@ export default function ClipsViewer() {
     }
   };
 
+  const handleCreateClip = async () => {
+    if (!clip?.path) return;
+
+    setClipStatus("working");
+    setClipResult(null);
+    try {
+      const resp = await createClipRange(clip.path, clipStart, clipEnd);
+      const text = await resp.text();
+      let data = null;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {
+          ok: false,
+          error: "Clip API unavailable. Make sure the backend is running and restarted.",
+        };
+      }
+
+      if (data.ok) {
+        setClipStatus("done");
+        setClipResult(data.clip_path || null);
+      } else {
+        setClipStatus("error");
+        setClipResult(data.error || "Unknown error");
+      }
+    } catch (err) {
+      setClipStatus("error");
+      setClipResult(err.message || "Request failed");
+    }
+  };
+
   const saveRename = async () => {
     if (!clip?.path) return;
     setRenameSaving(true);
@@ -720,6 +755,27 @@ export default function ClipsViewer() {
                     handleScrubHandlePointerDown={handleScrubHandlePointerDown}
                     handleClipStartHandlePointerDown={handleClipStartHandlePointerDown}
                     handleClipEndHandlePointerDown={handleClipEndHandlePointerDown}
+                  />
+
+                  <ViewerClipControls
+                    duration={duration}
+                    showClipTools={showClipTools}
+                    formatTime={formatTime}
+                    clipStart={clipStart}
+                    clipEnd={clipEnd}
+                    scrubWindowStart={scrubWindowStart}
+                    scrubWindowEnd={scrubWindowEnd}
+                    setClipStart={setClipStart}
+                    setClipEnd={setClipEnd}
+                    clipStatus={clipStatus}
+                    clipResult={clipResult}
+                    onCreateClip={handleCreateClip}
+                    canCreateClip={Boolean(clip?.path)}
+                    createClipTitle={
+                      clip?.path
+                        ? "Create clip from selected range"
+                        : "Clip source unavailable"
+                    }
                   />
                 </>
               ) : null}

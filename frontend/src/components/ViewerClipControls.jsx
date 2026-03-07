@@ -22,6 +22,8 @@ export default function ViewerClipControls({
   clipStatus,
   clipResult,
   onCreateClip,
+  canCreateClip = true,
+  createClipTitle = "Create clip from selected range",
 }) {
   if (!(duration > 0 && showClipTools)) {
     return null;
@@ -58,8 +60,8 @@ export default function ViewerClipControls({
 
         <button
           className="primary"
-          disabled={clipEnd <= clipStart + 1 || clipStatus === "working"}
-          title="Create clip from selected range"
+          disabled={!canCreateClip || clipEnd <= clipStart + 1 || clipStatus === "working"}
+          title={createClipTitle}
           onClick={onCreateClip}
         >
           {clipStatus === "working" ? "Creating..." : "Create Clip"}
