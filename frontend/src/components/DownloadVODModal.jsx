@@ -43,7 +43,7 @@ export default function DownloadVODModal({ isOpen, onClose, onDownloadStart }) {
       const data = await response.json();
       setToolsReady(data.yt_dlp_installed);
       if (!data.yt_dlp_installed) {
-        setError('yt-dlp not installed. ' + data.message);
+        setError(data.message || 'yt-dlp is not installed. Install with: pip install yt-dlp');
       }
     } catch (err) {
       setError('Failed to check tools: ' + err.message);
