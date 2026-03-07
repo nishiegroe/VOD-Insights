@@ -153,3 +153,58 @@ def test_clip_range_encode_counts_updates_name(tmp_path: Path, monkeypatch) -> N
     assert status == 200
     assert payload["ok"] is True
     assert "_k1_a1_d0" in Path(payload["clip_path"]).name
+
+
+def test_clip_range_does_not_duplicate_relative_output_dir_for_existing_clip(
+    tmp_path: Path, monkeypatch
+) -> None:
+    replay_dir = tmp_path / "replays"
+    clips_dir = replay_dir / "clips"
+    bookmarks_dir = tmp_path / "bookmarks"
+    clips_dir.mkdir(parents=True, exist_ok=True)
+    bookmarks_dir.mkdir(parents=True, exist_ok=True)
+    input_clip = clips_dir / "clip_source.mp4"
+    input_clip.write_bytes(b"clip")
+
+    config = _base_config(replay_dir, bookmarks_dir)
+
+    def fake_run_ffmpeg(_input: Path, output_file: Path, _start: float, _duration: float) -> None:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(b"clip")
+
+    monkeypatch.setattr(clip_range, "run_ffmpeg", fake_run_ffmpeg)
+
+    payload, status = clip_range.create_clip_range_payload(config, str(input_clip), 1.0, 2.0)
+    assert status == 200
+    assert payload["ok"] is True
+    output_path = Path(payload["clip_path"])
+    assert output_path.parent == clips_dir
+    assert not (clips_dir / "clips").exists()
+
+
+def test_clip_range_empty_output_dir_keeps_existing_clips_parent(
+    tmp_path: Path, monkeypatch
+) -> None:
+    replay_dir = tmp_path / "replays"
+    clips_dir = replay_dir / "clips"
+    bookmarks_dir = tmp_path / "bookmarks"
+    clips_dir.mkdir(parents=True, exist_ok=True)
+    bookmarks_dir.mkdir(parents=True, exist_ok=True)
+    input_clip = clips_dir / "clip_source.mp4"
+    input_clip.write_bytes(b"clip")
+
+    config = _base_config(replay_dir, bookmarks_dir)
+    config["split"]["output_dir"] = ""
+
+    def fake_run_ffmpeg(_input: Path, output_file: Path, _start: float, _duration: float) -> None:
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(b"clip")
+
+    monkeypatch.setattr(clip_range, "run_ffmpeg", fake_run_ffmpeg)
+
+    payload, status = clip_range.create_clip_range_payload(config, str(input_clip), 1.0, 2.0)
+    assert status == 200
+    assert payload["ok"] is True
+    output_path = Path(payload["clip_path"])
+    assert output_path.parent == clips_dir
+    assert not (clips_dir / "clips").exists()

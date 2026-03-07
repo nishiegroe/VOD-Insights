@@ -45,9 +45,20 @@ def create_clip_range_payload(
     split_cfg = config.get("split", {})
     output_dir = Path(split_cfg.get("output_dir", ""))
     if not output_dir.name:
-        output_dir = vod_file.parent / "clips"
+        # Keep clips in-place when the source already lives in a clips directory.
+        if vod_file.parent.name.lower() == "clips":
+            output_dir = vod_file.parent
+        else:
+            output_dir = vod_file.parent / "clips"
     elif not output_dir.is_absolute():
-        output_dir = vod_file.parent / output_dir
+        # Avoid duplicating relative output dir segments when clipping an existing clip.
+        # Example: input in ".../clips" with output_dir="clips" should stay in ".../clips".
+        parent_parts = vod_file.parent.parts
+        output_parts = output_dir.parts
+        if len(parent_parts) >= len(output_parts) and parent_parts[-len(output_parts) :] == output_parts:
+            output_dir = vod_file.parent
+        else:
+            output_dir = vod_file.parent / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
     vod_start = parse_vod_start_time(vod_file)
