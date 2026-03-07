@@ -12,7 +12,7 @@ function SkeletonCard({ className = "", children }) {
   return <section className={`card skeleton-card ${className}`.trim()}>{children}</section>;
 }
 
-function TileSkeleton() {
+export function TileSkeleton() {
   return (
     <div className="clip-tile skeleton-tile" aria-hidden="true">
       <SkeletonBlock className="skeleton-thumb" />

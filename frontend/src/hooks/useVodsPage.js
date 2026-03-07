@@ -35,6 +35,7 @@ export default function useVodsPage() {
   });
   const [recordingDir, setRecordingDir] = useState(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [loadingVods, setLoadingVods] = useState(false);
   const [wizardCompleted, setWizardCompleted] = useState(null);
   const [wizardVisible, setWizardVisible] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
@@ -91,10 +92,15 @@ export default function useVodsPage() {
   };
 
   const loadVods = async (all = showAll) => {
-    const payload = await fetchVods(all);
-    setVods(payload.vods || []);
-    setRemaining(payload.remaining_count || 0);
-    return payload;
+    setLoadingVods(true);
+    try {
+      const payload = await fetchVods(all);
+      setVods(payload.vods || []);
+      setRemaining(payload.remaining_count || 0);
+      return payload;
+    } finally {
+      setLoadingVods(false);
+    }
   };
 
   const loadConfig = async () => {
@@ -514,6 +520,7 @@ export default function useVodsPage() {
     handleUpload,
     isLastWizardStep,
     loadingAll,
+    loadingVods,
     navigate,
     recordingDir,
     remaining,

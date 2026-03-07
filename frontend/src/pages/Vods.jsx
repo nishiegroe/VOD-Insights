@@ -27,6 +27,7 @@ export default function Vods({ status }) {
     handleUpload,
     isLastWizardStep,
     loadingAll,
+    loadingVods,
     navigate,
     recordingDir,
     remaining,
@@ -48,7 +49,9 @@ export default function Vods({ status }) {
     wizardVisible,
   } = useVodsPage();
 
-  if (!configLoaded) {
+  const showVodsSkeleton = !configLoaded || (recordingDir && loadingVods && vods.length === 0);
+
+  if (showVodsSkeleton) {
     return <VodsPageSkeleton />;
   }
 
