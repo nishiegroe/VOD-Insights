@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "check:build-security": "node ./scripts/check_build_security.cjs",
+    "test:backend:ci": "python -m pytest tests/backend -q --cov=app.clips.range --cov=app.session_data --cov=app.bootstrap.dependency_bootstrap_ops --cov=app.vod.download_utils --cov=app.clips.split_export --cov=app.webui_app_shell --cov-report=xml --cov-report=term --cov-fail-under=67 && python -m pytest tests/backend/services/test_detector.py tests/backend/services/test_capture_frame_source.py -q",
+    "test:desktop:ci": "npm --prefix desktop test",
+    "test:frontend:ci": "npm --prefix frontend run test:coverage && npm --prefix frontend run build",
+    "test:ci": "npm run test:backend:ci && npm run test:desktop:ci && npm run check:build-security && npm run test:frontend:ci",
     "sync:meta": "node ./scripts/sync_app_meta.cjs",
     "dev": "npm run sync:meta && powershell -ExecutionPolicy Bypass -File ./scripts/ensure_venv.ps1 && npm --prefix frontend run build && npm --prefix desktop run dev",
     "build": "npm run sync:meta && powershell -ExecutionPolicy Bypass -File ./scripts/build_inno.ps1",
