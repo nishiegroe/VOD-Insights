@@ -12,13 +12,16 @@ function SkeletonCard({ className = "", children }) {
   return <section className={`card skeleton-card ${className}`.trim()}>{children}</section>;
 }
 
-function TileSkeleton() {
+export function TileSkeleton({ compact = false }) {
+  const tileClassName = compact ? "clip-tile skeleton-tile skeleton-tile-compact" : "clip-tile skeleton-tile";
+  const thumbClassName = compact ? "skeleton-thumb skeleton-thumb-compact" : "skeleton-thumb";
+
   return (
-    <div className="clip-tile skeleton-tile" aria-hidden="true">
-      <SkeletonBlock className="skeleton-thumb" />
+    <div className={tileClassName} aria-hidden="true">
+      <SkeletonBlock className={thumbClassName} />
       <SkeletonLine style={{ width: "70%" }} />
       <SkeletonLine style={{ width: "92%" }} />
-      <SkeletonLine style={{ width: "55%" }} />
+      {compact ? null : <SkeletonLine style={{ width: "55%" }} />}
     </div>
   );
 }
@@ -56,9 +59,11 @@ export function HomePageSkeleton() {
           <SkeletonBlock className="skeleton-pill" style={{ width: 112 }} />
         </div>
         <div className="clip-group-grid">
-          <TileSkeleton />
-          <TileSkeleton />
-          <TileSkeleton />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
         </div>
       </SkeletonCard>
 
@@ -68,9 +73,11 @@ export function HomePageSkeleton() {
           <SkeletonBlock className="skeleton-pill" style={{ width: 112 }} />
         </div>
         <div className="clip-group-grid">
-          <TileSkeleton />
-          <TileSkeleton />
-          <TileSkeleton />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
+          <TileSkeleton compact />
         </div>
       </SkeletonCard>
     </div>
@@ -114,6 +121,18 @@ export function VodsPageSkeleton() {
               <SkeletonBlock className="skeleton-pill" style={{ width: "100%", height: 44 }} />
             </div>
           </div>
+          <div className="vod-item skeleton-vod-item">
+            <SkeletonBlock className="skeleton-vod-preview" />
+            <div className="vod-info">
+              <SkeletonLine style={{ width: "42%" }} />
+              <SkeletonLine style={{ width: "74%" }} />
+              <SkeletonLine style={{ width: "58%" }} />
+            </div>
+            <div className="vod-actions">
+              <SkeletonBlock className="skeleton-pill" style={{ width: "100%", height: 44 }} />
+              <SkeletonBlock className="skeleton-pill" style={{ width: "100%", height: 44 }} />
+            </div>
+          </div>
         </div>
       </SkeletonCard>
     </section>
@@ -136,6 +155,7 @@ export function ClipsPageSkeleton() {
         <TileSkeleton />
         <TileSkeleton />
         <TileSkeleton />
+        <TileSkeleton />
       </div>
     </section>
   );
@@ -147,17 +167,20 @@ export function SettingsPageSkeleton() {
       <section className="card settings-shell skeleton-card">
         <header className="settings-header-row">
           <div style={{ width: "100%" }}>
-            <SkeletonLine style={{ width: "18%", height: 30 }} />
+            <SkeletonLine style={{ width: "18%", height: 30, marginBottom: 8 }} />
             <SkeletonLine style={{ width: "52%" }} />
           </div>
           <SkeletonBlock className="skeleton-pill" style={{ width: 120, height: 32 }} />
         </header>
         <div className="settings-layout skeleton-settings-layout">
-          <div className="settings-nav" style={{ position: "static" }}>
+          <div className="settings-nav" style={{ position: "static", marginTop: '8px' }}>
             <SkeletonBlock className="skeleton-pill" style={{ height: 34 }} />
             <SkeletonBlock className="skeleton-pill" style={{ height: 34 }} />
             <SkeletonBlock className="skeleton-pill" style={{ height: 34 }} />
             <SkeletonBlock className="skeleton-pill" style={{ height: 34 }} />
+            <SkeletonBlock className="skeleton-pill" style={{ height: 34 }} />
+            <SkeletonBlock className="skeleton-pill" style={{ height: 34 }} />
+
           </div>
           <div className="settings-content skeleton-settings-content">
             <div className="settings-panel skeleton-panel">
@@ -165,6 +188,11 @@ export function SettingsPageSkeleton() {
               <SkeletonLine style={{ width: "70%" }} />
               <SkeletonBlock style={{ height: 38 }} />
               <SkeletonBlock style={{ height: 38 }} />
+            </div>
+            <div className="settings-panel skeleton-panel">
+              <SkeletonLine style={{ width: "28%", height: 24 }} />
+              <SkeletonLine style={{ width: "54%" }} />
+              <SkeletonBlock style={{ height: 96 }} />
             </div>
             <div className="settings-panel skeleton-panel">
               <SkeletonLine style={{ width: "28%", height: 24 }} />
