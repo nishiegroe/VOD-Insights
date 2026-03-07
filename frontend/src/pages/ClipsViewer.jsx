@@ -13,6 +13,7 @@ import ViewerClipControls from "../components/ViewerClipControls";
 import ViewerPlaybackControlsPanel from "../components/ViewerPlaybackControlsPanel";
 import ViewerScrubTimeline from "../components/ViewerScrubTimeline";
 import ViewerVideoPlayer from "../components/ViewerVideoPlayer";
+import { ClipsViewerPageSkeleton } from "../components/PageSkeletons";
 import { createClipRange } from "../api/vodViewer";
 import { ZOOM_OPTIONS } from "../utils/vodViewer";
 
@@ -593,11 +594,7 @@ export default function ClipsViewer() {
   };
 
   if (loading) {
-    return (
-      <section className="card clip-viewer clip-reimagined">
-        <div className="clip-meta">Loading clip...</div>
-      </section>
-    );
+    return <ClipsViewerPageSkeleton />;
   }
 
   if (error) {

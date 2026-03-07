@@ -38,6 +38,10 @@ function registerAppLifecycle({
   app.whenReady().then(async () => {
     let splash = null;
     try {
+      updaterManager.clearDownloadedInstallers();
+      updaterManager.clearLegacyPythonPackages();
+      updaterManager.clearUserDataCaches();
+      updaterManager.clearBootstrapDownloadCache();
       splash = createSplashScreen();
       startBackend();
       await waitForPort(host, port);

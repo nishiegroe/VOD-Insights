@@ -1,6 +1,7 @@
 import React from "react";
 import DownloadVODModal from "../components/DownloadVODModal";
 import WelcomeSetupCard from "../components/WelcomeSetupCard";
+import { VodsPageSkeleton } from "../components/PageSkeletons";
 import { formatDuration } from "../utils/formatDuration";
 import useVodsPage from "../hooks/useVodsPage";
 
@@ -48,7 +49,7 @@ export default function Vods({ status }) {
   } = useVodsPage();
 
   if (!configLoaded) {
-    return null; // Don't render anything until config is loaded
+    return <VodsPageSkeleton />;
   }
 
   return (

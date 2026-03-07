@@ -240,6 +240,7 @@ function main() {
       'edit',
       tag,
       '--prerelease=false',
+      '--latest=true',
       '--repo',
       `${owner}/${repo}`,
     ];

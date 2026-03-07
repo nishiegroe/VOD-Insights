@@ -7,6 +7,7 @@ import ViewerPlaybackControlsPanel from "../components/ViewerPlaybackControlsPan
 import ViewerScrubTimeline from "../components/ViewerScrubTimeline";
 import ViewerVideoPlayer from "../components/ViewerVideoPlayer";
 import VodViewerHeader from "../components/VodViewerHeader";
+import { VodViewerPageSkeleton } from "../components/PageSkeletons";
 import useVodViewerData from "../hooks/useVodViewerData";
 import {
   createClipRange,
@@ -1001,6 +1002,10 @@ export default function VodViewer() {
         </div>
       </section>
     );
+  }
+
+  if (loading && !vodMeta && !error) {
+    return <VodViewerPageSkeleton />;
   }
 
   const viewerTitle =
