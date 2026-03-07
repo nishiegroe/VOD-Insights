@@ -1,12 +1,15 @@
 import React from "react";
 import { ZOOM_OPTIONS, getEventColor } from "../utils/vodViewer";
 
-export default function VodPlaybackControlsPanel({
+export default function ViewerPlaybackControlsPanel({
+  hideZoom = false,
+  hideEventMenu = false,
   showZoomMenu,
   showEventMenu,
   showVolume,
   onToggleZoomMenu,
   onToggleEventMenu,
+  showEventJumpButtons = true,
   jumpToAdjacentEvent,
   seekRelative,
   togglePlayPause,
@@ -15,7 +18,7 @@ export default function VodPlaybackControlsPanel({
   isMuted,
   cyclePlaybackRate,
   playbackRate,
-  downloadVod,
+  onDownloadMedia,
   scrubHalfSeconds,
   onSelectZoom,
   eventFilterOptions,
@@ -39,21 +42,25 @@ export default function VodPlaybackControlsPanel({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-start" }}>
-          <button
-            className={showZoomMenu ? "primary" : "secondary"}
-            onClick={onToggleZoomMenu}
-            title="Zoom controls"
-          >
-            🔍 Zoom
-          </button>
+          {!hideZoom && (
+            <button
+              className={showZoomMenu ? "primary" : "secondary"}
+              onClick={onToggleZoomMenu}
+              title="Zoom controls"
+            >
+              🔍 Zoom
+            </button>
+          )}
 
-          <button
-            className={showEventMenu ? "primary" : "secondary"}
-            onClick={onToggleEventMenu}
-            title="Event filters"
-          >
-            🔎 Events
-          </button>
+          {!hideEventMenu && (
+            <button
+              className={showEventMenu ? "primary" : "secondary"}
+              onClick={onToggleEventMenu}
+              title="Event filters"
+            >
+              🔎 Events
+            </button>
+          )}
         </div>
         <div
           style={{
@@ -67,11 +74,13 @@ export default function VodPlaybackControlsPanel({
             justifyContent: "center",
           }}
         >
-          <button className="secondary" onClick={() => jumpToAdjacentEvent(-1)} title="Previous event ([)">
-            Prev Event
-          </button>
-          <button className="tertiary" onClick={() => seekRelative(-300)}>−5m</button>
-          <button className="tertiary" onClick={() => seekRelative(-30)}>−30s</button>
+          {showEventJumpButtons && (
+            <button className="secondary" onClick={() => jumpToAdjacentEvent(-1)} title="Previous event ([)">
+              Prev Event
+            </button>
+          )}
+          <button className="tertiary" onClick={() => seekRelative(-300)}>-5m</button>
+          <button className="tertiary" onClick={() => seekRelative(-30)}>-30s</button>
           <button
             className="primary"
             onClick={togglePlayPause}
@@ -91,11 +100,42 @@ export default function VodPlaybackControlsPanel({
           </button>
           <button className="tertiary" onClick={() => seekRelative(10)}>+10s</button>
           <button className="tertiary" onClick={() => seekRelative(300)}>+5m</button>
-          <button className="secondary" onClick={() => jumpToAdjacentEvent(1)} title="Next event (])">
-            Next Event
-          </button>
+          {showEventJumpButtons && (
+            <button className="secondary" onClick={() => jumpToAdjacentEvent(1)} title="Next event (])">
+              Next Event
+            </button>
+          )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+        {showVolume && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                justifyContent: "flex-end",
+                flex: "0 0 auto",
+              }}
+            >
+            <button
+                className="tertiary"
+                onClick={toggleMute}
+                title={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted ? "Unmute" : "Mute"}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volumeValue}
+                onChange={onVolumeChange}
+                style={{ width: "180px" }}
+              />
+
+            </div>
+          )}
           <button
             className="tertiary"
             onClick={onToggleVolume}
@@ -117,7 +157,7 @@ export default function VodPlaybackControlsPanel({
           <button className="tertiary" onClick={cyclePlaybackRate} title="Playback speed">
             {playbackRate}x
           </button>
-          <button className="tertiary" onClick={downloadVod} title="Download VOD" aria-label="Download VOD">
+          <button className="tertiary" onClick={onDownloadMedia} title="Download media" aria-label="Download media">
             <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
               <path d="M8 2v7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               <path d="M5 6l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -127,7 +167,7 @@ export default function VodPlaybackControlsPanel({
         </div>
       </div>
 
-      {(showZoomMenu || showEventMenu || showVolume) && (
+      {(showZoomMenu || showEventMenu) && (
         <div
           style={{
             display: "flex",
@@ -182,35 +222,6 @@ export default function VodPlaybackControlsPanel({
               </div>
             )}
           </div>
-
-          {showVolume && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-                justifyContent: "flex-end",
-                flex: "0 0 auto",
-              }}
-            >
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={volumeValue}
-                onChange={onVolumeChange}
-                style={{ width: "180px" }}
-              />
-              <button
-                className="tertiary"
-                onClick={toggleMute}
-                title={isMuted ? "Unmute" : "Mute"}
-              >
-                {isMuted ? "Unmute" : "Mute"}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </>

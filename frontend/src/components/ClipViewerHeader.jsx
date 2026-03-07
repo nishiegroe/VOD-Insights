@@ -1,59 +1,44 @@
 import { useNavigate } from "react-router-dom";
 
-export default function VodViewerHeader({
-  viewerTitle,
+export default function ClipViewerHeader({
   onBack,
   showClipTools,
   onToggleClipTools,
-  nearbyManualMarker,
-  onToggleManualMarker,
-  bookmarksCollapsed,
-  onToggleBookmarksCollapsed,
-  onDeleteVod,
-}) {
-  const navigate = useNavigate();
-
+  onDeleteClip,
+  onRenameClip,
+  }) {
+    const navigate = useNavigate();
+    
   return (
     <div className="vod-viewer-header">
       <div className="vod-viewer-header-left">
-        <div className="vod-viewer-app-title"  onClick={() => navigate("/")}>
+        <div className="vod-viewer-app-title" onClick={() => navigate("/")}>
           <img src="/logo.png" alt="" className="brand-logo brand-logo-compact" aria-hidden="true" />
           <span>VOD Insights</span>
         </div>
         <button onClick={onBack} className="tertiary">
-          ← Back to VODs
+          ← Back to Clips
         </button>
-        <div className="vod-viewer-title-compact">{viewerTitle}</div>
       </div>
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
         <button className="secondary" onClick={onToggleClipTools}>
           {showClipTools ? "Hide Clip" : "Clip"}
         </button>
         <button
-          className="secondary"
-          onClick={onToggleManualMarker}
-          title={
-            nearbyManualMarker
-              ? "Remove the nearest manual marker (within 10 seconds)"
-              : "Add a manual event marker at the current timestamp"
-          }
-        >
-          {nearbyManualMarker ? "Remove Marker" : "Add Marker"}
-        </button>
-        <button
           type="button"
-          className="secondary"
-          onClick={onToggleBookmarksCollapsed}
-          title={bookmarksCollapsed ? "Expand bookmarks" : "Collapse bookmarks"}
+          className="icon-button"
+          onClick={onRenameClip}
+          title="Rename Clip"
+          aria-label="Rename Clip"
         >
-          {bookmarksCollapsed ? "Show Bookmarks" : "Hide Bookmarks"}
+            Rename
         </button>
         <button
           type="button"
           className="icon-button danger"
-          onClick={onDeleteVod}
-          title="Delete VOD"
-          aria-label="Delete VOD"
+          onClick={onDeleteClip}
+          title="Delete Clip"
+          aria-label="Delete Clip"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path

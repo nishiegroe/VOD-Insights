@@ -26,13 +26,15 @@ export default function App() {
     status,
   } = useAppShell();
   const location = useLocation();
+  const useSlimHeader = location.pathname === "/vods/view" || location.pathname === "/clips/view";
   const isVodViewerRoute = location.pathname === "/vods/view";
+  const isClipsViewerRoute = location.pathname === "/clips/view";
   const isSettingsRoute = location.pathname === "/settings";
   const isOverlayToolRoute = location.pathname === "/overlay-tool";
 
   return (
-    <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""} ${isSettingsRoute ? "app-settings" : ""} ${isOverlayToolRoute ? "app-overlay-tool" : ""}`}>
-      {!isVodViewerRoute ? (
+    <div className={`app ${isVodViewerRoute ? "app-vod-viewer" : ""} ${isClipsViewerRoute ? "app-clips-viewer" : ""} ${isSettingsRoute ? "app-settings" : ""} ${isOverlayToolRoute ? "app-overlay-tool" : ""}`}>
+      {!useSlimHeader ? (
         <AppHeader
           showSessionRecorder={showSessionRecorder}
           status={status}
@@ -46,7 +48,7 @@ export default function App() {
           dismissNotification={dismissNotification}
         />
       ) : null}
-      <main className={isVodViewerRoute ? "app-main-vod-viewer" : isOverlayToolRoute ? "app-main-overlay-tool" : undefined}>
+      <main className={isVodViewerRoute ? "app-main-vod-viewer" : isClipsViewerRoute ? "app-main-clips-viewer" : isOverlayToolRoute ? "app-main-overlay-tool" : undefined}>
         <Routes>
           <Route path="/" element={<Home status={status} />} />
           <Route path="/vods" element={<Vods status={status} />} />

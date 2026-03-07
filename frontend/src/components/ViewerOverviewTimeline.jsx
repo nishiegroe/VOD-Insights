@@ -1,7 +1,7 @@
 import React from "react";
 import { getEventColor } from "../utils/vodViewer";
 
-export default function VodOverviewTimeline({
+export default function ViewerOverviewTimeline({
   duration,
   filteredEvents,
   heatmapActiveBinCount,

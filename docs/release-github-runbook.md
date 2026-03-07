@@ -13,7 +13,9 @@ Canonical guide for publishing a GitHub release from this repository.
 ## Version and Tag Policy
 
 - `app_meta.json` is the source of truth for release version.
-- `npm run release:github` always derives tag as `v<app_meta.version>`.
+- `npm run release:github` always derives tag as `v<app_meta.version>` and creates a GitHub prerelease by default.
+- Use `npm run release:github:stable` to create a full (non-prerelease) release directly.
+- Use `npm run release:github:promote` to convert an existing prerelease for the same tag into a full release.
 - Do not pass `--tag` to `release:github`; update `app_meta.json` first.
 - Expected format is `vX.Y.Z` (or `vX.Y.Z-prerelease`).
 
@@ -179,6 +181,18 @@ Default dry run:
 npm run release:github -- --dry-run
 ```
 
+Stable dry run (full release mode):
+
+```powershell
+npm run release:github:stable -- --dry-run
+```
+
+Promote dry run (existing prerelease -> full release):
+
+```powershell
+npm run release:github:promote -- --dry-run
+```
+
 Dry run with optional overrides:
 
 ```powershell
@@ -193,16 +207,40 @@ What dry run validates:
 
 ## Full Publish
 
-Default publish:
+Default publish (GitHub prerelease):
 
 ```powershell
 npm run release:github
 ```
 
-Publish with optional overrides:
+Default publish with optional overrides:
 
 ```powershell
 npm run release:github -- --owner <owner> --repo <repo> --output-dir dist-desktop/inno --remote origin
+```
+
+Stable publish (full release):
+
+```powershell
+npm run release:github:stable
+```
+
+Stable publish with optional overrides:
+
+```powershell
+npm run release:github:stable -- --owner <owner> --repo <repo> --output-dir dist-desktop/inno --remote origin
+```
+
+Promote existing prerelease to full release:
+
+```powershell
+npm run release:github:promote
+```
+
+Promote with optional repo override:
+
+```powershell
+npm run release:github:promote -- --owner <owner> --repo <repo>
 ```
 
 What the command does:
@@ -211,6 +249,14 @@ What the command does:
 2. Runs `npm run release:prep -- --tag v<app_meta.version>`.
 3. Validates release assets in `dist-desktop/inno`.
 4. Creates GitHub release with `gh release create`.
+5. `release:github` passes `--prerelease` by default; `release:github:stable` omits it.
+6. `release:github:promote` does not create a new release; it runs `gh release edit v<app_meta.version> --prerelease=false`.
+
+Recommended path for "ship prerelease now, make stable later":
+
+1. Publish prerelease: `npm run release:github`
+2. Validate in production-like usage.
+3. Promote same tag: `npm run release:github:promote`
 
 ## Expected Artifacts
 
@@ -261,7 +307,8 @@ Actions:
 
 1. Stop and do not rerun publish blindly.
 2. Inspect existing release: `gh release view <tag> --repo <owner>/<repo>`.
-3. If the release is correct, treat publish as complete.
+3. If the release is correct but still marked prerelease, promote it:
+	`npm run release:github:promote -- --owner <owner> --repo <repo>`.
 4. If incorrect, follow rollback guidance below before republishing.
 
 ### Tag exists but GitHub release is missing
@@ -361,6 +408,6 @@ After rollback:
 
 ---
 
-**Last Updated:** 2026-03-05  
+**Last Updated:** 2026-03-06  
 **Tested With:** v1.1.1 release  
 **Maintainer:** VOD Insights team

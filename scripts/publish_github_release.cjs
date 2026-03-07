@@ -13,6 +13,8 @@ function parseArgs(argv) {
     skipPrep: false,
     skipTag: false,
     dryRun: false,
+    prerelease: true,
+    promote: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -38,6 +40,12 @@ function parseArgs(argv) {
       args.skipTag = true;
     } else if (token === '--dry-run') {
       args.dryRun = true;
+    } else if (token === '--stable') {
+      args.prerelease = false;
+    } else if (token === '--prerelease') {
+      args.prerelease = true;
+    } else if (token === '--promote') {
+      args.promote = true;
     }
   }
 
@@ -224,6 +232,38 @@ function main() {
     ? path.resolve(root, args.outputDir)
     : path.join(root, 'dist-desktop', 'inno');
 
+  const { owner, repo } = resolveRepo(args);
+
+  if (args.promote) {
+    const ghPromoteArgs = [
+      'release',
+      'edit',
+      tag,
+      '--prerelease=false',
+      '--repo',
+      `${owner}/${repo}`,
+    ];
+
+    if (args.dryRun) {
+      console.log('Dry run: would execute');
+      console.log(
+        JSON.stringify(
+          {
+            command: 'gh',
+            args: ghPromoteArgs,
+            cwd: root,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+
+    runOrThrow('gh', ghPromoteArgs, { cwd: root });
+    return;
+  }
+
   if (!args.skipTag) {
     ensureTagPushed(tag, args.remote || 'origin', root, args.dryRun);
   }
@@ -252,7 +292,6 @@ function main() {
     throw new Error(`Missing checksum file: ${checksumsPath}`);
   }
 
-  const { owner, repo } = resolveRepo(args);
   const notes = formatNotes(meta, version);
   const title = `${meta.displayName || meta.internalName || 'Release'} ${tag}`;
 
@@ -271,6 +310,10 @@ function main() {
     notes,
     '--verify-tag',
   ];
+
+  if (args.prerelease) {
+    ghArgs.push('--prerelease');
+  }
 
   if (args.dryRun) {
     console.log('Dry run: would execute');

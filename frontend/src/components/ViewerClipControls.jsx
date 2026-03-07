@@ -9,7 +9,7 @@ function parseTimeInput(value) {
   return Number.isFinite(seconds) ? seconds : 0;
 }
 
-export default function VodClipControls({
+export default function ViewerClipControls({
   duration,
   showClipTools,
   formatTime,
@@ -22,6 +22,8 @@ export default function VodClipControls({
   clipStatus,
   clipResult,
   onCreateClip,
+  canCreateClip = true,
+  createClipTitle = "Create clip from selected range",
 }) {
   if (!(duration > 0 && showClipTools)) {
     return null;
@@ -58,8 +60,8 @@ export default function VodClipControls({
 
         <button
           className="primary"
-          disabled={clipEnd <= clipStart + 1 || clipStatus === "working"}
-          title="Create clip from selected range"
+          disabled={!canCreateClip || clipEnd <= clipStart + 1 || clipStatus === "working"}
+          title={createClipTitle}
           onClick={onCreateClip}
         >
           {clipStatus === "working" ? "Creating..." : "Create Clip"}
