@@ -1,9 +1,9 @@
 import React from "react";
 
-export default function VodVideoPlayer({
+export default function ViewerVideoPlayer({
   containerRef,
   videoRef,
-  vodMediaUrl,
+  mediaUrl,
   togglePlayPause,
   handleLoadedMetadata,
   handleTimeUpdate,
@@ -17,7 +17,7 @@ export default function VodVideoPlayer({
       <video
         ref={videoRef}
         className="vod-video"
-        src={vodMediaUrl}
+        src={mediaUrl}
         autoPlay
         onClick={togglePlayPause}
         onLoadedMetadata={handleLoadedMetadata}
@@ -66,7 +66,7 @@ export default function VodVideoPlayer({
             letterSpacing: "0.02em",
           }}
         >
-          Loading bookmarks...
+          Loading media...
         </div>
       )}
     </div>

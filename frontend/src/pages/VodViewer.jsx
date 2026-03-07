@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import VodBookmarkList from "../components/VodBookmarkList";
-import VodClipControls from "../components/VodClipControls";
-import VodOverviewTimeline from "../components/VodOverviewTimeline";
-import VodPlaybackControlsPanel from "../components/VodPlaybackControlsPanel";
-import VodScrubTimeline from "../components/VodScrubTimeline";
-import VodVideoPlayer from "../components/VodVideoPlayer";
+import ViewerClipControls from "../components/ViewerClipControls";
+import ViewerOverviewTimeline from "../components/ViewerOverviewTimeline";
+import ViewerPlaybackControlsPanel from "../components/ViewerPlaybackControlsPanel";
+import ViewerScrubTimeline from "../components/ViewerScrubTimeline";
+import ViewerVideoPlayer from "../components/ViewerVideoPlayer";
 import VodViewerHeader from "../components/VodViewerHeader";
 import useVodViewerData from "../hooks/useVodViewerData";
 import {
@@ -1027,10 +1027,10 @@ export default function VodViewer() {
 
         <div className="vod-content-wrapper">
           <div className="vod-left-section">
-            <VodVideoPlayer
+            <ViewerVideoPlayer
               containerRef={containerRef}
               videoRef={videoRef}
-              vodMediaUrl={vodMediaUrl}
+              mediaUrl={vodMediaUrl}
               togglePlayPause={togglePlayPause}
               handleLoadedMetadata={handleLoadedMetadata}
               handleTimeUpdate={handleTimeUpdate}
@@ -1040,7 +1040,7 @@ export default function VodViewer() {
               loading={loading}
             />
 
-            <VodPlaybackControlsPanel
+            <ViewerPlaybackControlsPanel
               showZoomMenu={showZoomMenu}
               showEventMenu={showEventMenu}
               showVolume={showVolume}
@@ -1054,7 +1054,7 @@ export default function VodViewer() {
               isMuted={isMuted}
               cyclePlaybackRate={cyclePlaybackRate}
               playbackRate={playbackRate}
-              downloadVod={downloadVod}
+              onDownloadMedia={downloadVod}
               scrubHalfSeconds={scrubHalfSeconds}
               onSelectZoom={handleSelectZoom}
               eventFilterOptions={eventFilterOptions}
@@ -1065,7 +1065,7 @@ export default function VodViewer() {
               toggleMute={toggleMute}
             />
 
-            <VodOverviewTimeline
+            <ViewerOverviewTimeline
               duration={duration}
               filteredEvents={filteredEvents}
               heatmapActiveBinCount={heatmapActiveBinCount}
@@ -1082,7 +1082,7 @@ export default function VodViewer() {
               currentTime={currentTime}
             />
 
-            <VodScrubTimeline
+            <ViewerScrubTimeline
               duration={duration}
               scrubWindowStart={scrubWindowStart}
               scrubWindowEnd={scrubWindowEnd}
@@ -1107,7 +1107,7 @@ export default function VodViewer() {
               handleClipEndHandlePointerDown={handleClipEndHandlePointerDown}
             />
 
-            <VodClipControls
+            <ViewerClipControls
               duration={duration}
               showClipTools={showClipTools}
               formatTime={formatTime}

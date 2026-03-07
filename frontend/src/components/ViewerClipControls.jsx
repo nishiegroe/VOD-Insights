@@ -9,7 +9,7 @@ function parseTimeInput(value) {
   return Number.isFinite(seconds) ? seconds : 0;
 }
 
-export default function VodClipControls({
+export default function ViewerClipControls({
   duration,
   showClipTools,
   formatTime,

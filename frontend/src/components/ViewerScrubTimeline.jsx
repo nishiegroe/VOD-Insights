@@ -1,7 +1,7 @@
 import React from "react";
 import { getEventColor } from "../utils/vodViewer";
 
-export default function VodScrubTimeline({
+export default function ViewerScrubTimeline({
   duration,
   scrubWindowStart,
   scrubWindowEnd,
