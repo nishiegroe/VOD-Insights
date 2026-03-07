@@ -64,5 +64,5 @@ def tools_check_response(
     yt_dlp_ok = downloader.check_yt_dlp()
     return {
         "yt_dlp_installed": yt_dlp_ok,
-        "message": "All tools ready" if yt_dlp_ok else "yt-dlp not installed: pip install yt-dlp",
+        "message": "All tools ready" if yt_dlp_ok else "Install with: pip install yt-dlp",
     }, 200

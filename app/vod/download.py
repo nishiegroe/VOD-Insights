@@ -14,6 +14,7 @@ from typing import Optional, Callable, Dict, Any, List
 from datetime import datetime, timezone
 import uuid
 import shutil
+from app.runtime_paths import resolve_tool
 
 from app.vod.download_utils import (
     parse_progress_template,
@@ -40,9 +41,13 @@ class TwitchVODDownloader:
 
     def check_yt_dlp(self) -> bool:
         """Check if yt-dlp is installed and accessible"""
+        yt_dlp_path = self._resolve_yt_dlp_path()
+        if not yt_dlp_path:
+            return False
+
         try:
             subprocess.run(
-                ["yt-dlp", "--version"],
+                [yt_dlp_path, "--version"],
                 capture_output=True,
                 check=True,
                 timeout=5,
@@ -50,6 +55,10 @@ class TwitchVODDownloader:
             return True
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
             return False
+
+    @staticmethod
+    def _resolve_yt_dlp_path() -> Optional[str]:
+        return resolve_tool("yt-dlp", ["yt-dlp.exe"])
 
     def validate_url(self, url: str) -> bool:
         """
@@ -184,10 +193,14 @@ class TwitchVODDownloader:
         Returns:
             Dict with 'streamer' and 'date' keys, or None on error
         """
+        yt_dlp_path = self._resolve_yt_dlp_path()
+        if not yt_dlp_path:
+            return None
+
         try:
             result = subprocess.run(
                 [
-                    "yt-dlp",
+                    yt_dlp_path,
                     "--dump-json",
                     url,
                 ],
@@ -249,12 +262,16 @@ class TwitchVODDownloader:
             progress_callback: Optional progress callback
         """
         try:
+            yt_dlp_path = self._resolve_yt_dlp_path()
+            if not yt_dlp_path:
+                raise FileNotFoundError("yt-dlp is not available")
+
             # Build yt-dlp command
             # --progress-template gives structured output instead of human-readable bar
             # (Twitch uses HLS so the normal bar includes "~" for estimated size,
             #  which makes ad-hoc regex matching unreliable)
             cmd = [
-                "yt-dlp",
+                yt_dlp_path,
                 "--no-warnings",
                 "--newline",
                 "--progress-template",
