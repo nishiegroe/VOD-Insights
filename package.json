@@ -15,6 +15,8 @@
     "build:desktop:portable": "npm run sync:meta && npm --prefix desktop run build:portable",
     "release:assets": "npm run sync:meta && node ./scripts/prepare_github_release.cjs",
     "release:prep": "npm run sync:meta && node ./scripts/release_prep.cjs",
-    "release:github": "npm run sync:meta && node ./scripts/publish_github_release.cjs"
+    "release:github": "npm run sync:meta && node ./scripts/publish_github_release.cjs",
+    "release:github:stable": "npm run sync:meta && node ./scripts/publish_github_release.cjs --stable",
+    "release:github:promote": "npm run sync:meta && node ./scripts/publish_github_release.cjs --promote"
   }
 }
