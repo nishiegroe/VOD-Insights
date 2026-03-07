@@ -229,6 +229,8 @@ export default function Clips() {
                           <TileSkeleton />
                           <TileSkeleton />
                           <TileSkeleton />
+                          <TileSkeleton />
+                          <TileSkeleton />
                         </div>
                       ) : (
                         <div className="clip-group-grid clips-grid">
