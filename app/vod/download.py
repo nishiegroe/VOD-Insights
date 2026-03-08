@@ -333,3 +333,8 @@ class TwitchVODDownloader:
         if hours > 0:
             return f"{hours}:{minutes:02d}:{seconds:02d}"
         return f"{minutes:02d}m {seconds:02d}s"
+
+    @staticmethod
+    def _sanitize_filename(filename: str) -> str:
+        """Backward-compatible wrapper kept for existing tests/callers."""
+        return sanitize_filename(filename)
