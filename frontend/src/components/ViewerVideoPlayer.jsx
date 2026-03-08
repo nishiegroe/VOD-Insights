@@ -7,6 +7,10 @@ export default function ViewerVideoPlayer({
   togglePlayPause,
   handleLoadedMetadata,
   handleTimeUpdate,
+  onPlay,
+  onPause,
+  onVolumeChange,
+  onRateChange,
   onVideoError,
   overlayConfig,
   videoContentRect,
@@ -22,6 +26,10 @@ export default function ViewerVideoPlayer({
         onClick={togglePlayPause}
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={handleTimeUpdate}
+        onPlay={onPlay}
+        onPause={onPause}
+        onVolumeChange={onVolumeChange}
+        onRateChange={onRateChange}
         onError={onVideoError}
       />
       {overlayConfig && videoContentRect && (

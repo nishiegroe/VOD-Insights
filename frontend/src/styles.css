@@ -499,6 +499,7 @@ a {
 }
 
 .notification-progress {
+  position: relative;
   height: 6px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
@@ -509,7 +510,30 @@ a {
   height: 100%;
   background: linear-gradient(90deg, var(--accent-2), var(--accent));
   width: 0%;
-  transition: width 0.3s ease;
+  transition: width 2.4s linear;
+}
+
+@keyframes notification-progress-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+.notification-progress-activity {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.45) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  width: 40%;
+  animation: notification-progress-sweep 1.2s linear infinite;
+  pointer-events: none;
 }
 
 .notification-empty {
@@ -582,6 +606,12 @@ button {
   padding: 10px 18px;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background 0.5s ease,
+    color 0.5s ease,
+    border-color 0.5s ease,
+    box-shadow 0.5s ease,
+    opacity 0.2s ease;
 }
 
 button.primary {
@@ -664,15 +694,13 @@ button.danger {
 
 .upload-progress {
   width: 100%;
-  max-width: 520px;
-  background: rgba(12, 23, 27, 0.6);
+  background: rgba(12, 23, 27, 0.45);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: 999px;
+  padding: 3px;
   margin-top: 12px;
-  text-align: left;
   opacity: 0.6;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .upload-progress.active {
@@ -680,17 +708,31 @@ button.danger {
 }
 
 .upload-progress-bar {
-  height: 8px;
+  height: 4px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
   width: 0;
-  transition: width 0.2s ease;
+  transition: width 0.25s ease;
 }
 
-.upload-progress-text {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--muted);
+@keyframes upload-progress-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 179, 71, 0.2);
+    border-color: rgba(255, 179, 71, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 179, 71, 0.12);
+    border-color: rgba(255, 179, 71, 0.75);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 179, 71, 0.2);
+    border-color: rgba(255, 179, 71, 0.4);
+  }
+}
+
+.upload-progress.waiting {
+  opacity: 0.95;
+  animation: upload-progress-pulse 1.35s ease-in-out infinite;
 }
 
 .toast-container {

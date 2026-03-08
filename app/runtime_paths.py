@@ -135,10 +135,22 @@ def ensure_easyocr_models() -> Path:
 def get_tools_dirs() -> list[Path]:
     candidates = [get_exe_dir() / "tools"]
     candidates.append(get_exe_dir().parent / "tools")
+    # Desktop packaged runs bootstrap tools into AET_INSTALL_DIR/tools.
+    candidates.append(get_install_dir() / "tools")
     if hasattr(sys, "_MEIPASS"):
         candidates.append(Path(sys._MEIPASS) / "tools")
     candidates.append(get_project_root() / "tools")
-    return [path for path in candidates if path.exists()]
+    seen: set[str] = set()
+    existing: list[Path] = []
+    for path in candidates:
+        if not path.exists():
+            continue
+        key = str(path.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        existing.append(path)
+    return existing
 
 
 def _search_tools_dir(tools_dir: Path, names: list[str]) -> Optional[str]:
