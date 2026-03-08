@@ -57,6 +57,21 @@ export default function NotificationPanel({
             .filter((job) => !isDismissed(`twitch:${job.id}`))
             .map((job) => (
               <div className="notification-item" key={job.id}>
+                {(() => {
+                  const progress = Number(job.progress);
+                  const clampedProgress = Number.isFinite(progress)
+                    ? Math.max(0, Math.min(100, progress))
+                    : 0;
+                  const updatedAtMs = Date.parse(job.updated_at || job.started_at || "");
+                  const ageSeconds = Number.isFinite(updatedAtMs)
+                    ? (Date.now() - updatedAtMs) / 1000
+                    : null;
+                  const isDownloading = job.status === "downloading";
+                  const isHeartbeatActive = isDownloading && (ageSeconds == null || ageSeconds < 20);
+                  const isLikelyWaitingSegment = isDownloading && ageSeconds != null && ageSeconds >= 20;
+
+                  return (
+                    <>
                 <button
                   type="button"
                   className="notification-dismiss"
@@ -68,22 +83,36 @@ export default function NotificationPanel({
                 </button>
                 <div className="notification-title">Twitch VOD</div>
                 <div className="notification-body">{job.url}</div>
-                {job.progress != null ? (
+                {job.status === "failed" ? (
+                  <div className="notification-meta" style={{ color: "#ff8f7d" }}>
+                    {job.message || "Download failed"}
+                  </div>
+                ) : job.progress != null ? (
                   <>
                     <div className="notification-progress">
                       <div
-                        className="notification-progress-bar"
-                        style={{ width: `${job.progress}%` }}
+                        className={`notification-progress-bar ${isHeartbeatActive ? "is-active" : ""}`}
+                        style={{ width: `${clampedProgress}%` }}
                       ></div>
+                      {isHeartbeatActive ? <div className="notification-progress-activity" /> : null}
                     </div>
                     <div className="notification-meta" style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>{job.speed || job.status}</span>
-                      {job.eta ? <span>ETA {job.eta}</span> : null}
+                      <span>
+                        {job.speed && job.speed !== "0 B/s"
+                          ? job.speed
+                          : isLikelyWaitingSegment
+                          ? "Waiting for next segment..."
+                          : job.message || job.status}
+                      </span>
+                      {job.eta ? <span>ETA {job.eta}</span> : isDownloading ? <span>ETA calculating...</span> : null}
                     </div>
                   </>
                 ) : (
                   <div className="notification-meta">{job.status}</div>
                 )}
+                    </>
+                  );
+                })()}
               </div>
             ))
         ) : null}

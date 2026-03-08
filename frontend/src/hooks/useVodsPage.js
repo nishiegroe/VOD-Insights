@@ -385,9 +385,8 @@ export default function useVodsPage() {
   };
 
   const canUpload = useMemo(() => {
-    const fileInput = fileInputRef.current;
-    return Boolean(fileInput && fileInput.files && fileInput.files[0] && !uploadState.uploading);
-  }, [uploadState.uploading]);
+    return uploadState.fileName !== "No file selected" && !uploadState.uploading;
+  }, [uploadState.fileName, uploadState.uploading]);
 
   const hasScanStarted = useMemo(
     () => vods.some((item) => item.scanning || item.paused || item.scanned),

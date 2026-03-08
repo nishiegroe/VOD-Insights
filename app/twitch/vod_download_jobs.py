@@ -26,6 +26,8 @@ def vod_downloader_as_twitch_jobs(vod_downloader: Optional[Any]) -> List[Dict[st
                 "message": job.get("error") or job.get("status", ""),
                 "eta": job.get("eta"),
                 "speed": job.get("speed"),
+                "started_at": job.get("started_at"),
+                "updated_at": job.get("updated_at"),
             }
         )
     return result

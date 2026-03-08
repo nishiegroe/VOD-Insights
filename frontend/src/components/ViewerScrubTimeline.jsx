@@ -32,7 +32,7 @@ export default function ViewerScrubTimeline({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "12px 0" }}>
       <div style={{ minWidth: "58px", textAlign: "right", fontSize: "12px", color: "var(--muted)" }}>
-        {formatTime(scrubWindowStart)}
+        {formatTime(currentTime)}
       </div>
       <div
         className="timeline-range-container"
@@ -150,7 +150,7 @@ export default function ViewerScrubTimeline({
         />
       </div>
       <div style={{ minWidth: "58px", textAlign: "left", fontSize: "12px", color: "var(--muted)" }}>
-        {formatTime(scrubWindowEnd)}
+        {formatTime(duration)}
       </div>
     </div>
   );

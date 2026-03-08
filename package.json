@@ -1,6 +1,6 @@
 {
   "name": "apex-event-tracker-root",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "scripts": {
     "check:build-security": "node ./scripts/check_build_security.cjs",

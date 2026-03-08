@@ -284,19 +284,18 @@ export default function Vods({ status }) {
                 />
               </div>
               <div
-                className={`upload-progress ${uploadState.uploading ? "active" : ""}`}
+                className={`upload-progress ${uploadState.uploading ? "active" : ""} ${canUpload && !uploadState.uploading ? "waiting" : ""}`}
                 aria-live="polite"
               >
                 <div
                   className="upload-progress-bar"
                   style={{ width: `${uploadState.progress}%` }}
                 ></div>
-                <div className="upload-progress-text">{uploadState.status}</div>
               </div>
               <p className="hint">
                 Uploads the VOD to the recordings folder, then scans automatically.
               </p>
-              <div className="button-row">
+              <div className="button-row" style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}>
                 <button type="submit" className="primary" disabled={!canUpload}>
                   Upload & Scan
                 </button>
