@@ -183,11 +183,11 @@ function syncDesktopMain(meta) {
     throw new Error("Could not find dialog title");
   }
 
-  const splashTitlePattern = /<div class="app-name">[\s\S]*?<\/div>/;
+  const splashTitlePattern = /<div class="brand-name">[\s\S]*?<\/div>/;
   const splashTitleReplacement =
-    '<div class="app-name">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : ""}<span>' +
+    '<div class="brand-name">' +
     meta.displayName +
-    '</span></div>';
+    '</div>';
 
   let splashUpdated = false;
   if (splashTitlePattern.test(content)) {
