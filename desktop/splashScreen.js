@@ -191,44 +191,50 @@ function createSplashScreenTools({
 <head>
 <meta charset="UTF-8">
 <style>
-body { margin: 0; padding: 0; width: 100%; height: 100vh; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
-.container { text-align: center; color: white; display: flex; flex-direction: column; align-items: center; gap: 30px; width: 100%; padding: 40px; }
-.header { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.logo { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; }
-.logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.app-name { font-size: 28px; font-weight: 700; color: #ffffff; }
-.app-name img { display: none !important; }
-.spinner { width: 40px; height: 40px; border: 3px solid rgba(255, 255, 255, 0.15); border-top: 3px solid #ff6b35; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
-.status { font-size: 14px; color: #b0b0b0; min-height: 20px; }
-.dep { font-size: 12px; color: #ff6b35; font-weight: 600; }
-.progress { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; }
-.bar { height: 100%; background: linear-gradient(90deg, #ff6b35 0%, #ff8955 100%); width: 0%; transition: width 0.3s ease; }
-.info { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: #888; }
-.estimate { font-size: 11px; color: #555; margin-top: 8px; font-style: italic; }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:#1c1c1e;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#fff}
+.container{width:340px;display:flex;flex-direction:column;align-items:center}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.brand-logo{width:48px;height:48px;flex-shrink:0}
+.brand-logo img{width:100%;height:100%;object-fit:contain;display:block}
+.brand-logo-emoji{font-size:36px;line-height:1}
+.brand-name{font-size:26px;font-weight:700;letter-spacing:-0.3px;color:#fff}
+.spinner{width:34px;height:34px;border:2.5px solid rgba(255,255,255,0.1);border-top-color:#ff6b35;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;margin-bottom:28px}
+.status-block{width:100%;text-align:center;margin-bottom:24px;min-height:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+#status{font-size:13px;color:#8e8e93}
+#dep{font-size:12px;font-weight:600;color:#ff6b35;min-height:16px}
+.progress-block{width:100%}
+.track{width:100%;height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}
+.bar{height:100%;background:linear-gradient(90deg,#ff6b35,#ff9f6b);width:0%;transition:width 0.35s ease;border-radius:2px}
+.meta{display:flex;justify-content:space-between;margin-top:7px}
+.meta span{font-size:11px;color:#48484a}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <div class="container">
-<div class="header">
-<div class="logo">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="VOD Insights logo" />` : "🔍"}</div>
-<div class="app-name">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : ""}<span>VOD Insights</span></div>
+<div class="brand">
+<div class="brand-logo">${splashLogoUrl ? `<img src="${splashLogoUrl}" alt="" />` : `<span class="brand-logo-emoji">🔍</span>`}</div>
+<div class="brand-name">VOD Insights</div>
 </div>
 <div class="spinner"></div>
-<div class="status" id="status">Starting up...</div>
-<div class="dep" id="dep"></div>
-<div class="progress"><div class="bar" id="bar"></div></div>
-<div class="info"><span id="pct">0%</span><span id="time">0s elapsed</span></div>
-<div class="estimate">This may take 5-10 minutes or more depending on PC specs</div>
+<div class="status-block">
+<div id="status">Starting up...</div>
+<div id="dep"></div>
+</div>
+<div class="progress-block">
+<div class="track"><div class="bar" id="bar"></div></div>
+<div class="meta"><span id="pct"></span><span id="time">0s</span></div>
+</div>
 </div>
 <script>
-let start = Date.now();
-setInterval(() => {
-const s = Math.round((Date.now() - start) / 1000);
-const m = Math.floor(s / 60);
-const sec = s % 60;
-document.getElementById('time').textContent = m > 0 ? m + 'm ' + sec + 's' : sec + 's';
-}, 500);
+let start=Date.now();
+setInterval(()=>{
+const s=Math.round((Date.now()-start)/1000);
+const m=Math.floor(s/60),sec=s%60;
+document.getElementById('time').textContent=m>0?m+'m '+sec+'s':sec+'s';
+},500);
 </script>
 </body>
 </html>
