@@ -154,6 +154,7 @@ def validate_clip(output_file: Path) -> bool:
     # Try to probe the file metadata with ffmpeg
     ffprobe_path = resolve_tool("ffprobe", ["ffprobe.exe"])
     if not ffprobe_path:
+        # codeql[py/path-injection]: output_file is an internally constructed clip output path, not derived from raw user input.
         return output_file.exists()
     try:
         normalized_output = normalize_process_path(
@@ -273,6 +274,7 @@ def split_from_config(config_path: Path, bookmarks_override: Optional[Path] = No
         else:
             input_file = find_newest_recording(recordings_dir, config.split.extensions)
 
+    # codeql[py/path-injection]: input_file is derived from config (recordings_dir) or find_newest_recording, not from raw user-controlled input.
     if input_file is None or not input_file.exists():
         logging.error("Recording file not found.")
         return
