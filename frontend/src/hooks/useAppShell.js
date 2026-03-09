@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api/client";
 
-const isActiveTwitchJob = (job) => ["queued", "downloading", "scanning"].includes(job.status);
+const isVisibleTwitchJob = (job) => ["queued", "downloading", "scanning", "failed"].includes(job.status);
 
 export default function useAppShell() {
   const [status, setStatus] = useState(null);
@@ -28,7 +28,7 @@ export default function useAppShell() {
   });
 
   const activeTwitchJobs = useMemo(() => {
-    return (notificationData.twitch_jobs || []).filter(isActiveTwitchJob);
+    return (notificationData.twitch_jobs || []).filter(isVisibleTwitchJob);
   }, [notificationData.twitch_jobs]);
 
   const bootstrapBusy = useMemo(() => {

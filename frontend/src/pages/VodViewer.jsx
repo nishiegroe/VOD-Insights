@@ -25,6 +25,17 @@ import {
   classifyEventByKeywords,
 } from "../utils/vodViewer";
 
+const DEFAULT_SCRUB_HALF_SECONDS = 15 * 60;
+
+function normalizeScrubHalfSeconds(value) {
+  if (value == null) return null;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return DEFAULT_SCRUB_HALF_SECONDS;
+  }
+  return numeric;
+}
+
 export default function VodViewer() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -68,7 +79,7 @@ export default function VodViewer() {
     loadStored(SETTINGS_KEYS.collapsed, false)
   );
   const [scrubHalfSeconds, setScrubHalfSeconds] = useState(() =>
-    loadStored(SETTINGS_KEYS.zoom, 15 * 60)
+    normalizeScrubHalfSeconds(loadStored(SETTINGS_KEYS.zoom, DEFAULT_SCRUB_HALF_SECONDS))
   );
   const [snapToEvent, setSnapToEvent] = useState(() =>
     loadStored(SETTINGS_KEYS.snap, false)
@@ -230,24 +241,29 @@ export default function VodViewer() {
     });
   }, [timelineEvents, eventFilters]);
 
-  const nearbyEventIds = useMemo(() => {
-    const getWindow = (entry) => {
-      if (!entry || entry.source === "manual") {
-        return { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
+  const getEventWindow = (entry) => {
+    if (!entry || entry.source === "manual") {
+      return { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
+    }
+    return (
+      eventWindowMap[entry.filterKey] || {
+        pre: defaultPreRollSeconds,
+        post: defaultPostRollSeconds,
       }
-      return eventWindowMap[entry.filterKey] || { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
-    };
+    );
+  };
 
+  const nearbyEventIds = useMemo(() => {
     const primaryNearby = filteredEvents.filter(
       (entry) => {
-        const window = getWindow(entry);
+        const window = getEventWindow(entry);
         return entry.seconds >= currentTime - window.pre && entry.seconds <= currentTime + window.post;
       }
     );
 
     const secondaryNearby = new Set();
     primaryNearby.forEach((primary) => {
-      const primaryWindow = getWindow(primary);
+      const primaryWindow = getEventWindow(primary);
       filteredEvents.forEach((entry) => {
         if (
           entry.seconds >= primary.seconds - primaryWindow.pre &&
@@ -375,7 +391,7 @@ export default function VodViewer() {
     const isEntry = typeof entryOrSeconds === "object" && entryOrSeconds !== null;
     const seconds = isEntry ? Number(entryOrSeconds.seconds || 0) : Number(entryOrSeconds || 0);
     const eventWindow = isEntry
-      ? eventWindowMap[entryOrSeconds.filterKey] || { pre: defaultPreRollSeconds, post: defaultPostRollSeconds }
+      ? getEventWindow(entryOrSeconds)
       : { pre: defaultPreRollSeconds, post: defaultPostRollSeconds };
     const targetTime = Math.max(0, seconds - eventWindow.pre);
     seekToExact(targetTime);
@@ -388,16 +404,45 @@ export default function VodViewer() {
   const jumpToAdjacentEvent = (direction) => {
     if (!filteredEvents.length) return;
     const now = currentTimeRef.current || currentTime;
-    const effectiveNow = now;
-    if (direction < 0) {
-      const previous = [...filteredEvents]
-        .reverse()
-        .find((entry) => entry.seconds < effectiveNow - 0.2);
-      if (previous) seekTo(previous);
+
+    // Treat the event as "current" while inside that event's configured pre/post window.
+    let currentIndex = -1;
+    filteredEvents.forEach((entry, index) => {
+      const window = getEventWindow(entry);
+      const start = entry.seconds - window.pre;
+      const end = entry.seconds + window.post;
+      if (now >= start && now <= end) {
+        currentIndex = index;
+      }
+    });
+
+    if (direction > 0) {
+      if (currentIndex >= 0) {
+        const next = filteredEvents[currentIndex + 1];
+        if (next) seekTo(next);
+        return;
+      }
+
+      const nextByWindow = filteredEvents.find((entry) => {
+        const window = getEventWindow(entry);
+        return entry.seconds - window.pre > now + 0.05;
+      });
+      if (nextByWindow) seekTo(nextByWindow);
       return;
     }
-    const next = filteredEvents.find((entry) => entry.seconds > effectiveNow + 0.2);
-    if (next) seekTo(next);
+
+    if (currentIndex > 0) {
+      seekTo(filteredEvents[currentIndex - 1]);
+      return;
+    }
+
+    const previousByWindow = [...filteredEvents]
+      .reverse()
+      .find((entry) => {
+        const window = getEventWindow(entry);
+        return entry.seconds + window.post < now - 0.05;
+      });
+    if (previousByWindow) seekTo(previousByWindow);
   };
 
   const jumpDeadAir = () => {
@@ -422,11 +467,12 @@ export default function VodViewer() {
   const PLAYBACK_RATES = [0.5, 1, 1.5, 2];
 
   const togglePlayPause = () => {
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
     } else {
-      videoRef.current.pause();
+      video.pause();
     }
   };
 
@@ -436,11 +482,27 @@ export default function VodViewer() {
   };
 
   const cyclePlaybackRate = () => {
-    if (!videoRef.current) return;
-    const current = videoRef.current.playbackRate || 1;
+    const video = videoRef.current;
+    if (!video) return;
+    const current = video.playbackRate || 1;
     const index = PLAYBACK_RATES.indexOf(current);
     const next = PLAYBACK_RATES[(index + 1) % PLAYBACK_RATES.length] || 1;
-    videoRef.current.playbackRate = next;
+    video.playbackRate = next;
+    setPlaybackRate(next);
+  };
+
+  const handleVideoPlay = () => setIsPlaying(true);
+  const handleVideoPause = () => setIsPlaying(false);
+  const handleVideoVolumeChange = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    setIsMuted(Boolean(video.muted));
+    setVolumeValue(video.volume ?? 1);
+  };
+  const handleVideoRateChange = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    setPlaybackRate(video.playbackRate || 1);
   };
 
   const downloadVod = () => {
@@ -566,35 +628,16 @@ export default function VodViewer() {
     const video = videoRef.current;
     if (!video) return;
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleVolume = () => {
-      setIsMuted(Boolean(video.muted));
-      setVolumeValue(video.volume ?? 1);
-    };
-    const handleRate = () => setPlaybackRate(video.playbackRate || 1);
-
     const initialVolume = Math.max(0, Math.min(1, volumeValue));
     video.volume = initialVolume;
     video.muted = Boolean(isMuted);
+    video.playbackRate = playbackRate || 1;
 
     setIsPlaying(!video.paused);
     setIsMuted(Boolean(video.muted));
     setVolumeValue(video.volume ?? initialVolume);
     setPlaybackRate(video.playbackRate || 1);
-
-    video.addEventListener("play", handlePlay);
-    video.addEventListener("pause", handlePause);
-    video.addEventListener("volumechange", handleVolume);
-    video.addEventListener("ratechange", handleRate);
-
-    return () => {
-      video.removeEventListener("play", handlePlay);
-      video.removeEventListener("pause", handlePause);
-      video.removeEventListener("volumechange", handleVolume);
-      video.removeEventListener("ratechange", handleRate);
-    };
-  }, [vodMediaUrl, isMuted, volumeValue]);
+  }, [vodMediaUrl, loading, isMuted, volumeValue, playbackRate]);
 
   useEffect(() => {
     saveStored(SETTINGS_KEYS.collapsed, bookmarksCollapsed);
@@ -622,13 +665,18 @@ export default function VodViewer() {
 
   const handleLoadedMetadata = () => {
     if (!videoRef.current) return;
-    const total = videoRef.current.duration;
+    const video = videoRef.current;
+    video.volume = Math.max(0, Math.min(1, volumeValue));
+    video.muted = Boolean(isMuted);
+    video.playbackRate = playbackRate || 1;
+
+    const total = video.duration;
     setDuration(total);
     durationRef.current = total;
     if (!clipEnd || clipEnd < 1) {
       setClipEnd(Math.min(total, 30 * 60));
     }
-    videoRef.current.play().catch(() => {});
+    video.play().catch(() => {});
   };
 
   const handleTimeUpdate = () => {
@@ -970,7 +1018,7 @@ export default function VodViewer() {
   };
 
   const handleSelectZoom = (halfSeconds) => {
-    setScrubHalfSeconds(halfSeconds);
+    setScrubHalfSeconds(normalizeScrubHalfSeconds(halfSeconds));
   };
 
   const handleToggleEventFilter = (filterKey) => {
@@ -1039,6 +1087,10 @@ export default function VodViewer() {
               togglePlayPause={togglePlayPause}
               handleLoadedMetadata={handleLoadedMetadata}
               handleTimeUpdate={handleTimeUpdate}
+              onPlay={handleVideoPlay}
+              onPause={handleVideoPause}
+              onVolumeChange={handleVideoVolumeChange}
+              onRateChange={handleVideoRateChange}
               onVideoError={() => setError("Unable to load this VOD in the viewer.")}
               overlayConfig={overlayConfig}
               videoContentRect={videoContentRect}

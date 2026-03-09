@@ -56,7 +56,7 @@ export function HomePageSkeleton() {
       <SkeletonCard>
         <div className="skeleton-header-row">
           <SkeletonLine style={{ width: "28%", height: 28 }} />
-          <SkeletonBlock className="skeleton-pill" style={{ width: 112 }} />
+          <SkeletonBlock className="skeleton-pill" style={{ width: 112, height: 24 }} />
         </div>
         <div className="clip-group-grid">
           <TileSkeleton compact />
@@ -91,9 +91,8 @@ export function VodsPageSkeleton() {
         <div className="card-header-with-actions">
           <SkeletonLine style={{ width: "22%", height: 28 }} />
           <div className="card-header-actions">
-            <SkeletonBlock className="skeleton-pill" style={{ width: 128 }} />
-            <SkeletonBlock className="skeleton-pill" style={{ width: 112 }} />
-            <SkeletonBlock className="skeleton-pill" style={{ width: 42 }} />
+            <SkeletonBlock className="skeleton-pill" style={{ width: 112, height: 28 }} />
+            <SkeletonBlock className="skeleton-pill" style={{ width: 42, height: 28 }} />
           </div>
         </div>
         <div className="vod-list">

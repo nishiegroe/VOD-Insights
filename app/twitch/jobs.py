@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -10,6 +11,7 @@ from app.runtime_paths import get_downloads_dir
 
 
 DOWNLOADS_DIR = get_downloads_dir()
+ACTIVE_TWITCH_JOB_STATUSES = {"queued", "downloading", "scanning"}
 
 
 def sanitize_filename(filename: str) -> str:
@@ -63,3 +65,37 @@ def list_twitch_jobs(limit: int = 20) -> List[Dict[str, Any]]:
         if len(jobs) >= limit:
             break
     return jobs
+
+
+def prune_stale_twitch_jobs(max_age_seconds: int = 6 * 60 * 60) -> int:
+    """Remove stale in-progress Twitch job files so users can restart downloads.
+
+    A job is considered stale when:
+    - status is queued/downloading/scanning
+    - file modified time is older than max_age_seconds
+    """
+    if max_age_seconds <= 0 or not DOWNLOADS_DIR.exists():
+        return 0
+
+    cutoff = time.time() - max_age_seconds
+    removed = 0
+
+    for path in DOWNLOADS_DIR.glob("job_*.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        status = str(payload.get("status", "")).strip().lower()
+        if status not in ACTIVE_TWITCH_JOB_STATUSES:
+            continue
+
+        try:
+            if path.stat().st_mtime >= cutoff:
+                continue
+            path.unlink(missing_ok=True)
+            removed += 1
+        except Exception:
+            continue
+
+    return removed

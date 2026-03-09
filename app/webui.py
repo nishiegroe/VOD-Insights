@@ -45,6 +45,7 @@ from app.clips.titles import (
 from app.twitch.jobs import (
     is_twitch_vod_url,
     list_twitch_jobs,
+    prune_stale_twitch_jobs,
     read_twitch_job,
     write_twitch_job,
 )
@@ -1174,6 +1175,11 @@ def main() -> None:
     config = load_config()
     log_path = resolve_log_path(CONFIG_PATH, config.get("logging", {}).get("file", "app.log"))
     reset_log_file(log_path)
+
+    stale_removed = prune_stale_twitch_jobs()
+    if stale_removed:
+        print(f"Removed {stale_removed} stale Twitch download job(s) on startup.")
+
     port = int(os.environ.get("APEX_WEBUI_PORT", "5170"))
 
     # Initialize VOD downloader
