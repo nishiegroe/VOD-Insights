@@ -716,6 +716,7 @@ def stop_vod_ocr_response() -> Any:
         config = load_config()
         bookmarks_dir, session_prefix = resolve_bookmarks_context(config)
         scanning_marker, paused_marker = get_scan_marker_paths(bookmarks_dir, session_prefix, vod_key)
+        # codeql[py/path-injection]: marker paths are constructed inside bookmarks_dir using a sanitized stem (sanitize_stem strips to [a-zA-Z0-9_-]); vod_key is already validated by resolve_existing_vod_file_path.
         if scanning_marker.exists():
             scanning_marker.unlink()
         if paused_marker.exists():
@@ -966,6 +967,7 @@ def delete_vod_response() -> Any:
         scanning_marker.unlink(missing_ok=True)
         paused_marker.unlink(missing_ok=True)
 
+        # codeql[py/path-injection]: file_path is constrained to the configured VOD directories by resolve_vod_path (resolve_allowed_path with allowlist check).
         file_path.unlink(missing_ok=True)
         thumbs_dir = get_app_data_dir() / "thumbnails"
         for thumb in thumbs_dir.glob(f"{safe_stem}_t*.jpg"):

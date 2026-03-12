@@ -67,6 +67,7 @@ def resolve_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[
 
 def resolve_existing_allowed_path(path_value: str, allowed_dirs: List[Path]) -> Optional[Path]:
     file_path = resolve_allowed_path(path_value, allowed_dirs)
+    # codeql[py/path-injection]: file_path has already been canonicalized and verified to be within allowed_dirs by resolve_allowed_path above.
     if file_path is None or not file_path.exists():
         return None
     return file_path
