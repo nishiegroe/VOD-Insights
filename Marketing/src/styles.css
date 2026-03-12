@@ -1,0 +1,100 @@
+/* Gallery image hover grow effect */
+.gallery-img {
+  transition: transform 0.25s cubic-bezier(.4,2,.6,1);
+}
+.gallery-img:hover {
+  transform: scale(1.08);
+  z-index: 2;
+  box-shadow: 0 8px 32px rgba(255,179,71,0.18);
+}
+.zoom {
+  transition: transform 0.25s cubic-bezier(.4,2,.6,1);
+}
+.zoom:hover {
+  transform: scale(2);
+  z-index: 2;
+}
+.zoom-s {
+  transition: transform 0.25s cubic-bezier(.4,2,.6,1);
+}
+.zoom-s:hover {
+  transform: scale(1.1);
+  z-index: 2;
+}
+/* VOD Insights Marketing Site Styles */
+:root {
+  --bg: #0f1b1f;
+  --app-bg-gradient: #13242a;
+  --accent: #ffb347;
+  --accent-2: #ff7043;
+  --text: #f4f7f8;
+  --muted: #9fb0b7;
+  --border: #1f3640;
+  --card: radial-gradient(circle at 20% 20%, #1b3037 0%, #13242a 120%);
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+}
+body, .app-bg {
+  background: var(--app-bg-gradient);
+  color: var(--text);
+  min-height: 100vh;
+  margin: 0;
+}
+/* Basic section spacing */
+section {
+  margin: 0 auto 48px auto;
+  max-width: 900px;
+  padding: 32px 16px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 20px 50px rgba(8, 15, 18, 0.4);
+}
+/* Headings */
+h1, h2, h3 {
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+h1 {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+}
+h2 {
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+}
+h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+/* CTA Button */
+.cta-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--bg);
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 32px;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 16px rgba(255, 179, 71, 0.2);
+  cursor: pointer;
+  margin-top: 24px;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.cta-btn:hover {
+  /* background: linear-gradient(135deg, var(--accent-2), var(--accent)); */
+  box-shadow: 0 8px 24px rgba(255, 112, 67, 0.2);
+  transform: scale(1.05);
+}
+/* Responsive */
+@media (max-width: 600px) {
+  section {
+    padding: 18px 6px;
+    max-width: 100%;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+  h2 {
+    font-size: 1.1rem;
+  }
+}

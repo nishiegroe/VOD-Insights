@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-const GITHUB_RELEASE_ASSET_MAX_BYTES = 2147483648;
+const NAS_BASE_URL = process.env.AET_NAS_BASE_URL || "https://server.nishiegroe.com/d/s/17O8FTJqXgRqxWSs5bvCoaBMjcfIUdSt";
 
 function parseArgs(argv) {
   const args = {
@@ -119,16 +119,9 @@ async function main() {
 
   const installerPath = path.join(outputDir, installerName);
   const installerStat = fs.statSync(installerPath);
-  if (installerStat.size >= GITHUB_RELEASE_ASSET_MAX_BYTES) {
-    const gib = (installerStat.size / (1024 ** 3)).toFixed(2);
-    throw new Error(
-      `Installer is ${gib} GiB (${installerStat.size} bytes), which exceeds GitHub Releases asset limit of 2 GiB. ` +
-      `Build a smaller installer (for example, tesseract-only release) before publishing.`
-    );
-  }
   const installerSha256 = await sha256File(installerPath);
   const { owner, repo } = resolveRepo(args);
-  const releaseUrl = `https://github.com/${owner}/${repo}/releases/download/${tag}/${encodeURIComponent(installerName)}`;
+  const releaseUrl = `${NAS_BASE_URL}/${encodeURIComponent(installerName)}`;
 
   const latest = {
     version,
@@ -156,8 +149,8 @@ async function main() {
   console.log(`- Checksum: ${checksumsPath}`);
   console.log(`- Metadata: ${latestPath}`);
   console.log('');
-  console.log('Suggested upload command (GitHub CLI):');
-  console.log(`gh release create ${tag} "${path.relative(root, installerPath)}" "${path.relative(root, latestPath)}" "${path.relative(root, checksumsPath)}" --title "${appMeta.displayName || appMeta.internalName || 'Release'} ${tag}" --notes "${appMeta.displayName || appMeta.internalName || 'App'} ${tag}"`);
+  console.log('Next step — publish to NAS:');
+  console.log(`npm run release:nas`);
 }
 
 main().catch((error) => {

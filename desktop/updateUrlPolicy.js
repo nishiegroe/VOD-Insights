@@ -1,4 +1,4 @@
-const ALLOWED_UPDATE_HOSTS = new Set(["github.com", "objects.githubusercontent.com"]);
+const ALLOWED_UPDATE_HOSTS = new Set(["github.com", "objects.githubusercontent.com", "server.nishiegroe.com"]);
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
 
 function isLoopbackHost(hostname) {

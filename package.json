@@ -17,6 +17,7 @@
     "release:prep": "npm run sync:meta && node ./scripts/release_prep.cjs",
     "release:github": "npm run sync:meta && node ./scripts/publish_github_release.cjs",
     "release:github:stable": "npm run sync:meta && node ./scripts/publish_github_release.cjs --stable",
-    "release:github:promote": "npm run sync:meta && node ./scripts/publish_github_release.cjs --promote"
+    "release:github:promote": "npm run sync:meta && node ./scripts/publish_github_release.cjs --promote",
+    "release:nas": "node ./scripts/publish_nas_release.cjs"
   }
 }
