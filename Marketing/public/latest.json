@@ -1,0 +1,13 @@
+{
+  "version": "1.3.0",
+  "tag": "v1.3.0",
+  "publishedAt": "2026-03-11T00:00:00.000Z",
+  "notesUrl": "https://github.com/nishiegroe/VOD-Insights/releases/tag/v1.3.0",
+  "installer": {
+    "name": "VODInsights-Setup-1.3.0.exe",
+    "url": "https://server.nishiegroe.com/d/s/17O8FTJqXgRqxWSs5bvCoaBMjcfIUdSt/VODInsights-Setup-1.3.0.exe",
+    "sha256": "",
+    "size": 0
+  },
+  "minimumSupportedVersion": "1.3.0"
+}

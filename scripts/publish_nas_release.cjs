@@ -83,6 +83,12 @@ async function main() {
     console.log(`  ✓ ${fileName}`);
   }
 
+  // Keep Marketing/public/latest.json in sync so the next marketing site build
+  // picks up the new version without manually copying the file.
+  const marketingPublicLatest = path.join(root, 'Marketing', 'public', 'latest.json');
+  fs.copyFileSync(path.join(outputDir, 'latest.json'), marketingPublicLatest);
+  console.log(`  ✓ Marketing/public/latest.json updated`);
+
   console.log('');
   console.log(`Done. Files are live at:`);
   console.log(`  https://server.nishiegroe.com/d/s/17O8FTJqXgRqxWSs5bvCoaBMjcfIUdSt/latest.json`);
