@@ -3,9 +3,7 @@ function createUpdaterConfig({ processObj }) {
   const updateRequestTimeoutMs = 30000;
   const updateMaxRedirects = 5;
 
-  const updateRepoOwner = processObj.env.AET_UPDATE_REPO_OWNER || "nishiegroe";
-  const updateRepoName = processObj.env.AET_UPDATE_REPO_NAME || "VOD-Insights";
-  const defaultUpdateFeedUrl = `https://github.com/${updateRepoOwner}/${updateRepoName}/releases/latest/download/latest.json`;
+  const defaultUpdateFeedUrl = "https://server.nishiegroe.com/d/s/17O8FTJqXgRqxWSs5bvCoaBMjcfIUdSt/latest.json";
   const updateFeedUrl = processObj.env.AET_UPDATE_FEED_URL || defaultUpdateFeedUrl;
 
   return {
