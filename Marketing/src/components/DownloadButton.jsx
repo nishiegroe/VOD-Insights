@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 
-const NAS_LATEST_JSON = "https://server.nishiegroe.com/d/s/17O8FTJqXgRqxWSs5bvCoaBMjcfIUdSt/latest.json";
-
 export default function DownloadButton() {
   const [installerUrl, setInstallerUrl] = useState(null);
   const [version, setVersion] = useState(null);
@@ -11,7 +9,10 @@ export default function DownloadButton() {
   useEffect(() => {
     async function fetchLatestRelease() {
       try {
-        const res = await fetch(NAS_LATEST_JSON);
+        // Fetched from same origin to avoid CORS issues with the NAS share URL.
+        // In dev, Vite proxies /latest.json to the NAS automatically.
+        // In production, Marketing/public/latest.json is baked into the build.
+        const res = await fetch("/latest.json");
         if (!res.ok) throw new Error('Failed to fetch release');
         const data = await res.json();
         setVersion(data.version);

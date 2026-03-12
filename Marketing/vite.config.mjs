@@ -6,4 +6,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
   },
+  server: {
+    proxy: {
+      '/latest.json': {
+        target: 'https://server.nishiegroe.com',
+        changeOrigin: true,
+        rewrite: () => '/d/s/17O8FTJqXgRqxWSs5bvCoaBMjcfIUdSt/latest.json',
+      },
+    },
+  },
 });
