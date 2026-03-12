@@ -1,0 +1,20 @@
+{
+  "name": "vod-insights-marketing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Marketing site for VOD Insights application",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.4",
+    "apex-event-tracker-root": "file:..",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^4.0.0"
+  }
+}
